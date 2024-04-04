@@ -1,17 +1,23 @@
 from __future__ import annotations
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING
+from subprocess import Popen, PIPE
+from typing import TYPE_CHECKING, cast
 
 import mrcfile
 import numpy as np
-from pycudadecon import RLContext, TemporaryOTF, rl_decon
+
+from pycudadecon import make_otf
 
 
 if TYPE_CHECKING:
     from typing import Any
     from os import PathLike
-    from numpy.typing import NDArray
+    from numpy.typing import NDArray, DTypeLike
+
+
+__OTF_FILENAME = "{0}_{wavelength}_otf.tiff"
+__RECON_FILENAME = "{0}_{wavelength}_recon.tiff"
 
 
 def read_dv(
@@ -113,6 +119,60 @@ def split_dv_channels(
         ]
     return channel_images
 
+
+def create_otfs(
+    channel_dict: NDArray[Any],
+    psf_path: str | PathLike[str],
+    dz: float,
+    dx: float,
+    **kwargs,
+) -> NDArray[Any]:
+    psf_path = Path(psf_path)
+    otfs_dict = {}
+    for wavelength, psf_array in channel_dict.items():
+        otf_path = psf_path.parent / __OTF_FILENAME.format(
+            psf_path.stem, wavelength=wavelength
+        )
+        make_otf(
+            psf=psf_array,  # says it accepts str but the functions inside accept arrays
+            outpath=otf_path,
+            dzpsf=dz,
+            dxpsf=dx,
+            wavelength=wavelength,
+            **kwargs,
+        )
+        otfs_dict[wavelength] = otf_path
+    return otfs_dict
+
+
+def create_recon_commands(
+    image_path: str | PathLike[str],
+    wavelength: float,
+    otf_path: str | PathLike[str],
+    output_directory: str | PathLike[str] = None,
+    config: str | PathLike[str] = None,
+    **kwargs,
+) -> str:
+    image_path = Path(image_path)
+    if output_directory is None:
+        output_directory = image_path.parent
+    else:
+        output_directory = Path(output_directory)
+    output_path = output_directory / __RECON_FILENAME.format(
+        image_path.stem, wavelength=wavelength
+    )
+    command = ["condasirecon", str(image_path), str(output_path), str(otf_path)]
+    if config is not None:
+        command.extend(["-c", config])
+    if kwargs:
+        for key, value in kwargs.items():
+            command.extend([f"--{key}", str(value)])
+    return command
+
+
+def run_command(command: list[str]) -> Popen:
+    print(f"Running command: {' '.join(command)}")
+    return Popen(command, stdin=None, stdout=PIPE, stderr=PIPE)
 
 
 def save_result(
