@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "cryosim-recon"
+version = "0.1.0"
+description = "A simple tool to process Microscope-Cockpit's DV files with pyCUDAdecon"
+authors = ["Thomas Fish <thomas.fish@diamond.ac.uk>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+pycudadecon = "^0.4.1"
+mrcfile = "^1.5.0"
+numpy = "^1.26.4"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.1.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
