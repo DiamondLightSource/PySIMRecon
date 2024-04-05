@@ -1,4 +1,5 @@
 from __future__ import annotations
+import logging
 import sys
 from pathlib import Path
 from subprocess import Popen, PIPE
@@ -9,6 +10,16 @@ import numpy as np
 
 from pycudadecon import make_otf
 
+try:
+    import tqdm
+
+    progress_wrapper = tqdm
+except ImportError:
+    logging.info("tqdm not available, cannot monitor progress")
+
+    def progress_wrapper(x, **kwargs):
+        return x
+
 
 if TYPE_CHECKING:
     from typing import Any
@@ -17,6 +28,7 @@ if TYPE_CHECKING:
 
 
 __OTF_FILENAME = "{0}_{wavelength}_otf.tiff"
+__SPLIT_FILENAME = "{0}_{wavelength}.tiff"
 __RECON_FILENAME = "{0}_{wavelength}_recon.tiff"
 
 
@@ -27,11 +39,11 @@ def read_dv(
     dict[str, NDArray[Any]],
 ]:
 
-    with mrcfile.open(file_path, permissive=True) as f:
+    with mrcfile.open(file_path, mode="r", permissive=True, header_only=False) as f:
         voxel_dims = (
-            f.voxel_size.x,
-            f.voxel_size.y,
-            f.voxel_size.z,
+            float(f.voxel_size.x),
+            float(f.voxel_size.y),
+            float(f.voxel_size.z),
         )
         extended_header = f.extended_header
         image_array = np.asarray(f.data)
@@ -125,42 +137,64 @@ def create_otfs(
     psf_path: str | PathLike[str],
     dz: float,
     dx: float,
-    **kwargs,
-) -> NDArray[Any]:
+    overwrite: bool = False,
+    **kwargs: Any,
+) -> dict[float, Path]:
     psf_path = Path(psf_path)
     otfs_dict = {}
-    for wavelength, psf_array in channel_dict.items():
+    for wavelength, psf_array in progress_wrapper(
+        channel_dict.items(), desc=f"Creating OTFs from PSF: {psf_path}"
+    ):
         otf_path = psf_path.parent / __OTF_FILENAME.format(
             psf_path.stem, wavelength=wavelength
         )
-        make_otf(
-            psf=psf_array,  # says it accepts str but the functions inside accept arrays
-            outpath=otf_path,
-            dzpsf=dz,
-            dxpsf=dx,
-            wavelength=wavelength,
-            **kwargs,
-        )
+        if not otf_path.is_file() or overwrite:
+            if overwrite:
+                logging.warning(
+                    "Overwriting OTF for wavelength %f: %s", wavelength, otf_path
+                )
+            else:
+                logging.info("Creating OTF for wavelength %f: %s", wavelength, otf_path)
+            make_otf(
+                psf=psf_array,  # says it accepts str but the functions inside accept arrays
+                outpath=otf_path,
+                dzpsf=dz,
+                dxpsf=dx,
+                wavelength=wavelength,
+                **kwargs,
+            )
+        else:
+            logging.info(
+                "OTF for wavelength %f already exists: %s", wavelength, otf_path
+            )
+
         otfs_dict[wavelength] = otf_path
     return otfs_dict
 
 
+def psf_to_otfs(
+    psf_path: str | PathLike[str], overwrite: bool = False, **kwargs
+) -> dict[float, Path]:
+    psf_voxel_dims, psf_channel_dict = read_dv(psf_path)
+    logging.info("Creating OTFs from psf: %s", psf_path)
+    return create_otfs(
+        channel_dict=psf_channel_dict,
+        psf_path=psf_path,
+        dz=psf_voxel_dims[2],
+        dx=psf_voxel_dims[0],
+        overwrite=overwrite,
+        **kwargs,
+    )
+
+
 def create_recon_commands(
     image_path: str | PathLike[str],
-    wavelength: float,
     otf_path: str | PathLike[str],
-    output_directory: str | PathLike[str] = None,
+    output_path: str | PathLike[str] = None,
     config: str | PathLike[str] = None,
     **kwargs,
 ) -> str:
     image_path = Path(image_path)
-    if output_directory is None:
-        output_directory = image_path.parent
-    else:
-        output_directory = Path(output_directory)
-    output_path = output_directory / __RECON_FILENAME.format(
-        image_path.stem, wavelength=wavelength
-    )
     command = ["condasirecon", str(image_path), str(output_path), str(otf_path)]
     if config is not None:
         command.extend(["-c", config])
@@ -194,30 +228,67 @@ def save_result(
     mrcfile.write(output_path, result)
 
 
+def run_reconstructions(
+    output_directory: str | PathLike[str],
+    otf_paths: dict[float, str | PathLike[str]],
+    *sim_data_paths: str | PathLike[str],
+    config: str | PathLike[str] | None = None,
+    **kwargs,
+) -> None:
+
+    output_directory = Path(output_directory)
+    for sim_path in progress_wrapper(
+        sim_data_paths, desc="SIM data files", unit="file"
+    ):
+        logging.info("Splitting by emission wavelength: %s", sim_path)
+        sim_path = Path(sim_path)
+        voxel_dims, channel_image_dict = read_dv(sim_path)
+        commands = set()
+        for wavelength, image_stack in progress_wrapper(
+            channel_image_dict.items(),
+            desc=f"Splitting channels: {sim_path}",
+            unit="channel",
+        ):
+            split_path = output_directory / __SPLIT_FILENAME.format(
+                sim_path.stem, wavelength=wavelength
+            )
+            save_result(split_path, result=image_stack)
+            commands.add(
+                create_recon_commands(
+                    image_path=split_path,
+                    wavelength=wavelength,
+                    output_path=sim_path.parent
+                    / __RECON_FILENAME.format(sim_path.stem, wavelength),
+                    otf_path=otf_paths[wavelength],
+                    config=config,
+                    **kwargs,
+                )
+            )
+        processes: set[tuple[str, Popen]] = set()  # output file and process
+        logging.info("Starting reconstructions: %s", sim_path)
+        for command in tuple(commands):
+            processes.add((command[3], run_command(command)))
+            commands.discard(command)
+
+        logging.info("Waiting for reconstructions to complete: %s", sim_path)
+        for output_path, p in progress_wrapper(
+            tuple(processes), desc=f"Reconstructions: {sim_path}", unit="channel"
+        ):
+            logging.debug("Waiting for: %s", output_path)
+            p.wait()
+            logging.info("Reconstruction complete: %s", output_path)
+            processes.discard(p)
+        logging.info("Reconstructions complete: %s", sim_path)
+
+
 def run(
     output_directory: str | PathLike[str],
     psf_path: str | PathLike[str],
     *sim_data_paths: str | PathLike[str],
 ) -> None:
-    psf_voxel_dims, psf_channel_dict = read_dv(psf_path)
-    output_directory = Path(output_directory)
-    for sim_path in sim_data_paths:
-        sim_path = Path(sim_path)
-        voxel_dims, channel_image_dict = read_dv(sim_path)
-        for wavelength, image_stack in channel_image_dict.items():
-            save_result(
-                output_path=output_directory / f"{sim_path.stem}_{wavelength}.mrc",
-                result=run_recon(
-                    image_stack,
-                    psf_array=psf_channel_dict[wavelength],
-                    **{
-                        "dzdata": voxel_dims[2],
-                        "dxdata": voxel_dims[0],
-                        "dzpsf": psf_voxel_dims[2],
-                        "dxpsf": psf_voxel_dims[0],
-                    },
-                ),
-            )
+    psf_to_otfs(psf_path=psf_path, overwrite=True)
+    logging.info("Starting reconstructions")
+    run_reconstructions(output_directory, psf_path, *sim_data_paths)
 
 
 if __name__ == "__main__":
