@@ -46,7 +46,7 @@ def split_dv_channels(
         extended_header: NDArray[np.void],
         header_index: int,
         plane_index: int,
-        dtype: DTypeLike,
+        dtype: DTypeLike = np.float32,
     ) -> np.generic:
         """
         Interprets the dv format metadata from what the Cockpit developers know
