@@ -17,7 +17,7 @@ try:
 except ImportError:
     logging.info("tqdm not available, cannot monitor progress")
 
-    def progress_wrapper(x, **kwargs):
+    def progress_wrapper(x, *args, **kwargs):
         return x
 
 
