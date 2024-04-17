@@ -3,10 +3,10 @@ from copy import deepcopy
 from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
-import mrcfile
-from mrcfile.utils import printable_string_from_bytes, mode_from_dtype
-
 import numpy as np
+
+import mrcfile  # type: ignore[import-untyped]
+from mrcfile.utils import printable_string_from_bytes, mode_from_dtype  # type: ignore[import-untyped]
 
 
 if TYPE_CHECKING:
