@@ -1,5 +1,6 @@
 from __future__ import annotations
 from copy import deepcopy
+from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
 import mrcfile
@@ -10,6 +11,7 @@ import numpy as np
 
 if TYPE_CHECKING:
     from typing import Any, Self
+    from collections.abc import Generator
     from os import PathLike
     from numpy.typing import NDArray
     from mrcfile.mrcfile import MrcFile
@@ -25,6 +27,19 @@ class SliceableMrc:
         self.data = data
         self.header = header
         self.extended_header = extended_header
+
+    @contextmanager
+    @classmethod
+    def open(
+        cls, path: str | PathLike[str], permissive: bool = False
+    ) -> Generator[Self, None, None]:
+        try:
+            mrc = mrcfile.mmap(path, permissive=permissive)
+            yield cls(
+                data=mrc.data, header=mrc.header, extended_header=mrc.extended_header
+            )
+        finally:
+            mrc.close()
 
     @classmethod
     def from_mrc(cls, mrc: MrcFile) -> Self:
