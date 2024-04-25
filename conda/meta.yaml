@@ -1,0 +1,43 @@
+{% set name = "b24_cryosim_recon" %}
+{% set version = "0.1.0" %}
+
+package:
+  name: {{ name|lower }}
+  version: {{ version }}
+
+source:
+  path: ../
+
+build:
+  number: 0
+  script: "{{ PYTHON }} -m pip install . -vv"
+  skip: True  # [py<37]
+
+requirements:
+  host:
+    - python
+    - pip
+  run:
+    - python
+    - pycudadecon ~=0.4.1
+    - pycudasirecon ~=0.1.0
+    - mrcfile ~=1.5.0
+    - numpy ~=1.26.4
+    - ome-types >=0.5.1, <=0.6
+    - tifffile >=2024.2.12
+
+about:
+  home: https://github.com/thomasmfish/CryoSIM-recon
+  license: MIT
+  license_file:
+    - LICENSE
+  summary: 'A simple tool to reconstruct images from DLS B24's cryoSIM'
+  description: |
+    A simple tool to reconstruct Microscope-Cockpit's DV files with
+    pyCUDAdecon and pyCUDAsirecon from DLS B24's cryoSIM
+  doc_source_url: https://github.com/thomasmfish/CryoSIM-recon/blob/master/README.md
+  dev_url: https://github.com/thomasmfish/CryoSIM-recon
+
+extra:
+  recipe-maintainers:
+    - thomasmfish

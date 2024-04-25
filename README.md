@@ -1,6 +1,6 @@
 # cryosim-recon
 
-A simple tool to process Microscope-Cockpit's DV files with pyCUDAdecon
+A simple tool to reconstruct Microscope-Cockpit's DV files with pyCUDAsirecon from DLS B24's cryoSIM
 
 ### Goal
 
