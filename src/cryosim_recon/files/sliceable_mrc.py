@@ -6,7 +6,9 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 import mrcfile  # type: ignore[import-untyped]
-from mrcfile.utils import printable_string_from_bytes, mode_from_dtype  # type: ignore[import-untyped]
+from mrcfile.mrcfile import MrcFile
+from mrcfile.mrcobject import MrcObject  # type: ignore[import-untyped]
+from mrcfile.utils import mode_from_dtype  # type: ignore[import-untyped]
 
 
 if TYPE_CHECKING:
@@ -14,32 +16,10 @@ if TYPE_CHECKING:
     from collections.abc import Generator
     from os import PathLike
     from numpy.typing import NDArray
-    from mrcfile.mrcfile import MrcFile
+    from mrcfile.mrcfile import MrcFile  # type: ignore[import-untyped]
 
 
-class SliceableMrc:
-    def __init__(
-        self,
-        data: NDArray[Any],
-        header: np.record,
-        extended_header: NDArray[np.void_],
-    ) -> None:
-        self.data = data
-        self.header = header
-        self.extended_header = extended_header
-
-    @contextmanager
-    @classmethod
-    def open(
-        cls, path: str | PathLike[str], permissive: bool = False
-    ) -> Generator[Self, None, None]:
-        try:
-            mrc = mrcfile.mmap(path, permissive=permissive)
-            yield cls(
-                data=mrc.data, header=mrc.header, extended_header=mrc.extended_header
-            )
-        finally:
-            mrc.close()
+class SliceableMrc(MrcFile):
 
     @classmethod
     def from_mrc(cls, mrc: MrcFile) -> Self:
@@ -49,28 +29,26 @@ class SliceableMrc:
             extended_header=mrc.extended_header,
         )
 
-    def get_labels(self) -> list[str]:
-        return [
-            label
-            for bytes_ in self.header.label[: self.header.nlabl]
-            for label in printable_string_from_bytes(bytes_)
-        ]
-
     def write(self, path: str | PathLike[str], overwrite: bool = False) -> None:
+        kwargs = {}
+        if self.extended_header is not None:
+            if self.header is not None:
+                kwargs["exttyp"] = self.header.exttyp
+                kwargs["extended_header"] = self.extended_header
+                # Cannot have extended header without header
+
         with mrcfile.new_mmap(
             path,
             shape=self.data.shape,
             mrc_mode=mode_from_dtype(self.data.dtype),
             overwrite=overwrite,
-            extended_header=self.extended_header,
-            exttyp=self.header.exttyp,
+            **kwargs,
         ) as mrc:
             mrc.set_data(self.data)
             for label in self.get_labels():
                 mrc.add_label(label)
             mrc.update_header_from_data()
             mrc.update_header_stats()
-
             mrc.flush()
 
     def __get_header_slice(self, indexes: tuple[int, int, int]) -> NDArray[np.void_]:
@@ -111,3 +89,18 @@ class SliceableMrc:
             ),
             extended_header=extended_header,
         )
+
+
+class FromInfoSliceableMrc(SliceableMrc):
+    def __init__(
+        self,
+        data: NDArray[Any],
+        header: np.record | None = None,
+        extended_header: NDArray[np.void_] | None = None,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(**kwargs)
+        self._header = header
+        self._extended_header = extended_header
+        self._data = data
+        self._read_only = True

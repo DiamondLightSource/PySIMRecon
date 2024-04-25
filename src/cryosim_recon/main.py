@@ -1,11 +1,11 @@
 from __future__ import annotations
 import logging
+import os
 import sys
 from pathlib import Path
-from subprocess import Popen, PIPE
 from typing import TYPE_CHECKING
 
-from pycudadecon import make_otf
+from pycudasirecon import make_otf, SIMReconstructor, ReconParams  # type: ignore[import-untyped]
 
 try:
     import tqdm
@@ -19,7 +19,7 @@ except ImportError:
 
 
 from .files import save, create_filename, read_dv
-
+from .files import SliceableMrc, get_channel_slices, HeaderIndexes, WavelengthTypeEnum
 
 if TYPE_CHECKING:
     from typing import Any
@@ -30,8 +30,6 @@ if TYPE_CHECKING:
 def create_otfs(
     channel_dict: NDArray[Any],
     psf_path: str | PathLike[str],
-    dz: float,
-    dx: float,
     overwrite: bool = False,
     **kwargs: Any,
 ) -> dict[float, Path]:
@@ -48,14 +46,12 @@ def create_otfs(
                 logging.warning(
                     "Overwriting OTF for wavelength %f: %s", wavelength, otf_path
                 )
+                os.unlink(otf_path)
             else:
                 logging.info("Creating OTF for wavelength %f: %s", wavelength, otf_path)
             make_otf(
                 psf=psf_array,  # says it accepts str but the functions inside accept arrays
-                outpath=otf_path,
-                dzpsf=dz,
-                dxpsf=dx,
-                wavelength=wavelength,
+                out_file=otf_path,
                 **kwargs,
             )
         else:
@@ -82,42 +78,118 @@ def psf_to_otfs(
     )
 
 
-def create_recon_commands(
-    image_path: str | PathLike[str],
-    voxel_dims: tuple[float, float, float],
-    psf_voxel_dims: tuple[float, float, float],
-    wavelength: float,
+def reconstruct_wavelength(
+    sim_array: NDArray[Any],
     otf_path: str | PathLike[str],
-    output_path: str | PathLike[str] = None,
-    config: str | PathLike[str] = None,
-    **kwargs,
+    output_directory: str | PathLike[str],
+    output_stem: str,
+    wavelength: int,
+    xyres: float,
+    zres: float,
+    overwrite: bool = False,
+    **params: Any,
+) -> Path:
+    output_directory = Path(output_directory)
+    otf_path = Path(otf_path)
+    if not otf_path.is_file():
+        raise FileNotFoundError(f"OTF file {otf_path} does not exist")
+    params = ReconParams(
+        otf_file=str(otf_path),
+        xyres=xyres,
+        zres=zres,
+        wavelength=wavelength,
+        **params,
+    )
+    config_path = output_directory / f"{output_stem}_{wavelength}_cudasirecon.cfg"
+    output_path = output_directory / f"{output_stem}_{wavelength}.mrc"
+    save_params(
+        config_path,
+        params=params,
+    )
+    rec_array = run_recon(sim_array, config_path=config_path)
+    SliceableMrc(data=rec_array).write(
+        output_path,
+        overwrite=overwrite,
+    )
+    return output_path
+
+
+def run_recon(array: NDArray[Any], config_path: str | PathLike[str]) -> NDArray[Any]:
+    return SIMReconstructor(array, config=config_path).get_result()
+
+
+def combine_wavelengths(
+    output_file: str | PathLike[str],
+    *file_paths: str | PathLike[str],
+    delete: bool = False,
 ) -> str:
+    # TODO: ARGH  WHAT VERSION OF MRC DO I USE?
+    # DV uses old style: https://github.com/tlambert03/mrc?tab=readme-ov-file#priism-dv-mrc-header-format
+    # See https://bio3d.colorado.edu/imod/betaDoc/mrc_format.txt for current and old
+    data = [mrc.imread(fname) for fname in file_list]
+    waves = [0, 0, 0, 0, 0]
+    for i, item in enumerate(data):
+        waves[i] = item.Mrc.hdr.wave[0]
+    hdr = data[0].Mrc.hdr
+    m = mrc.Mrc2(outfile, mode="w")
+    array = np.stack(data, -3)
+    m.initHdrForArr(array)
+    mrc.copyHdrInfo(m.hdr, hdr)
+    m.hdr.NumWaves = len(file_list)
+    m.hdr.wave = waves
+    m.writeHeader()
+    m.writeStack(array)
+    m.close()
+    if delete:
+        try:
+            [os.remove(f) for f in file_list]
+        except Exception:
+            pass
+    return outfile
+
+
+def reconstruct(
+    image_path: str | PathLike[str],
+    otf_paths: dict[int, str | PathLike[str]],
+    output_directory: str | PathLike[str],
+    overwrite: bool = False,
+    **params: Any,
+) -> None:
     image_path = Path(image_path)
-    command = [
-        "condasirecon",
-        str(image_path),
-        str(output_path),
-        str(otf_path),
-        "--xyres",
-        str(voxel_dims[0]),
-        "--zres",
-        str(voxel_dims[2]),
-        "--wavelength",
-        str(int(wavelength)),  # nm
-        "--zresPSF",
-        str(psf_voxel_dims[2]),
-    ]
-    if config is not None:
-        command.extend(["-c", config])
-    if kwargs:
-        for key, value in kwargs.items():
-            command.extend([f"--{key}", str(value)])
-    return command
+    if not image_path.is_file():
+        raise FileNotFoundError(f"Image file {image_path} does not exist")
+
+    intermediate_files = []
+    with SliceableMrc.open_file(image_path, permissive=True) as sim_mrc:
+        wavelength_slices = get_channel_slices(
+            sim_mrc.extended_header, wavelength_type=WavelengthTypeEnum.Emission
+        )
+        for wavelength, wavelength_slice in wavelength_slices:
+            try:
+                int_wavelength = int(wavelength)
+                otf_path = otf_paths[int_wavelength]
+                intermediate_files.append(
+                    reconstruct_wavelength(
+                        sim_mrc[wavelength_slice],
+                        otf_path=otf_path,
+                        output_directory=output_directory,
+                        output_stem=image_path.stem,
+                        xyres=sim_mrc.voxel_size.x,
+                        zres=sim_mrc.voxel_size.z,
+                        overwrite=overwrite,
+                        **params,
+                    )
+                )
+            except Exception:
+                logging.error("Failed to reconstruct wavelength %i", int_wavelength)
 
 
-def run_command(command: list[str]) -> Popen:
-    print(f"Running command: {' '.join(command)}")
-    return Popen(command, stdin=None, stdout=PIPE, stderr=PIPE)
+def save_params(config_path: str | PathLike[str], params: ReconParams) -> Path:
+    with open(config_path, "w+") as f:
+        f.write(params.to_config())
+
+
+# def save_result(array: NDArray[Any], output_path: )
 
 
 def run_reconstructions(

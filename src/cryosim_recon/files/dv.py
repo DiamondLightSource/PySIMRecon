@@ -1,18 +1,22 @@
 from __future__ import annotations
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal, get_args
 
-import mrcfile
-from mrcfile.mrcfile import MrcFile
 import numpy as np
 
-from . import ImageWithMetadata
-
-
 if TYPE_CHECKING:
-    from typing import Any
+    from typing import TypeAlias
+    from collections.abc import Generator
     from os import PathLike
-    from numpy.typing import NDArray, DTypeLike
+    from numpy.typing import NDArray
+
+
+class WavelengthTypeEnum(Enum):
+    Emission = "emission"
+    Exception = "excitation"
+
+
+WavelengthType: TypeAlias = Literal["emission", "excitation"] | WavelengthTypeEnum
 
 
 class HeaderIndexes(Enum):
@@ -38,64 +42,61 @@ class HeaderIndexes(Enum):
     # EnergyConversionFactor = 13
 
 
-def read_dv(
-    file_path: str | PathLike[str],
-) -> ImageWithMetadata:
+# def read_dv(
+#     file_path: str | PathLike[str],
+# ) -> SliceableMrc:
 
-    with mrcfile.open(file_path, mode="r", permissive=True, header_only=False) as f:
-        voxel_size = f.voxel_size
-        extended_header = f.extended_header
-        image_array = np.asarray(f.data)
-    emission_wavelengths = _get_eh_value_all_planes(
-        extended_header, header_index=HeaderIndexes.EmissionWavelength
-    )
-    timestamps = _get_eh_value_all_planes(
-        extended_header, header_index=HeaderIndexes.ElapsedTime
-    )
-    excitation_wavelengths = _get_eh_value_all_planes(
-        extended_header, header_index=HeaderIndexes.ExcitationWavelength
-    )
-    emission_wavelengths = _get_eh_value_all_planes(
-        extended_header, header_index=HeaderIndexes.EmissionWavelength
-    )
-    xs = _get_eh_value_all_planes(
-        extended_header, header_index=HeaderIndexes.StageCoordinateX
-    )
-    ys = _get_eh_value_all_planes(
-        extended_header, header_index=HeaderIndexes.StageCoordinateY
-    )
-    zs = _get_eh_value_all_planes(
-        extended_header, header_index=HeaderIndexes.StageCoordinateZ
-    )
-    return ImageWithMetadata(
-        image=image_array,
-        xs=xs,
-        ys=ys,
-        zs=zs,
-        x_size=float(voxel_size.x),
-        y_size=float(voxel_size.y),
-        z_size=float(voxel_size.z),
-        timestamps=timestamps,
-        excitation_wavelengths=excitation_wavelengths,
-        emission_wavelengths=emission_wavelengths,
-    )
+#     with mrcfile.mmap(file_path, mode="r", permissive=True) as f:
+#         voxel_size = f.voxel_size
+#         extended_header = f.extended_header
+#         image_array = f.data
+#     emission_wavelengths = _get_eh_value_all_planes(
+#         extended_header, header_index=HeaderIndexes.EmissionWavelength
+#     )
+#     timestamps = _get_eh_value_all_planes(
+#         extended_header, header_index=HeaderIndexes.ElapsedTime
+#     )
+#     excitation_wavelengths = _get_eh_value_all_planes(
+#         extended_header, header_index=HeaderIndexes.ExcitationWavelength
+#     )
+#     emission_wavelengths = _get_eh_value_all_planes(
+#         extended_header, header_index=HeaderIndexes.EmissionWavelength
+#     )
+#     xs = _get_eh_value_all_planes(
+#         extended_header, header_index=HeaderIndexes.StageCoordinateX
+#     )
+#     ys = _get_eh_value_all_planes(
+#         extended_header, header_index=HeaderIndexes.StageCoordinateY
+#     )
+#     zs = _get_eh_value_all_planes(
+#         extended_header, header_index=HeaderIndexes.StageCoordinateZ
+#     )
+#     return ImageWithMetadata(
+#         image=image_array,
+#         xs=xs,
+#         ys=ys,
+#         zs=zs,
+#         x_size=float(voxel_size.x),
+#         y_size=float(voxel_size.y),
+#         z_size=float(voxel_size.z),
+#         timestamps=timestamps,
+#         excitation_wavelengths=excitation_wavelengths,
+#         emission_wavelengths=emission_wavelengths,
+#     )
 
 
 def _get_eh_value_all_planes(
-    extended_header: NDArray[np.void], header_index: int, dtype: DTypeLike = np.float32
-) -> np.generic:
-
+    extended_header: NDArray[np.void],
+    header_index: int | HeaderIndexes,
+) -> tuple[np.float32, ...]:
     i = 0
     values = []
+    if isinstance(header_index, HeaderIndexes):
+        header_index = header_index.value
     try:
         for i in range(50000):  # something too big to be real
             values.append(
-                _get_eh_value(
-                    extended_header,
-                    header_index=header_index,
-                    plane_index=i,
-                    dtype=dtype,
-                )
+                _get_eh_value(extended_header, header_index=header_index, plane_index=i)
             )
     except Exception:
         pass
@@ -106,8 +107,7 @@ def _get_eh_value(
     extended_header: NDArray[np.void],
     header_index: int,
     plane_index: int,
-    dtype: DTypeLike = np.float32,
-) -> np.generic:
+) -> np.float32:
     """
     Interprets the dv format metadata from what the Cockpit developers know
 
@@ -137,53 +137,44 @@ def _get_eh_value(
         13          | energy conversion factor (usually 1)
 
     """
+
     value_size_bytes = 4  # (32 / 8) first 8 are ints, rest are floats
     integer_bytes = 8 * value_size_bytes
     float_bytes = 32 * value_size_bytes
     plane_offset = (integer_bytes + float_bytes) * plane_index
     bytes_index = integer_bytes + plane_offset + header_index * value_size_bytes
+
     return np.frombuffer(
         extended_header,
-        dtype=dtype,
+        dtype=np.float32,
         count=1,
         offset=bytes_index,
     )[0]
 
 
-class SliceableMrc(MrcFile):
-    def __init__(
-        self, data: NDArray[Any], header: np.record, extended_header: NDArray[np.void_]
-    ) -> None:
-        self.data = data
-        self.header = header
-        self.extended_header = extended_header
-
-    def write(self, path: str | PathLike[str], overwrite: bool = False) -> None:
-        with mrcfile.open(path, mode="w+", permissive=True) as mrc:
-            mrc.header = self.header
-            mrc.set_extended_header(self.extended_header)
-            mrc.set_data(self.data)
-
-    @staticmethod
-    def __extended_header_slicer__(plane: slice | int) -> slice:
-        value_size_bytes = 4  # (32 / 8) first 8 are ints, rest are floats
-        integer_bytes = 8 * value_size_bytes
-        float_bytes = 32 * value_size_bytes
-        multiplier = (integer_bytes + float_bytes) * value_size_bytes
-        if isinstance(plane, slice):
-            return slice(
-                None if i is None else i * multiplier
-                for i in (plane.start, plane.stop, plane.step)
-            )
-        return plane * multiplier
-
-    def __getitem__(self, val: int | slice) -> "SliceableMrc":
-        return SliceableMrc(
-            image=self.data[val, :, :],
-            header=self.header,
-            # TODO: Figure out what needs changing in the header (definitely nz, possibly nzstart, mz, cella[3], nsymbt (extended header size))
-            # Note: https://www.ccpem.ac.uk/mrc_format/mrc2014.php
-            extended_header=self.extended_header[
-                SliceableMrc._calculate_eh_plane_slice(val)
-            ],
+def get_channel_slices(
+    extended_header: NDArray[np.void_],
+    wavelength_type: WavelengthType,
+) -> Generator[tuple[float, slice], None, None]:
+    current_wavelength: float = -1
+    channel_start: int = 0
+    if isinstance(wavelength_type, WavelengthTypeEnum):
+        wavelength_type = wavelength_type.value
+    if wavelength_type == "emission":
+        header_index = HeaderIndexes.EmissionWavelength
+    elif wavelength_type == "excitation":
+        header_index = HeaderIndexes.ExcitationWavelength
+    else:
+        raise ValueError(
+            f"wavelength_type received invalid value: {wavelength_type}, allowed={get_args(WavelengthType)}"
         )
+    wavelengths = _get_eh_value_all_planes(extended_header, header_index=header_index)
+    for plane_index, wavelength in enumerate(map(float, wavelengths)):
+        if wavelength != current_wavelength:
+            if current_wavelength != -1:
+                yield current_wavelength, slice(channel_start, plane_index)
+
+            channel_start = plane_index
+            current_wavelength = wavelength
+        # Add final channel
+        yield current_wavelength, slice(channel_start, plane_index)
