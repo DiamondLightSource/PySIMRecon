@@ -5,7 +5,11 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from pycudasirecon import make_otf, SIMReconstructor, ReconParams  # type: ignore[import-untyped]
+from pycudasirecon import reconstruct, make_otf, SIMReconstructor, ReconParams  # type: ignore[import-untyped]
+
+from .files.config import read_input_config
+from .prep import prepare_files
+from .settings import SettingsManager
 
 try:
     import tqdm
@@ -17,9 +21,6 @@ except ImportError:
     def progress_wrapper(x, *args, **kwargs):
         return x
 
-
-from .files import save, create_filename, read_dv
-from .files import SliceableMrc, get_channel_slices, HeaderIndexes, WavelengthTypeEnum
 
 if TYPE_CHECKING:
     from typing import Any
@@ -117,37 +118,8 @@ def reconstruct_wavelength(
 def run_recon(array: NDArray[Any], config_path: str | PathLike[str]) -> NDArray[Any]:
     return SIMReconstructor(array, config=config_path).get_result()
 
-
-def combine_wavelengths(
-    output_file: str | PathLike[str],
-    *file_paths: str | PathLike[str],
-    delete: bool = False,
-) -> str:
-    # TODO: ARGH  WHAT VERSION OF MRC DO I USE?
-    # DV uses old style: https://github.com/tlambert03/mrc?tab=readme-ov-file#priism-dv-mrc-header-format
-    # See https://bio3d.colorado.edu/imod/betaDoc/mrc_format.txt for current and old
-    data = [mrc.imread(fname) for fname in file_list]
-    waves = [0, 0, 0, 0, 0]
-    for i, item in enumerate(data):
-        waves[i] = item.Mrc.hdr.wave[0]
-    hdr = data[0].Mrc.hdr
-    m = mrc.Mrc2(outfile, mode="w")
-    array = np.stack(data, -3)
-    m.initHdrForArr(array)
-    mrc.copyHdrInfo(m.hdr, hdr)
-    m.hdr.NumWaves = len(file_list)
-    m.hdr.wave = waves
-    m.writeHeader()
-    m.writeStack(array)
-    m.close()
-    if delete:
-        try:
-            [os.remove(f) for f in file_list]
-        except Exception:
-            pass
-    return outfile
-
-
+#TODO: Make this sensible and working
+#TODO: Figure out when I'm converting PSFs vs looking fot OTFs
 def reconstruct(
     image_path: str | PathLike[str],
     otf_paths: dict[int, str | PathLike[str]],
@@ -159,11 +131,9 @@ def reconstruct(
     if not image_path.is_file():
         raise FileNotFoundError(f"Image file {image_path} does not exist")
 
+
     intermediate_files = []
-    with SliceableMrc.open_file(image_path, permissive=True) as sim_mrc:
-        wavelength_slices = get_channel_slices(
-            sim_mrc.extended_header, wavelength_type=WavelengthTypeEnum.Emission
-        )
+
         for wavelength, wavelength_slice in wavelength_slices:
             try:
                 int_wavelength = int(wavelength)
@@ -194,20 +164,16 @@ def save_params(config_path: str | PathLike[str], params: ReconParams) -> Path:
 
 def run_reconstructions(
     output_directory: str | PathLike[str],
-    otf_paths: dict[float, str | PathLike[str]],
     *sim_data_paths: str | PathLike[str],
-    config: str | PathLike[str] | None = None,
+    config_path: str | PathLike[str] | None = None,
     stitch_channels: bool = True,
+    cleanup:bool=False,
     **kwargs,
 ) -> None:
-
-    output_directory = Path(output_directory)
-    for sim_path in progress_wrapper(
-        sim_data_paths, desc="SIM data files", unit="file"
-    ):
-        logging.info("Splitting by emission wavelength: %s", sim_path)
-        sim_path = Path(sim_path)
-        dv_with_metadata = read_dv(sim_path)
+    config = read_input_config(config_path)
+    settings = SettingsManager(defaults_config=config.get("configs", "defaults"), wavelengths_config=config.get("configs", "wavelengths"))
+    for sim_data_path in progress_wrapper(sim_data_paths, desc="SIM data files", unit="file"):
+        prepare_files(sim_data_path, output_directory, settings=settings, cleanup=cleanup)
         commands = set()
         output_paths = dict()
         for channel_with_metadata in progress_wrapper(
