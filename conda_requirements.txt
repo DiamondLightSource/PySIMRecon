@@ -1,0 +1,6 @@
+python >= 3.11
+pip
+pycudasirecon ~= 0.1.0
+mrc ~= 0.3.1
+numpy ~= 1.26.4
+tifffile >= 2024.2.12
