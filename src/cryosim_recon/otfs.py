@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from typing import Any
     from os import PathLike
 
+# TODO: Use TIFFs are for OTFs as DV files are not supported
 
 logger = logging.getLogger(__name__)
 
