@@ -8,6 +8,7 @@ from pathlib import Path
 from shutil import copyfile
 import numpy as np
 import mrc
+import tifffile as tf
 from typing import TYPE_CHECKING, NamedTuple
 
 from .utils import create_filename
@@ -35,6 +36,7 @@ def read_dv(file_path: str | PathLike[str]) -> mrc.DVFile:
 
 
 def combine_wavelengths_dv(
+    input_file: str | PathLike[str],
     output_file: str | PathLike[str],
     *file_paths: str | PathLike[str],
     delete: bool = False,
@@ -44,28 +46,16 @@ def combine_wavelengths_dv(
         output_file,
         "\n\t".join(str(fp) for fp in file_paths),
     )
-    dv_files = [read_dv(fp) for fp in file_paths]
-    try:
-        waves = [0, 0, 0, 0, 0]
-        for i, item in enumerate(dv_files):
-            waves[i] = item.Mrc.hdr.wave[0]
-        hdr = dv_files[0].hdr
-        m = mrc.Mrc2(output_file, mode="w")
-        # Use memmap rather than asarray
-        array = np.stack((dv.data.squeeze() for dv in dv_files), -3)
-        m.initHdrForArr(array)
-        mrc.copyHdrInfo(m.hdr, hdr)
-        m.hdr.NumWaves = len(file_paths)
-        m.hdr.wave = waves
-        m.writeHeader()
-        m.writeStack(array)
-        m.close()
-    finally:
-        for dv in dv_files:
-            try:
-                dv.close()
-            except Exception:
-                pass
+    with read_dv(input_file) as dv:
+        hdr = dv.hdr
+    m = mrc.Mrc2(output_file, mode="w")
+    # Use memmap rather than asarray
+    array = np.stack((tf.memmap(fp).squeeze() for fp in file_paths), -3)
+    m.initHdrForArr(array)
+    mrc.copyHdrInfo(m.hdr, hdr)
+    m.writeHeader()
+    m.writeStack(array)
+    m.close()
 
     if delete:
         try:
