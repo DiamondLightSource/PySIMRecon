@@ -1,180 +1,198 @@
-from __future__ import annotations
-from enum import Enum
-from typing import TYPE_CHECKING, Literal, get_args
+"""This file contains functions adapted from https://github.com/scopetools/cudasirecon/blob/master/recon.py"""
 
+from __future__ import annotations
+
+import logging
+import os
+from pathlib import Path
+from shutil import copyfile
 import numpy as np
+import mrc
+from typing import TYPE_CHECKING, NamedTuple
+
+from .utils import create_filename
+from .config import create_wavelength_config
 
 if TYPE_CHECKING:
-    from typing import TypeAlias
-    from collections.abc import Generator
+    from typing import Any
     from os import PathLike
     from numpy.typing import NDArray
+    from ..settings import SettingsManager
 
 
-class WavelengthTypeEnum(Enum):
-    Emission = "emission"
-    Exception = "excitation"
+logger = logging.getLogger(__name__)
 
 
-WavelengthType: TypeAlias = Literal["emission", "excitation"] | WavelengthTypeEnum
+class ProcessingFiles(NamedTuple):
+    image_path: Path
+    otf_path: Path
+    config_path: Path
 
 
-class HeaderIndexes(Enum):
-    """
-    DV file extended header indexes for float values
-
-    Values Cockpit doesn't use have been commented out
-    """
-
-    # PhotosensorReading = 0
-    ElapsedTime = 1
-    StageCoordinateX = 2
-    StageCoordinateY = 3
-    StageCoordinateZ = 4
-    # MinimumIntensity = 5
-    # MaximumIntensity = 6
-    # MeanIntensity = 7
-    # ExposureTime = 8
-    # NeutralDensity = 9
-    ExcitationWavelength = 10
-    EmissionWavelength = 11
-    # IntensityScaling = 12
-    # EnergyConversionFactor = 13
+def read_dv(file_path: str | PathLike[str]) -> mrc.DVFile:
+    logger.debug("Reading %s", file_path)
+    return mrc.DVFile(file_path)
 
 
-# def read_dv(
-#     file_path: str | PathLike[str],
-# ) -> SliceableMrc:
-
-#     with mrcfile.mmap(file_path, mode="r", permissive=True) as f:
-#         voxel_size = f.voxel_size
-#         extended_header = f.extended_header
-#         image_array = f.data
-#     emission_wavelengths = _get_eh_value_all_planes(
-#         extended_header, header_index=HeaderIndexes.EmissionWavelength
-#     )
-#     timestamps = _get_eh_value_all_planes(
-#         extended_header, header_index=HeaderIndexes.ElapsedTime
-#     )
-#     excitation_wavelengths = _get_eh_value_all_planes(
-#         extended_header, header_index=HeaderIndexes.ExcitationWavelength
-#     )
-#     emission_wavelengths = _get_eh_value_all_planes(
-#         extended_header, header_index=HeaderIndexes.EmissionWavelength
-#     )
-#     xs = _get_eh_value_all_planes(
-#         extended_header, header_index=HeaderIndexes.StageCoordinateX
-#     )
-#     ys = _get_eh_value_all_planes(
-#         extended_header, header_index=HeaderIndexes.StageCoordinateY
-#     )
-#     zs = _get_eh_value_all_planes(
-#         extended_header, header_index=HeaderIndexes.StageCoordinateZ
-#     )
-#     return ImageWithMetadata(
-#         image=image_array,
-#         xs=xs,
-#         ys=ys,
-#         zs=zs,
-#         x_size=float(voxel_size.x),
-#         y_size=float(voxel_size.y),
-#         z_size=float(voxel_size.z),
-#         timestamps=timestamps,
-#         excitation_wavelengths=excitation_wavelengths,
-#         emission_wavelengths=emission_wavelengths,
-#     )
-
-
-def _get_eh_value_all_planes(
-    extended_header: NDArray[np.void],
-    header_index: int | HeaderIndexes,
-) -> tuple[np.float32, ...]:
-    i = 0
-    values = []
-    if isinstance(header_index, HeaderIndexes):
-        header_index = header_index.value
+def combine_wavelengths_dv(
+    output_file: str | PathLike[str],
+    *file_paths: str | PathLike[str],
+    delete: bool = False,
+) -> str:
+    logger.debug(
+        "Combining wavelengths to %s from:\n%s",
+        output_file,
+        "\n\t".join(str(fp) for fp in file_paths),
+    )
+    dv_files = [read_dv(fp) for fp in file_paths]
     try:
-        for i in range(50000):  # something too big to be real
-            values.append(
-                _get_eh_value(extended_header, header_index=header_index, plane_index=i)
-            )
-    except Exception:
-        pass
-    return tuple(values)
+        waves = [0, 0, 0, 0, 0]
+        for i, item in enumerate(dv_files):
+            waves[i] = item.Mrc.hdr.wave[0]
+        hdr = dv_files[0].hdr
+        m = mrc.Mrc2(output_file, mode="w")
+        # Use memmap rather than asarray
+        array = np.stack((dv.data.squeeze() for dv in dv_files), -3)
+        m.initHdrForArr(array)
+        mrc.copyHdrInfo(m.hdr, hdr)
+        m.hdr.NumWaves = len(file_paths)
+        m.hdr.wave = waves
+        m.writeHeader()
+        m.writeStack(array)
+        m.close()
+    finally:
+        for dv in dv_files:
+            try:
+                dv.close()
+            except Exception:
+                pass
+
+    if delete:
+        try:
+            [os.remove(f) for f in file_paths]
+        except Exception:
+            pass
+
+    return output_file
 
 
-def _get_eh_value(
-    extended_header: NDArray[np.void],
-    header_index: int,
-    plane_index: int,
-) -> np.float32:
-    """
-    Interprets the dv format metadata from what the Cockpit developers know
-
-    From https://microscope-cockpit.org/file-format
-
-        The extended header has the following structure per plane
-
-        8 32bit signed integers, often are all set to zero.
-
-        Followed by 32 32bit floats. We only what the first 14 are:
-
-        Float index | Meta data content
-        ------------|----------------------------------------------
-        0           | photosensor reading (typically in mV)
-        1           | elapsed time (seconds since experiment began)
-        2           | x stage coordinates
-        3           | y stage coordinates
-        4           | z stage coordinates
-        5           | minimum intensity
-        6           | maximum intensity
-        7           | mean intensity
-        8           | exposure time (seconds)
-        9           | neutral density (fraction of 1 or percentage)
-        10          | excitation wavelength
-        11          | emission wavelength
-        12          | intensity scaling (usually 1)
-        13          | energy conversion factor (usually 1)
-
-    """
-
-    value_size_bytes = 4  # (32 / 8) first 8 are ints, rest are floats
-    integer_bytes = 8 * value_size_bytes
-    float_bytes = 32 * value_size_bytes
-    plane_offset = (integer_bytes + float_bytes) * plane_index
-    bytes_index = integer_bytes + plane_offset + header_index * value_size_bytes
-
-    return np.frombuffer(
-        extended_header,
-        dtype=np.float32,
-        count=1,
-        offset=bytes_index,
-    )[0]
+def write_single_channel(
+    array: NDArray[Any], output_file, header, wavelength: int
+) -> None:
+    """Writes a new single-channel file from array data, copying information from hdr"""
+    logger.debug("Writing channel %i to %s", wavelength, output_file)
+    m = mrc.Mrc2(output_file, mode="w")
+    m.initHdrForArr(array)
+    mrc.copyHdrInfo(m.hdr, header)
+    m.hdr.NumWaves = 1
+    m.hdr.wave = [wavelength, 0, 0, 0, 0]
+    m.writeHeader()
+    m.writeStack(array)
+    m.close()
 
 
-def get_channel_slices(
-    extended_header: NDArray[np.void_],
-    wavelength_type: WavelengthType,
-) -> Generator[tuple[float, slice], None, None]:
-    current_wavelength: float = -1
-    channel_start: int = 0
-    if isinstance(wavelength_type, WavelengthTypeEnum):
-        wavelength_type = wavelength_type.value
-    if wavelength_type == "emission":
-        header_index = HeaderIndexes.EmissionWavelength
-    elif wavelength_type == "excitation":
-        header_index = HeaderIndexes.ExcitationWavelength
-    else:
-        raise ValueError(
-            f"wavelength_type received invalid value: {wavelength_type}, allowed={get_args(WavelengthType)}"
+def create_processing_files(
+    file_path: str | PathLike[str],
+    output_dir: str | PathLike[str],
+    wavelength: int,
+    settings: SettingsManager,
+    config_kwargs,
+) -> ProcessingFiles | None:
+    file_path = Path(file_path)
+    if not file_path.is_file():
+        return None
+    logger.debug("Creating processing files for %s in %s", file_path, output_dir)
+    wavelength_settings = settings.get_wavelength(wavelength)
+    otf_path = Path(
+        copyfile(
+            wavelength_settings.otf,
+            output_path=output_dir
+            / create_filename(
+                file_path,
+                "OTF",
+                wavelength=wavelength,
+                extension=wavelength_settings.otf.suffix,
+            ),
         )
-    wavelengths = _get_eh_value_all_planes(extended_header, header_index=header_index)
-    for plane_index, wavelength in enumerate(map(float, wavelengths)):
-        if wavelength != current_wavelength:
-            if current_wavelength != -1:
-                yield current_wavelength, slice(channel_start, plane_index)
+    )
+    kwargs = wavelength_settings.config.copy()
+    with read_dv(file_path) as dv:
+        # Take from dv file, not config
+        kwargs["zres"] = dv.hdr.dz
+        kwargs["xyres"] = dv.hdr.dx
+    config_path = create_wavelength_config(
+        output_dir
+        / f"{create_filename(file_path, 'config', wavelength=wavelength, extension='.cfg')}",
+        otf_path,
+        **kwargs,
+    )
 
-            channel_start = plane_index
-            current_wavelength = wavelength
-        # Add final channel
-        yield current_wavelength, slice(channel_start, plane_index)
+    return ProcessingFiles(file_path, otf_path, config_path)
+
+
+def prepare_files(
+    file_path: str | PathLike[str],
+    processing_dir: str | PathLike[str],
+    settings: SettingsManager,
+    config_kwargs: Any,
+) -> dict[int, ProcessingFiles]:
+    """Context manager that takes care of splitting the file and making sure that
+    duplicated data gets cleaned up when done.
+    """
+    file_path = Path(file_path)
+    with read_dv(file_path) as dv:
+        header = dv.hdr
+        processing_files_dict = dict()
+        if header.NumWaves == 1:
+            # if it's a single channel file, we don't need to split
+            wavelength = int(header.wave[0])
+
+            if settings.get_wavelength(wavelength) is not None:
+                processing_files = create_processing_files(
+                    file_path=file_path,
+                    output_dir=processing_dir,
+                    wavelength=wavelength,
+                    settings=settings,
+                    **config_kwargs,
+                )
+                if processing_files is None:
+                    logger.warning(
+                        "No processing files found for '%s' at %i",
+                        file_path,
+                        wavelength,
+                    )
+                else:
+                    processing_files_dict[wavelength] = processing_files
+
+        else:
+            # otherwise break out individual wavelenghts
+            for c in range(header.NumWaves):
+                processing_files = None
+                wavelength = header.wave[c]
+                output_path = processing_dir / f"{wavelength}{file_path.suffix}"
+                # assumes channel is the 3rd to last dimension
+                data = np.take(dv.data.squeeze(), c, -3)
+                if settings.get_wavelength(wavelength) is not None:
+                    write_single_channel(data, output_path, header, wavelength)
+                    processing_files = create_processing_files(
+                        output_dir=processing_dir,
+                        wavelength=wavelength,
+                        settings=settings,
+                        **config_kwargs,
+                    )
+
+                    if processing_files is None:
+                        logger.warning(
+                            "No processing files found for '%s' at %i",
+                            file_path,
+                            wavelength,
+                        )
+                    else:
+                        if wavelength in processing_files_dict:
+                            raise KeyError(
+                                "Wavelength %i found multiple times within %s",
+                                wavelength,
+                                file_path,
+                            )
+                        processing_files_dict[wavelength] = processing_files
+    return processing_files_dict
