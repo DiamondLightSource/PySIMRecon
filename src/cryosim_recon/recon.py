@@ -103,6 +103,7 @@ def run_reconstructions(
                     rec_paths.append(rec_path)
                 if stitch_channels:
                     combine_wavelengths_dv(
+                        sim_data_path,
                         output_directory
                         / create_filename(
                             sim_data_path.stem, "recon", extension=sim_data_path.suffix

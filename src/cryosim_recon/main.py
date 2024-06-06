@@ -47,9 +47,14 @@ def run(
     *sim_data_paths: str | PathLike[str],
     stitch_channels: bool = True,
     cleanup: bool = False,
-    otf_kwargs: dict[str, Any],
-    recon_kwargs: dict[str, Any],
+    otf_kwargs: dict[str, Any] | None = None,
+    recon_kwargs: dict[str, Any] | None = None,
 ) -> None:
+    if otf_kwargs is None:
+        otf_kwargs = {}
+    if recon_kwargs is None:
+        recon_kwargs = {}
+
     settings = load_settings(config_path)
     convert_psfs_to_otfs(settings, **otf_kwargs)
     logger.info("Starting reconstructions")
