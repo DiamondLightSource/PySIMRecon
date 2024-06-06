@@ -47,8 +47,8 @@ def run(
     *sim_data_paths: str | PathLike[str],
     stitch_channels: bool = True,
     cleanup: bool = False,
-    otf_kwargs: Any,
-    recon_kwargs: Any,
+    otf_kwargs: dict[str, Any],
+    recon_kwargs: dict[str, Any],
 ) -> None:
     settings = load_settings(config_path)
     convert_psfs_to_otfs(settings, **otf_kwargs)
