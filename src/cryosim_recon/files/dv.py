@@ -91,7 +91,7 @@ def create_processing_files(
     output_dir: str | PathLike[str],
     wavelength: int,
     settings: SettingsManager,
-    config_kwargs,
+    **config_kwargs,
 ) -> ProcessingFiles | None:
     file_path = Path(file_path)
     if not file_path.is_file():
@@ -110,7 +110,11 @@ def create_processing_files(
             ),
         )
     )
+    # Use the configured per-wavelength settings
     kwargs = wavelength_settings.config.copy()
+    # config_kwargs override those any config defaults set
+    kwargs.update(config_kwargs)
+
     with read_dv(file_path) as dv:
         # Take from dv file, not config
         kwargs["zres"] = dv.hdr.dz
