@@ -153,7 +153,7 @@ def prepare_files(
         waves = (header.wave1, header.wave2, header.wave3, header.wave4, header.wave5)
         if np.count_nonzero(waves) == 1:
             # if it's a single channel file, we don't need to split
-            wavelength = int(header.wave[0])
+            wavelength = waves[0]
 
             if settings.get_wavelength(wavelength) is not None:
                 processing_files = create_processing_files(
