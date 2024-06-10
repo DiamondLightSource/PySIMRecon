@@ -49,7 +49,7 @@ def reconstruct_from_processing_files(
     logger.debug(
         "Reconstruction of %s saved in %s", processing_files.image_path, output_file
     )
-    return output_file
+    return Path(output_file)
 
 
 def run_reconstructions(
