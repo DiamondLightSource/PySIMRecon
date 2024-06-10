@@ -74,6 +74,10 @@ def psf_to_otf(
             make_otf_kwargs[k] = v
 
     make_otf(**make_otf_kwargs)
+    if not otf_path.is_file():
+        logging.error("Failed to create OTF file %s", otf_path)
+        return None
+    return otf_path
 
 
 def psf_path_to_otf_path(psf_path: str | PathLike[str]) -> Path:

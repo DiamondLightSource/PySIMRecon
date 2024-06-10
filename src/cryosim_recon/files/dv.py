@@ -31,6 +31,9 @@ class ProcessingFiles(NamedTuple):
 
 
 def read_dv(file_path: str | PathLike[str]) -> mrc.DVFile:
+    file_path = Path(file_path)
+    if not file_path.is_file():
+        raise FileNotFoundError(f"File {file_path} not found")
     logger.debug("Reading %s", file_path)
     return mrc.DVFile(file_path)
 
