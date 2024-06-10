@@ -44,7 +44,7 @@ def get_wavelength_settings(
     def get_from_section(
         section_name: str, config_parser: RawConfigParser
     ) -> Generator[tuple[int, Path], None, None]:
-        directory = config_parser.get(section_name, __DIRECTORY_KEY, None)
+        directory = config_parser.get(section_name, __DIRECTORY_KEY, fallback=None)
         for key, path in config_parser.items(section_name):
             if key == __DIRECTORY_KEY:
                 # Ignore __DIRECTORY_KEY
