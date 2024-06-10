@@ -17,5 +17,5 @@ try:
 except ImportError:
     logger.warning("tqdm not available, cannot monitor progress")
 
-    def progress_wrapper(x: T, *args, **kwargs) -> T:
+    def progress_wrapper(x: T, *args, **kwargs) -> T:  # type: ignore[no-redef]
         return x
