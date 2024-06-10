@@ -9,13 +9,15 @@ from shutil import copyfile
 import numpy as np
 import mrc
 import tifffile as tf
+from contextlib import contextmanager
 from typing import TYPE_CHECKING, NamedTuple
 
-from .utils import create_filename
+from .utils import create_filename, get_temporary_path
 from .config import create_wavelength_config
 
 if TYPE_CHECKING:
     from typing import Any
+    from collections.abc import Generator
     from os import PathLike
     from numpy.typing import NDArray
     from ..settings import SettingsManager
@@ -189,3 +191,20 @@ def prepare_files(
                             )
                         processing_files_dict[wavelength] = processing_files
     return processing_files_dict
+
+
+@contextmanager
+def dv_to_temporary_tiff(
+    dv_path: str | PathLike[str], delete: bool = True
+) -> Generator[Path, None, None]:
+    dv_path = Path(dv_path)
+    try:
+        tiff_path = get_temporary_path(
+            dv_path.parent, f".{dv_path.stem}", suffix=".tiff"
+        )
+
+        with read_dv(dv_path) as dv:
+            tf.imwrite(tiff_path, data=dv)
+        yield tiff_path
+    finally:
+        os.unlink(tiff_path)

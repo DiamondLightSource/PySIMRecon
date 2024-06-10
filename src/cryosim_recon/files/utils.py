@@ -1,5 +1,6 @@
 from __future__ import annotations
-
+from pathlib import Path
+from uuid import uuid4
 from typing import TYPE_CHECKING
 
 
@@ -39,3 +40,11 @@ def create_filename(
         # Ensure has . only once
         filename += f".{extension.lstrip(".")}"
     return filename
+
+
+def get_temporary_path(directory: Path, stem: str, suffix:str) -> Path:
+    for _ in range(4):
+        tiff_path = (directory / f"{stem}_{uuid4()}").with_suffix(suffix)
+        if not tiff_path.exists():
+            return tiff_path
+    raise FileExistsError(f"Failed to create temporary file with stem '{stem}' and suffix '{suffix}' in '{directory}' due to multiple collisions")

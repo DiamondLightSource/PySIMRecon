@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 from pycudasirecon import make_otf  # type: ignore[import-untyped]
 
+from .files.dv import dv_to_temporary_tiff
 from .files.utils import create_filename
 from .settings import SettingsManager
 from .progress_wrapper import progress_wrapper
@@ -65,15 +66,17 @@ def psf_to_otf(
             raise FileExistsError(f"File {otf_path} already exists")
 
     make_otf_kwargs = dict(inspect.signature(make_otf).parameters.items())
-    make_otf_kwargs["psf"] = str(psf_path)
-    make_otf_kwargs["out_file"] = str(otf_path)
 
     for k, v in kwargs:
         # Only use kwargs that are accepted by make_otf
         if k in make_otf_kwargs:
             make_otf_kwargs[k] = v
 
-    make_otf(**make_otf_kwargs)
+    with dv_to_temporary_tiff(psf_path) as tiff_path:
+        make_otf_kwargs["psf"] = tiff_path
+        make_otf_kwargs["out_file"] = str(otf_path)
+        make_otf(**make_otf_kwargs)
+
     if not otf_path.is_file():
         logging.error("Failed to create OTF file %s", otf_path)
         return None
