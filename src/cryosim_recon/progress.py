@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 try:
-    import tqdm
+    from tdqm import tqdm
 
     progress_wrapper = tqdm
 except ImportError:
