@@ -61,7 +61,7 @@ def run(
     run_reconstructions(
         output_directory,
         *sim_data_paths,
-        settings,
+        settings=settings,
         stitch_channels=stitch_channels,
         cleanup=cleanup,
         **recon_kwargs,
