@@ -45,7 +45,7 @@ def combine_wavelengths_dv(
     output_file: str | PathLike[str],
     *file_paths: str | PathLike[str],
     delete: bool = False,
-) -> str:
+) -> Path:
     logger.debug(
         "Combining wavelengths to %s from:\n%s",
         output_file,
@@ -64,11 +64,12 @@ def combine_wavelengths_dv(
 
     if delete:
         try:
-            [os.remove(f) for f in file_paths]
+            for f in file_paths:
+                os.remove(f)
         except Exception:
             pass
 
-    return output_file
+    return Path(output_file)
 
 
 def write_single_channel(
@@ -94,16 +95,23 @@ def create_processing_files(
     **config_kwargs,
 ) -> ProcessingFiles | None:
     file_path = Path(file_path)
+    output_dir = Path(output_dir)
     if not file_path.is_file():
         return None
     logger.debug("Creating processing files for %s in %s", file_path, output_dir)
     wavelength_settings = settings.get_wavelength(wavelength)
+    if wavelength_settings is None:
+        raise ValueError(f"No settings for wavelength {wavelength}")
+
+    if wavelength_settings.otf is None:
+        raise ValueError(f"No OTF file has been set for wavelength {wavelength}")
+
     otf_path = Path(
         copyfile(
             wavelength_settings.otf,
-            output_path=output_dir
+            output_dir
             / create_filename(
-                file_path,
+                file_path.stem,
                 "OTF",
                 wavelength=wavelength,
                 extension=wavelength_settings.otf.suffix,
@@ -121,11 +129,10 @@ def create_processing_files(
         kwargs["xyres"] = dv.hdr.dx
     config_path = create_wavelength_config(
         output_dir
-        / f"{create_filename(file_path, 'config', wavelength=wavelength, extension='.cfg')}",
+        / f"{create_filename(file_path.stem, 'config', wavelength=wavelength, extension='.cfg')}",
         otf_path,
         **kwargs,
     )
-
     return ProcessingFiles(file_path, otf_path, config_path)
 
 
@@ -139,10 +146,12 @@ def prepare_files(
     duplicated data gets cleaned up when done.
     """
     file_path = Path(file_path)
+    processing_dir = Path(processing_dir)
     with read_dv(file_path) as dv:
         header = dv.hdr
         processing_files_dict = dict()
-        if header.NumWaves == 1:
+        waves = (header.wave1, header.wave2, header.wave3, header.wave4, header.wave5)
+        if np.count_nonzero(waves) == 1:
             # if it's a single channel file, we don't need to split
             wavelength = int(header.wave[0])
 
@@ -164,10 +173,11 @@ def prepare_files(
                     processing_files_dict[wavelength] = processing_files
 
         else:
-            # otherwise break out individual wavelenghts
-            for c in range(header.NumWaves):
+            # otherwise break out individual wavelengths
+            for c, wavelength in enumerate(waves):
+                if wavelength == 0:
+                    continue
                 processing_files = None
-                wavelength = header.wave[c]
                 output_path = processing_dir / f"{wavelength}{file_path.suffix}"
                 # assumes channel is the 3rd to last dimension
                 data = np.take(dv.data.squeeze(), c, -3)

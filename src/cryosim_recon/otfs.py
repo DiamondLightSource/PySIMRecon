@@ -11,7 +11,7 @@ from pycudasirecon import make_otf  # type: ignore[import-untyped]
 from .files.dv import dv_to_temporary_tiff
 from .files.utils import create_filename
 from .settings import SettingsManager
-from .progress_wrapper import progress_wrapper
+from .progress import progress_wrapper
 
 if TYPE_CHECKING:
     from typing import Any
@@ -31,7 +31,7 @@ def convert_psfs_to_otfs(settings: SettingsManager, **kwargs) -> None:
         if psf_path is not None:
             otf_path = psf_path_to_otf_path(psf_path=psf_path)
             if otf_path.is_file():
-                logging.info(
+                logger.info(
                     "Skipping PSF to OTF conversion: "
                     "PSF file %s has not been modified since OTF file %s was created",
                     psf_path,
@@ -56,6 +56,7 @@ def psf_to_otf(
     overwrite: bool = False,
     **kwargs: Any,
 ) -> Path | None:
+
     logger.info("Making OTF file %s from PSF file %s", otf_path, psf_path)
     otf_exists = os.path.isfile(otf_path)
     if otf_exists:
@@ -65,9 +66,11 @@ def psf_to_otf(
         else:
             raise FileExistsError(f"File {otf_path} already exists")
 
-    make_otf_kwargs = dict(inspect.signature(make_otf).parameters.items())
+    make_otf_kwargs: dict[str, Any] = dict(
+        inspect.signature(make_otf).parameters.items()
+    )
 
-    for k, v in kwargs:
+    for k, v in kwargs.items():
         # Only use kwargs that are accepted by make_otf
         if k in make_otf_kwargs:
             make_otf_kwargs[k] = v
@@ -77,10 +80,10 @@ def psf_to_otf(
         make_otf_kwargs["out_file"] = str(otf_path)
         make_otf(**make_otf_kwargs)
 
-    if not otf_path.is_file():
-        logging.error("Failed to create OTF file %s", otf_path)
+    if not os.path.isfile(otf_path):
+        logger.error("Failed to create OTF file %s", otf_path)
         return None
-    return otf_path
+    return Path(otf_path)
 
 
 def psf_path_to_otf_path(psf_path: str | PathLike[str]) -> Path:

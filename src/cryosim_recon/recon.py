@@ -16,7 +16,7 @@ from .files.dv import (
 )
 
 from .settings import SettingsManager
-from .progress_wrapper import progress_wrapper
+from .progress import progress_wrapper
 
 if TYPE_CHECKING:
     from typing import Any
@@ -67,6 +67,8 @@ def run_reconstructions(
         try:
             if not sim_data_path.is_file():
                 raise FileNotFoundError(f"Image file {sim_data_path} does not exist")
+
+            processing_directory: str | Path
             with TemporaryDirectory(
                 prefix="proc_",
                 suffix=f"_{sim_data_path.stem}",
@@ -89,16 +91,17 @@ def run_reconstructions(
                 for wavelength, processing_files in progress_wrapper(
                     processing_files_dict.items(), unit="wavelength"
                 ):
+                    filename = create_filename(
+                        sim_data_path.stem,
+                        "recon",
+                        wavelength=wavelength,
+                        extension=sim_data_path.suffix,
+                    )
+                    output_file = processing_directory / filename
                     rec_path = reconstruct_from_processing_files(
                         processing_files,
                         wavelength,
-                        output_file=processing_directory
-                        / create_filename(
-                            sim_data_path.stem,
-                            "recon",
-                            wavelength=wavelength,
-                            extension=sim_data_path.suffix,
-                        ),
+                        output_file=output_file,
                     )
                     rec_paths.append(rec_path)
                 if stitch_channels:
@@ -113,11 +116,11 @@ def run_reconstructions(
                     )
                 else:
                     # If not stitching, then these are the result and should be in the output directory
-                    logging.info(
+                    logger.info(
                         "Moving reconstructed files to output directory for %s",
                         sim_data_path,
                     )
                     for p in rec_paths:
                         p.rename(output_directory / p.name)
         except Exception:
-            logging.error("Error occurred for %s", sim_data_path, exc_info=True)
+            logger.error("Error occurred for %s", sim_data_path, exc_info=True)

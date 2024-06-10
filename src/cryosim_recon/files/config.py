@@ -45,7 +45,7 @@ def get_wavelength_settings(
         section_name: str, config_parser: RawConfigParser
     ) -> Generator[tuple[int, Path], None, None]:
         directory = config_parser.get(section_name, __DIRECTORY_KEY, fallback=None)
-        for key, path in config_parser.items(section_name):
+        for key, path_str in config_parser.items(section_name):
             if key == __DIRECTORY_KEY:
                 # Ignore __DIRECTORY_KEY
                 continue
@@ -58,10 +58,10 @@ def get_wavelength_settings(
                 continue
             try:
                 if directory is not None:
-                    path = Path(directory) / path.strip()
+                    path = Path(directory) / path_str.strip()
                 else:
                     # If directory is not specified, require absolute path
-                    path = Path(path.strip())
+                    path = Path(path_str.strip())
                 if not path.is_file():
                     raise FileNotFoundError(
                         f"No {section_name.upper()} file found for {wavelength} at {path}"
@@ -69,7 +69,7 @@ def get_wavelength_settings(
                 # Ensure returned path is absolute
                 yield wavelength, path.absolute()
             except Exception as e:
-                logging.warning(
+                logger.warning(
                     "%i %s file path error: %s", wavelength, section_name.upper(), e
                 )
                 continue
@@ -77,7 +77,7 @@ def get_wavelength_settings(
     config_parser = RawConfigParser(**__PARSER_KWARGS)
     config_parser.read(defaults_config_path)
     # Get defaults as baseline
-    defaults_dict = get_default_recon_kwargs(defaults_config_path)
+    defaults_dict = get_default_recon_kwargs(config_parser)
     # Get otf parameters:
     otf_config = get_otf_kwargs(config_parser)
 
@@ -93,13 +93,13 @@ def get_wavelength_settings(
         if config_parser.has_section(str(wavelength)):
             config.update(_config_section_to_dict(config_parser, str(wavelength)))
 
-        yield WavelengthSettings(wavelength, otf=otf_path, config=config)
+        yield WavelengthSettings(wavelength, otf=otf_path, psf=None, config=config)
     for wavelength, psf_path in get_from_section(
         __PSF_LOCATIONS_SECTION, config_parser
     ):
         if wavelength in wavelengths:
             # OTFs override PSFs
-            logging.info("Ignoring PSF as OTF was given for %i", wavelength)
+            logger.info("Ignoring PSF as OTF was given for %i", wavelength)
             continue
 
         config = defaults_dict.copy()
@@ -107,7 +107,7 @@ def get_wavelength_settings(
             config.update(_config_section_to_dict(config_parser, str(wavelength)))
 
         yield WavelengthSettings(
-            wavelength, psf=psf_path, config=config, otf_config=otf_config
+            wavelength, otf=None, psf=psf_path, config=config, otf_config=otf_config
         )
 
 
@@ -115,7 +115,7 @@ def create_wavelength_config(
     output_path: str | PathLike[str],
     otf_path: str | PathLike[str],
     **config_kwargs: Any,
-) -> Path | None:
+) -> Path:
     # Add otf_file that is expected by ReconParams
     config_kwargs["otf_file"] = str(abspath(otf_path))
     # Convert to string so it can be written without a section, like sirecon expects
@@ -150,6 +150,9 @@ def _config_section_to_dict(config_parser: RawConfigParser, section_name: str):
             logger.debug("Option %s=%s is invalid and will be ignored", key, value)
             continue
         setting_format = FORMATTERS.get(value)
+        if setting_format is None:
+            logger.warning("Invalid setting %s=%s will be ignored", key, value)
+            continue
         if setting_format.split:
             kwargs[key] = tuple(
                 setting_format.conv(s.strip()) for s in value.split(",") if s.strip()
