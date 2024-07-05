@@ -55,7 +55,7 @@ def combine_wavelengths_dv(
         hdr = dv.hdr
     m = mrc.Mrc2(output_file, mode="w")
     # Use memmap rather than asarray
-    array = np.stack((tf.memmap(fp).squeeze() for fp in file_paths), -3)
+    array = np.stack(tuple(tf.memmap(fp).squeeze() for fp in file_paths), -3)
     m.initHdrForArr(array)
     mrc.copyHdrInfo(m.hdr, hdr)
     m.writeHeader()
