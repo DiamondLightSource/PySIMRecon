@@ -74,7 +74,7 @@ def get_wavelength_settings(
                 )
                 continue
 
-    config_parser = RawConfigParser(**__PARSER_KWARGS)
+    config_parser = RawConfigParser(**__PARSER_KWARGS)  # type: ignore[call-overload]
     config_parser.read(defaults_config_path)
     # Get defaults as baseline
     defaults_dict = get_default_recon_kwargs(config_parser)
