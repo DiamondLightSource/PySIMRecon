@@ -1,7 +1,7 @@
 [project]
 name = "cryosim-recon"
 version = "0.1.0"
-description = "Add your description here"
+description = "A simple tool to reconstruct SIM data and and process OTFs from Microscope-Cockpit's DV files with pyCUDAsirecon from DLS B24's cryoSIM"
 authors = [
     { name = "Thomas Fish", email = "thomas.fish@diamond.ac.uk" },
 ]

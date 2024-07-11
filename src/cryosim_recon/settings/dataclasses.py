@@ -23,12 +23,11 @@ class SettingsManager:
     defaults_config_path: str | PathLike[str]
     default_reconstruction_config: dict[str, Any] = field(default_factory=dict)
     default_otf_config: dict[str, Any] = field(default_factory=dict)
-    wavelength_settings: InitVar[Iterable[WavelengthSettings]] = field(
-        default_factory=tuple
-    )
-    wavelengths: dict[int, WavelengthSettings] = field(default_factory=dict, init=False)
+    wavelength_settings: InitVar[Iterable[WavelengthSettings]] = tuple()
+    wavelengths: dict[int, WavelengthSettings] = field(init=False)
 
-    def __post_init__(self, wavelength_settings) -> None:
+    def __post_init__(self, wavelength_settings: Iterable[WavelengthSettings]) -> None:
+        self.wavelengths = {}
         for settings in wavelength_settings:
             self.set_wavelength(settings)
 
@@ -45,7 +44,9 @@ class SettingsManager:
             config = self.default_reconstruction_config.copy()
         else:
             config = {}
-        config.update(self.get_wavelength(wavelength).reconstruction_config)
+        ws = self.get_wavelength(wavelength)
+        if ws is not None:
+            config.update(ws.reconstruction_config)
         return config
 
     def get_otf_config(
@@ -55,8 +56,13 @@ class SettingsManager:
             config = self.default_otf_config.copy()
         else:
             config = {}
-        config.update(self.get_wavelength(wavelength).otf_config)
+        ws = self.get_wavelength(wavelength)
+        if ws is not None:
+            config.update(ws.reconstruction_config)
         return config
 
     def get_otf_path(self, wavelength: int) -> Path | None:
-        return self.get_wavelength(wavelength).otf
+        ws = self.get_wavelength(wavelength)
+        if ws is None:
+            raise ValueError(f"No settings for wavelength {wavelength}")
+        return ws.otf

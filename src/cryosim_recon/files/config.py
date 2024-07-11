@@ -6,7 +6,7 @@ from configparser import RawConfigParser, NoOptionError
 from typing import TYPE_CHECKING, Any
 
 from ..settings import WavelengthSettings
-from ._setting_formatting import FORMATTERS
+from ..settings.formatting import OTF_FORMATTERS, RECON_FORMATTERS
 
 if TYPE_CHECKING:
     from typing import Literal, override
@@ -193,28 +193,47 @@ def create_wavelength_config(
 def get_recon_kwargs(
     config_parser: RawConfigParser,
 ) -> dict[str, str]:
-    return _config_section_to_dict(config_parser, section_name=__RECON_CONFIG_SECTION)
+    return _config_section_to_dict(
+        config_parser, section_name=__RECON_CONFIG_SECTION, settings_for="recon"
+    )
 
 
 def get_otf_kwargs(
     config_parser: RawConfigParser,
 ) -> dict[str, str]:
-    return _config_section_to_dict(config_parser, section_name=__OTF_CONFIG_SECTION)
+    return _config_section_to_dict(
+        config_parser, section_name=__OTF_CONFIG_SECTION, settings_for="otf"
+    )
 
 
-def _config_section_to_dict(config_parser: RawConfigParser, section_name: str):
+def _config_section_to_dict(
+    config_parser: RawConfigParser,
+    section_name: str,
+    settings_for: Literal["otf", "recon"],
+):
     kwargs = {}
+    if settings_for == "otf":
+        formatters = OTF_FORMATTERS
+    elif settings_for == "recon":
+        formatters = RECON_FORMATTERS
+    else:
+        raise TypeError(
+            '_config_section_to_dict argument "settings_for" only accepts "otf" or "recon"'
+        )
+
     for key, value in config_parser.items(section_name):
-        if value is None or key not in FORMATTERS:
+        if value is None or key not in formatters:
             logger.debug("Option %s=%s is invalid and will be ignored", key, value)
-            continue
-        setting_format = FORMATTERS.get(value)
+            formatters
+        setting_format = formatters.get(key)
         if setting_format is None:
             logger.warning("Invalid setting %s=%s will be ignored", key, value)
             continue
-        if setting_format.split:
+        if setting_format.count > 1:
             kwargs[key] = tuple(
-                setting_format.conv(s.strip()) for s in value.split(",") if s.strip()
+                setting_format.conv(s.strip())
+                for s in value.split(",", maxsplit=setting_format.count - 1)
+                if s.strip()
             )
         else:
             kwargs[key] = setting_format.conv(value.strip())
