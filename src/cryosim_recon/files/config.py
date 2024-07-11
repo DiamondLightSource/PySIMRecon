@@ -2,16 +2,18 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 from os.path import abspath
-from configparser import RawConfigParser, NoOptionError
-from typing import TYPE_CHECKING, Any
+from configparser import RawConfigParser
+from typing import TYPE_CHECKING
 
 from ..settings import WavelengthSettings
 from ..settings.formatting import OTF_FORMATTERS, RECON_FORMATTERS
 
 if TYPE_CHECKING:
-    from typing import Literal, override
+    from typing import Literal, Any, TypeVar
     from os import PathLike
     from collections.abc import Generator
+
+    KeyT = TypeVar("KeyT", int, str)
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +28,7 @@ __OTF_CONFIG_SECTION = "otf config"
 
 def read_config(input_config: str | PathLike[str]) -> RawConfigParser:
     config_parser = RawConfigParser(**__PARSER_KWARGS)  # type: ignore[call-overload]
+    config_parser.optionxform = str  # type: ignore[reportAttributeAccessIssue]  # Keep option cases (necessary for using as kwargs)
     config_parser.read(input_config)
     return config_parser
 
@@ -40,94 +43,47 @@ def _parse_wavelength_key(key: str) -> int:
 
 
 def _handle_paths_from_config(
-    key: str | int, path_str: str, directory: str
-) -> tuple[int | str, Path]:
-    try:
-        path = Path(path_str.strip())
-        if (
-            not path.is_absolute() and directory
-        ):  # Ignore if directory is an empty string
-            path = Path(directory) / path
+    key: KeyT, path_str: str, directory: str
+) -> tuple[KeyT, Path]:
+    path = Path(path_str.strip())
+    if not path.is_absolute() and directory:  # Ignore if directory is an empty string
+        path = Path(directory) / path
 
-        # If directory is not specified, an absolute path is required
-        if not path.is_file():
-            raise FileNotFoundError(f"No {key} file found for at {path}")
-        # Ensure returned path is absolute
-        return key, path.absolute()
-    except Exception as e:
-        logger.warning("%s file path error: %s", key, e)
-
-
-@override
-def _get_paths_from_section(
-    section_name: str,
-    config_parser: RawConfigParser,
-    *,
-    subkey: str,
-    defaults_section: Literal[True],
-) -> dict[int | str, dict[str, Path]]: ...
-
-
-@override
-def _get_paths_from_section(
-    section_name: str,
-    config_parser: RawConfigParser,
-    *,
-    subkey: None,
-    defaults_section: Literal[True],
-) -> dict[int | str, Path]: ...
-
-
-@override
-def _get_paths_from_section(
-    section_name: str,
-    config_parser: RawConfigParser,
-    *,
-    subkey: str,
-    defaults_section: Literal[False],
-) -> dict[int, dict[str, Path]]: ...
-
-
-@override
-def _get_paths_from_section(
-    section_name: str,
-    config_parser: RawConfigParser,
-    *,
-    subkey: None,
-    defaults_section: Literal[False],
-) -> dict[int, Path]: ...
+    # If directory is not specified, an absolute path is required
+    if not path.is_file():
+        raise FileNotFoundError(f"No {key} file found for at {path}")
+    # Ensure returned path is absolute
+    return key, path.absolute()
 
 
 def _get_paths_from_section(
     section_name: str,
     config_parser: RawConfigParser,
-    *,
-    defaults_section: bool = False,
-) -> dict[int | str, Path | dict[str, Path]]:
+) -> dict[int, Path]:
     dictionary = {}
     directory = config_parser.get(section_name, __DIRECTORY_KEY, fallback="").strip()
     for key, path_str in config_parser.items(section_name):
         key = key.strip()
-        if key == __DIRECTORY_KEY:
+        if key in (__DIRECTORY_KEY, __DEFAULTS_KEY):
             # Ignore __DIRECTORY_KEY
             continue
-        if not defaults_section or key != __DEFAULTS_KEY:
-            try:
-                key = _parse_wavelength_key(key)
-            except Exception:
-                logger.warning(
-                    "'%s' is not a valid wavelength (must be an integer)", key
-                )
-                continue
-        key, path = _handle_paths_from_config(key, path_str, directory)
-        dictionary[key] = path
+        try:
+            key = _parse_wavelength_key(key)
+        except Exception:
+            logger.warning("'%s' is not a valid wavelength (must be an integer)", key)
+            continue
+        try:
+            key, path = _handle_paths_from_config(key, path_str, directory)
+            dictionary[key] = path
+        except Exception as e:
+            logger.warning("%s file path error: %s", key, e)
     return dictionary
 
 
 def get_defaults_config_path(main_config: RawConfigParser) -> Path:
     directory = main_config.get(__CONFIGS_SECTION, __DIRECTORY_KEY, fallback="").strip()
     path_str = main_config.get(__CONFIGS_SECTION, __DEFAULTS_KEY).strip()
-    return _handle_paths_from_config(__DEFAULTS_KEY, path_str, directory)
+    return _handle_paths_from_config(__DEFAULTS_KEY, path_str, directory)[1]
 
 
 def get_wavelength_settings(
@@ -136,14 +92,10 @@ def get_wavelength_settings(
     configs_dict = _get_paths_from_section(
         __CONFIGS_SECTION,
         main_config,
-        subkey=__CONFIGS_SECTION,
-        defaults_section=False,
     )
     otfs_dict = _get_paths_from_section(
         __OTF_LOCATIONS_SECTION,
         main_config,
-        subkey=__OTF_LOCATIONS_SECTION,
-        defaults_section=False,
     )
 
     wavelengths = set(configs_dict.keys())
@@ -224,7 +176,6 @@ def _config_section_to_dict(
     for key, value in config_parser.items(section_name):
         if value is None or key not in formatters:
             logger.debug("Option %s=%s is invalid and will be ignored", key, value)
-            formatters
         setting_format = formatters.get(key)
         if setting_format is None:
             logger.warning("Invalid setting %s=%s will be ignored", key, value)
