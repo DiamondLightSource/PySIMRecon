@@ -48,3 +48,14 @@ def get_temporary_path(directory: Path, stem: str, suffix:str) -> Path:
         if not tiff_path.exists():
             return tiff_path
     raise FileExistsError(f"Failed to create temporary file with stem '{stem}' and suffix '{suffix}' in '{directory}' due to multiple collisions")
+
+def ensure_unique_filepath(path: Path, max_iter: int=99)-> Path:
+    if not path.exists():
+        return path
+    for i in range(1, max_iter + 1):
+        output_path = path.with_suffix(f"_{i}{path.suffix()}")
+        if not output_path.exists():
+            return output_path
+    raise IOError(
+        f"Failed to create unique file path after {max_iter} attempts. Final attempt was '{output_path}'."
+    )

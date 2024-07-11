@@ -3,19 +3,23 @@ import logging
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import TypeVar
+    from typing import TypeVar, Any
+    from collections.abc import Iterable
 
     T = TypeVar("T")
 
 
 logger = logging.getLogger(__name__)
 
+
 try:
-    from tdqm import tqdm
+    from tqdm import tqdm
 
     progress_wrapper = tqdm
 except ImportError:
     logger.warning("tqdm not available, cannot monitor progress")
 
-    def progress_wrapper(x: T, *args, **kwargs) -> T:  # type: ignore[no-redef]
-        return x
+    def progress_wrapper(
+        iterable: Iterable[T], *args: Any, **kwargs: Any
+    ) -> Iterable[T]:
+        return iterable

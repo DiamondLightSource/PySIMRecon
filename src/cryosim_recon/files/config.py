@@ -2,112 +2,171 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 from os.path import abspath
-from configparser import RawConfigParser
+from configparser import RawConfigParser, NoOptionError
 from typing import TYPE_CHECKING, Any
 
 from ..settings import WavelengthSettings
 from ._setting_formatting import FORMATTERS
 
 if TYPE_CHECKING:
+    from typing import Literal, override
     from os import PathLike
     from collections.abc import Generator
 
 logger = logging.getLogger(__name__)
 
-
+__CONFIGS_SECTION = "configs"
+__DEFAULTS_KEY = "defaults"
 __OTF_LOCATIONS_SECTION = "otfs"
-__PSF_LOCATIONS_SECTION = "psfs"
 __PARSER_KWARGS = {"inline_comment_prefixes": "#;"}
 __DIRECTORY_KEY = "directory"
 __RECON_CONFIG_SECTION = "recon config"
 __OTF_CONFIG_SECTION = "otf config"
 
 
-def read_input_config(input_config: str | PathLike[str]) -> RawConfigParser:
+def read_config(input_config: str | PathLike[str]) -> RawConfigParser:
     config_parser = RawConfigParser(**__PARSER_KWARGS)  # type: ignore[call-overload]
     config_parser.read(input_config)
     return config_parser
 
 
-def get_wavelength_settings(
-    defaults_config_path: str | PathLike[str],
-    wavelengths_config_path: str | PathLike[str],
-) -> Generator[WavelengthSettings, None, None]:
-    def parse_wavelength_key(key: str) -> int:
-        key = key.strip().lower()
-        if key.endswith("nm"):
-            logger.debug("Trimming 'nm' from %s", key)
-            # Handle nm endings but not other units
-            key = key[:-2].strip()
-        return int(key)
+def _parse_wavelength_key(key: str) -> int:
+    key = key.strip().lower()
+    if key.endswith("nm"):
+        logger.debug("Trimming 'nm' from %s", key)
+        # Handle nm endings but not other units
+        key = key[:-2].strip()
+    return int(key)
 
-    def get_from_section(
-        section_name: str, config_parser: RawConfigParser
-    ) -> Generator[tuple[int, Path], None, None]:
-        directory = config_parser.get(section_name, __DIRECTORY_KEY, fallback=None)
-        for key, path_str in config_parser.items(section_name):
-            if key == __DIRECTORY_KEY:
-                # Ignore __DIRECTORY_KEY
-                continue
+
+def _handle_paths_from_config(
+    key: str | int, path_str: str, directory: str
+) -> tuple[int | str, Path]:
+    try:
+        path = Path(path_str.strip())
+        if (
+            not path.is_absolute() and directory
+        ):  # Ignore if directory is an empty string
+            path = Path(directory) / path
+
+        # If directory is not specified, an absolute path is required
+        if not path.is_file():
+            raise FileNotFoundError(f"No {key} file found for at {path}")
+        # Ensure returned path is absolute
+        return key, path.absolute()
+    except Exception as e:
+        logger.warning("%s file path error: %s", key, e)
+
+
+@override
+def _get_paths_from_section(
+    section_name: str,
+    config_parser: RawConfigParser,
+    *,
+    subkey: str,
+    defaults_section: Literal[True],
+) -> dict[int | str, dict[str, Path]]: ...
+
+
+@override
+def _get_paths_from_section(
+    section_name: str,
+    config_parser: RawConfigParser,
+    *,
+    subkey: None,
+    defaults_section: Literal[True],
+) -> dict[int | str, Path]: ...
+
+
+@override
+def _get_paths_from_section(
+    section_name: str,
+    config_parser: RawConfigParser,
+    *,
+    subkey: str,
+    defaults_section: Literal[False],
+) -> dict[int, dict[str, Path]]: ...
+
+
+@override
+def _get_paths_from_section(
+    section_name: str,
+    config_parser: RawConfigParser,
+    *,
+    subkey: None,
+    defaults_section: Literal[False],
+) -> dict[int, Path]: ...
+
+
+def _get_paths_from_section(
+    section_name: str,
+    config_parser: RawConfigParser,
+    *,
+    defaults_section: bool = False,
+) -> dict[int | str, Path | dict[str, Path]]:
+    dictionary = {}
+    directory = config_parser.get(section_name, __DIRECTORY_KEY, fallback="").strip()
+    for key, path_str in config_parser.items(section_name):
+        key = key.strip()
+        if key == __DIRECTORY_KEY:
+            # Ignore __DIRECTORY_KEY
+            continue
+        if not defaults_section or key != __DEFAULTS_KEY:
             try:
-                wavelength = parse_wavelength_key(key)
+                key = _parse_wavelength_key(key)
             except Exception:
                 logger.warning(
-                    "'%s' is not a valid wavelength (must be an integer)", wavelength
+                    "'%s' is not a valid wavelength (must be an integer)", key
                 )
                 continue
-            try:
-                if directory is not None:
-                    path = Path(directory) / path_str.strip()
-                else:
-                    # If directory is not specified, require absolute path
-                    path = Path(path_str.strip())
-                if not path.is_file():
-                    raise FileNotFoundError(
-                        f"No {section_name.upper()} file found for {wavelength} at {path}"
-                    )
-                # Ensure returned path is absolute
-                yield wavelength, path.absolute()
-            except Exception as e:
-                logger.warning(
-                    "%i %s file path error: %s", wavelength, section_name.upper(), e
-                )
-                continue
+        key, path = _handle_paths_from_config(key, path_str, directory)
+        dictionary[key] = path
+    return dictionary
 
-    config_parser = RawConfigParser(**__PARSER_KWARGS)  # type: ignore[call-overload]
-    config_parser.read(defaults_config_path)
-    # Get defaults as baseline
-    defaults_dict = get_default_recon_kwargs(config_parser)
-    # Get otf parameters:
-    otf_config = get_otf_kwargs(config_parser)
 
-    config_parser = RawConfigParser()
-    config_parser.read_file(wavelengths_config_path)
-    wavelengths = set()
-    for wavelength, otf_path in get_from_section(
-        __OTF_LOCATIONS_SECTION, config_parser
-    ):
-        wavelengths.add(wavelength)
+def get_defaults_config_path(main_config: RawConfigParser) -> Path:
+    directory = main_config.get(__CONFIGS_SECTION, __DIRECTORY_KEY, fallback="").strip()
+    path_str = main_config.get(__CONFIGS_SECTION, __DEFAULTS_KEY).strip()
+    return _handle_paths_from_config(__DEFAULTS_KEY, path_str, directory)
 
-        config = defaults_dict.copy()
-        if config_parser.has_section(str(wavelength)):
-            config.update(_config_section_to_dict(config_parser, str(wavelength)))
 
-        yield WavelengthSettings(wavelength, otf=otf_path, psf=None, config=config)
-    for wavelength, psf_path in get_from_section(
-        __PSF_LOCATIONS_SECTION, config_parser
-    ):
-        if wavelength in wavelengths:
-            # OTFs override PSFs
-            logger.info("Ignoring PSF as OTF was given for %i", wavelength)
-            continue
+def get_wavelength_settings(
+    main_config: RawConfigParser,
+) -> Generator[WavelengthSettings, None, None]:
+    configs_dict = _get_paths_from_section(
+        __CONFIGS_SECTION,
+        main_config,
+        subkey=__CONFIGS_SECTION,
+        defaults_section=False,
+    )
+    otfs_dict = _get_paths_from_section(
+        __OTF_LOCATIONS_SECTION,
+        main_config,
+        subkey=__OTF_LOCATIONS_SECTION,
+        defaults_section=False,
+    )
 
-        config = defaults_dict.copy()
-        if config_parser.has_section(str(wavelength)):
-            config.update(_config_section_to_dict(config_parser, str(wavelength)))
+    wavelengths = set(configs_dict.keys())
+    wavelengths.update(otfs_dict.keys())
+
+    for wavelength in wavelengths:
+        if wavelength in configs_dict:
+            wavelength_config = read_config(configs_dict[wavelength])
+            # Get per-wavelength recon kwargs
+            recon_kwargs = get_recon_kwargs(wavelength_config)
+            # Get per-wavelength otf kwargs:
+            otf_kwargs = get_otf_kwargs(wavelength_config)
+        else:
+            recon_kwargs = {}
+            otf_kwargs = {}
+
+        otf_path = otfs_dict.get(wavelength, None)
 
         yield WavelengthSettings(
-            wavelength, otf=None, psf=psf_path, config=config, otf_config=otf_config
+            wavelength,
+            otf=otf_path,
+            reconstruction_config=recon_kwargs,
+            otf_config=otf_kwargs,
         )
 
 
@@ -131,7 +190,7 @@ def create_wavelength_config(
     return Path(output_path)
 
 
-def get_default_recon_kwargs(
+def get_recon_kwargs(
     config_parser: RawConfigParser,
 ) -> dict[str, str]:
     return _config_section_to_dict(config_parser, section_name=__RECON_CONFIG_SECTION)

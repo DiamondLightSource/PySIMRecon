@@ -12,23 +12,23 @@ if TYPE_CHECKING:
 
 @dataclass(slots=True)
 class WavelengthSettings:
-    wavelength: int
+    wavelength: int  # Emission wavelength
     otf: Path | None
-    psf: Path | None
-    config: dict[str, Any] = field(default_factory=dict)
+    reconstruction_config: dict[str, Any] = field(default_factory=dict)
     otf_config: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(slots=True)
 class SettingsManager:
-    defaults_config: str | PathLike[str]
-    wavelengths_config: str | PathLike[str]
+    defaults_config_path: str | PathLike[str]
+    default_reconstruction_config: dict[str, Any] = field(default_factory=dict)
+    default_otf_config: dict[str, Any] = field(default_factory=dict)
     wavelength_settings: InitVar[Iterable[WavelengthSettings]] = field(
         default_factory=tuple
     )
     wavelengths: dict[int, WavelengthSettings] = field(default_factory=dict, init=False)
 
-    def __postinit__(self, wavelength_settings) -> None:
+    def __post_init__(self, wavelength_settings) -> None:
         for settings in wavelength_settings:
             self.set_wavelength(settings)
 
@@ -37,3 +37,26 @@ class SettingsManager:
 
     def get_wavelength(self, wavelength: int) -> WavelengthSettings | None:
         return self.wavelengths.get(wavelength, None)
+
+    def get_reconstruction_config(
+        self, wavelength: int, include_defaults: bool = True
+    ) -> dict[str, Any]:
+        if include_defaults:
+            config = self.default_reconstruction_config.copy()
+        else:
+            config = {}
+        config.update(self.get_wavelength(wavelength).reconstruction_config)
+        return config
+
+    def get_otf_config(
+        self, wavelength: int, include_defaults: bool = True
+    ) -> dict[str, Any]:
+        if include_defaults:
+            config = self.default_otf_config.copy()
+        else:
+            config = {}
+        config.update(self.get_wavelength(wavelength).otf_config)
+        return config
+
+    def get_otf_path(self, wavelength: int) -> Path | None:
+        return self.get_wavelength(wavelength).otf

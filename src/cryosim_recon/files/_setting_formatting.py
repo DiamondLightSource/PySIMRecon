@@ -99,12 +99,24 @@ FORMATTERS: dict[str, SettingFormat] = {
     "xyres": SettingFormat(Decimal),  # x-y pixel size (only used for TIFF files)
     "zres": SettingFormat(Decimal),  # z pixel size (only used for TIFF files)
     "zresPSF": SettingFormat(Decimal),  # z pixel size used in PSF TIFF files)
-    "wavelength": SettingFormat(int),
+    "wavelength": SettingFormat(
+        int
+    ),  # emission wavelength in nanometers (only used for TIFF files)
     #
     # OTF specific args:
-    "beaddiam": SettingFormat(Decimal),
-    "angle": SettingFormat(Decimal),
-    "nocompen": SettingFormat(bool),
-    "fixorigin": SettingFormat(int, True),
-    "leavekz": SettingFormat(int, True),
+    "beaddiam": SettingFormat(
+        Decimal
+    ),  # The diameter of the bead in microns, by default 0.12
+    "angle": SettingFormat(
+        Decimal
+    ),  # The k0 vector angle with which the PSF is taken, by default 0
+    "nocompen": SettingFormat(
+        bool
+    ),  # Do not perform bead size compensation, default False (do perform)
+    "fixorigin": SettingFormat(
+        int, True
+    ),  # The starting and end pixel for interpolation along kr axis, by default (2, 9)
+    "leavekz": SettingFormat(
+        int, True
+    ),  # Pixels to be retained on kz axis, by default (0, 0, 0)
 }
