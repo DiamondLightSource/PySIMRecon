@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from typing import TypeVar, Any
-    from collections.abc import Iterable
+    from collections.abc import Iterable, Generator
 
     T = TypeVar("T")
 
@@ -23,3 +23,10 @@ except ImportError:
         iterable: Iterable[T], *args: Any, **kwargs: Any
     ) -> Iterable[T]:
         return iterable
+
+    @contextmanager
+    def logging_redirect() -> Generator[None, None, None]:
+        try:
+            yield None
+        finally:
+            pass

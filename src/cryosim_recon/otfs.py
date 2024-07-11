@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 from pycudasirecon import make_otf  # type: ignore[import-untyped]
 
 from .files.dv import read_dv, dv_to_temporary_tiff
-from .files.utils import create_filename, ensure_unique_filepath
+from .files.utils import create_filename, ensure_unique_filepath, ensure_valid_filename
 from .settings import SettingsManager
 from .progress import progress_wrapper
 
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 def _get_single_channel_wavelength(psf_path: str | PathLike[str]) -> int:
     with read_dv(psf_path) as f:
-        waves = (
+        waves: tuple[int, ...] = (
             f.hdr.wave1,
             f.hdr.wave2,
             f.hdr.wave3,
@@ -44,15 +44,42 @@ def convert_psfs_to_otfs(
     **kwargs,
 ) -> list[Path]:
     completed_otfs: list[Path] = []
-    failed_psfs: list[Path] = []
+    failed_psfs: list[str | PathLike[str]] = []
     logger.info("Checking for PSFs to be converted to OTFs...")
-    for psf_path in progress_wrapper(psf_paths, desc="PSF to OTF conversions"):
-        try:
-            wavelength = _get_single_channel_wavelength(psf_path)
-            otf_path = psf_path_to_otf_path(
-                psf_path=psf_path,
-                output_directory=output_directory,
-                ensure_unique=ensure_unique_path,
+    with logging_redirect():
+        for psf_path in progress_wrapper(psf_paths, desc="PSF to OTF conversions"):
+            otf_path: Path | None = None
+            try:
+                wavelength = _get_single_channel_wavelength(psf_path)
+                otf_path = psf_path_to_otf_path(
+                    psf_path=psf_path,
+                    output_directory=output_directory,
+                    ensure_unique=not overwrite,
+                    wavelength=wavelength,
+                )
+                otf_kwargs = settings.get_otf_config(wavelength)
+                otf_kwargs.update(kwargs)
+                otf_path = psf_to_otf(
+                    psf_path=psf_path,
+                    otf_path=otf_path,
+                    wavelength=wavelength,
+                    overwrite=overwrite,
+                    cleanup=cleanup,
+                    **otf_kwargs,
+                )
+            except Exception:
+                logger.error(
+                    "Error during PSF to OTF conversion for '%s'", exc_info=True
+                )
+            if otf_path is None:
+                failed_psfs.append(psf_path)
+            else:
+                completed_otfs.append(otf_path)
+
+        if failed_psfs:
+            logger.warning(
+                "OTF creation failed for the following PSFs:\n%s",
+                "\n".join(str(fp) for fp in failed_psfs),
             )
             if otf_path.is_file():
                 logger.info(
@@ -131,12 +158,14 @@ def psf_path_to_otf_path(
     psf_path: str | PathLike[str],
     output_directory: str | PathLike[str] | None = None,
     suffix: Literal[".tiff"] = ".tiff",
+    wavelength: int | None = None,
     ensure_unique: bool = False,
     max_path_iter: int = 99,
 ) -> Path:
     psf_path = Path(psf_path)
-    timestamp = datetime.fromtimestamp(psf_path.stat().st_mtime).isoformat(
-        timespec="microseconds"
+    # datetime.isoformat fails on Windows due to colons being invalid in paths
+    timestamp = datetime.fromtimestamp(psf_path.stat().st_mtime).strftime(
+        "%Y%m%d_%H%M%S"
     )
 
     if output_directory is None:
@@ -144,9 +173,9 @@ def psf_path_to_otf_path(
     else:
         output_directory = Path(output_directory)
 
-    file_stem = f"{create_filename(stem=psf_path.stem, file_type='OTF')}_{timestamp}"
-    output_path = output_directory / f"{file_stem}{suffix}"
+    file_stem = f"{create_filename(stem=psf_path.stem, file_type='OTF', wavelength=wavelength)}_{timestamp}"
+    output_path = output_directory / ensure_valid_filename(f"{file_stem}{suffix}")
 
     if ensure_unique:
-        return ensure_unique_filepath(output_path, max_iter=max_path_iter)
+        output_path = ensure_unique_filepath(output_path, max_iter=max_path_iter)
     return output_path

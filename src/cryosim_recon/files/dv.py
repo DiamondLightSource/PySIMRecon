@@ -138,7 +138,7 @@ def prepare_files(
     file_path: str | PathLike[str],
     processing_dir: str | PathLike[str],
     settings: SettingsManager,
-    config_kwargs: Any,
+    **config_kwargs: Any,
 ) -> dict[int, ProcessingFiles]:
     """Context manager that takes care of splitting the file and making sure that
     duplicated data gets cleaned up when done.
@@ -182,6 +182,7 @@ def prepare_files(
                 if settings.get_wavelength(wavelength) is not None:
                     write_single_channel(data, output_path, header, wavelength)
                     processing_files = create_processing_files(
+                        file_path=output_path,
                         output_dir=processing_dir,
                         wavelength=wavelength,
                         settings=settings,
@@ -210,6 +211,11 @@ def dv_to_temporary_tiff(
     dv_path: str | PathLike[str], delete: bool = True
 ) -> Generator[Path, None, None]:
     dv_path = Path(dv_path)
+    tiff_path = None
+    if directory is None:
+        directory = dv_path.parent
+    else:
+        directory = Path(directory)
     try:
         tiff_path = get_temporary_path(
             dv_path.parent, f".{dv_path.stem}", suffix=".tiff"
@@ -219,5 +225,5 @@ def dv_to_temporary_tiff(
             tf.imwrite(tiff_path, data=dv)
         yield tiff_path
     finally:
-        if delete:
+        if delete and tiff_path is not None:
             os.unlink(tiff_path)

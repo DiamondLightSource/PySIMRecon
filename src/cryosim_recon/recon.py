@@ -40,7 +40,11 @@ def reconstruct_from_processing_files(
 ) -> Path:
     with read_dv(processing_files.image_path) as dv:
         header = dv.hdr
-        logger.info("Starting reconstruction of %s", processing_files.image_path)
+        logger.info(
+            "Starting reconstruction of %s with %s",
+            processing_files.image_path,
+            processing_files.config_path,
+        )
         # Use asarray here as I'm not sure what passing a memmap would do
         # TODO: try with memmap (i.e. `dv.data.squeeze()`)
         rec_array = reconstruct(dv.asarray(), processing_files.config_path)
