@@ -65,6 +65,7 @@ def run_reconstructions(
         sim_data_paths, desc="SIM data files", unit="file"
     ):
         try:
+            sim_data_path = Path(sim_data_path)
             if not sim_data_path.is_file():
                 raise FileNotFoundError(f"Image file {sim_data_path} does not exist")
 

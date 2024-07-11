@@ -99,27 +99,25 @@ def create_processing_files(
     if not file_path.is_file():
         return None
     logger.debug("Creating processing files for %s in %s", file_path, output_dir)
-    wavelength_settings = settings.get_wavelength(wavelength)
-    if wavelength_settings is None:
-        raise ValueError(f"No settings for wavelength {wavelength}")
+    otf_path = settings.get_otf_path(wavelength)
 
-    if wavelength_settings.otf is None:
+    if otf_path is None:
         raise ValueError(f"No OTF file has been set for wavelength {wavelength}")
 
     otf_path = Path(
         copyfile(
-            wavelength_settings.otf,
+            otf_path,
             output_dir
             / create_filename(
                 file_path.stem,
                 "OTF",
                 wavelength=wavelength,
-                extension=wavelength_settings.otf.suffix,
+                extension=otf_path.suffix,
             ),
         )
     )
     # Use the configured per-wavelength settings
-    kwargs = wavelength_settings.config.copy()
+    kwargs = settings.get_reconstruction_config(wavelength)
     # config_kwargs override those any config defaults set
     kwargs.update(config_kwargs)
 
@@ -221,4 +219,5 @@ def dv_to_temporary_tiff(
             tf.imwrite(tiff_path, data=dv)
         yield tiff_path
     finally:
-        os.unlink(tiff_path)
+        if delete:
+            os.unlink(tiff_path)
