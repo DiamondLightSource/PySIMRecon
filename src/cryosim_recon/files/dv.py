@@ -40,6 +40,56 @@ def read_dv(file_path: str | PathLike[str]) -> mrc.DVFile:
     return mrc.DVFile(file_path)
 
 
+def read_mrc_bound_array(file_path: str | PathLike[str]) -> NDArray[Any]:
+    file_path = Path(file_path)
+    if not file_path.is_file():
+        raise FileNotFoundError(f"File {file_path} not found")
+    logger.debug("Reading %s", file_path)
+    return mrc.mrc.imread(str(file_path))  # type: ignore[reportReturnType]
+
+
+@contextmanager
+def write_dv(
+    output_file_path: str | PathLike[str],
+    array: NDArray[Any],
+    header: np.recarray,
+) -> Generator[np.recarray[Any, Any], None, None]:
+    m = None
+    try:
+        m = mrc.Mrc2(output_file_path, mode="w")
+        m.initHdrForArr(array)
+
+        # remove MRC only fields, keeping bits from initHdrForArr:
+        # joint_names = set(m.hdr._array.dtype.names) & set(header._fields)
+        # array_list = m.hdr._array.tolist()
+        # new_mrc_header_rec = m.hdr._array[joint_names]
+
+        # skipped_fields = ("Num", "PixelType", "next")  # from copyHdrInfo
+
+        mrc.copyHdrInfo(m.hdr, header)
+
+        # dv_header_rec = np.rec.fromarrays(tuple([getattr(header, f, None)] for f in header._fields), names=",".join(header._fields), shape=1)  # type: ignore[reportArgumentType])
+
+        # if dv_header_rec.dtype.names is not None:
+        #     for name in dv_header_rec.dtype.names:
+        #         if name not in skipped_fields:
+        #             if hasattr(m.hdr, name):
+        #                 setattr(m.hdr, name, getattr(dv_header_rec, name))
+        yield m.hdr  # type: ignore[reportReturnType]
+
+        #
+        m.seekHeader()
+        m.writeHeader()
+        # m.makeExtendedHdr(numInts=8, numFloats=32, nSecs=array.shape[0])
+        # m.seekExtHeader()
+        # m.writeExtHeader()
+        # m.seekSec(0)
+        m.writeStack(array)
+    finally:
+        if m is not None:
+            m.close()
+
+
 def combine_wavelengths_dv(
     input_file: str | PathLike[str],
     output_file: str | PathLike[str],
@@ -51,16 +101,13 @@ def combine_wavelengths_dv(
         output_file,
         "\n\t".join(str(fp) for fp in file_paths),
     )
-    with read_dv(input_file) as dv:
-        hdr = dv.hdr
-    m = mrc.Mrc2(output_file, mode="w")
-    # Use memmap rather than asarray
-    array = np.stack(tuple(tf.memmap(fp).squeeze() for fp in file_paths), -3)
-    m.initHdrForArr(array)
-    mrc.copyHdrInfo(m.hdr, hdr)
-    m.writeHeader()
-    m.writeStack(array)
-    m.close()
+
+    with write_dv(
+        output_file,
+        array=np.stack(tuple(tf.memmap(fp).squeeze() for fp in file_paths), -3),
+        header=read_mrc_bound_array(input_file).Mrc.hdr,
+    ):
+        pass
 
     if delete:
         try:
@@ -73,18 +120,26 @@ def combine_wavelengths_dv(
 
 
 def write_single_channel(
-    output_file_path: str | PathLike[str], array: NDArray[Any], header, wavelength: int
+    output_file_path: str | PathLike[str],
+    array: NDArray[Any],
+    header: np.recarray,
+    wavelength: int,
 ) -> None:
     """Writes a new single-channel file from array data, copying information from hdr"""
-    logger.debug("Writing channel %i to %s", wavelength, output_file)
-    m = mrc.Mrc2(output_file, mode="w")
-    m.initHdrForArr(array)
-    mrc.copyHdrInfo(m.hdr, header)
-    m.hdr.NumWaves = 1
-    m.hdr.wave = [wavelength, 0, 0, 0, 0]
-    m.writeHeader()
-    m.writeStack(array)
-    m.close()
+    logger.debug("Writing channel %i to %s", wavelength, output_file_path)
+
+    # header_dict = header._asdict()
+    # header_dict["wave1"] = wavelength
+    # header_dict["wave2"] = 0
+    # header_dict["wave3"] = 0
+    # header_dict["wave4"] = 0
+    # header_dict["wave5"] = 0
+
+    # header = mrc._new.Header(**header_dict)
+    with write_dv(output_file_path, array=array, header=header) as hdr:
+        hdr.wave = [wavelength, 0, 0, 0, 0]
+        hdr.NumWaves = 1
+    return None
 
 
 def create_processing_files(
@@ -121,6 +176,12 @@ def create_processing_files(
     # config_kwargs override those any config defaults set
     kwargs.update(config_kwargs)
 
+    # data = read_mrc_bound_array(file_path)
+    # # Take from dv file, not config
+    # kwargs["zres"] = data.Mrc.header.dz
+    # kwargs["xyres"] = data.Mrc.header.dx
+    # del data
+
     with read_dv(file_path) as dv:
         # Take from dv file, not config
         kwargs["zres"] = dv.hdr.dz
@@ -140,27 +201,59 @@ def prepare_files(
     settings: SettingsManager,
     **config_kwargs: Any,
 ) -> dict[int, ProcessingFiles]:
-    """Context manager that takes care of splitting the file and making sure that
-    duplicated data gets cleaned up when done.
-    """
     file_path = Path(file_path)
     processing_dir = Path(processing_dir)
-    with read_dv(file_path) as dv:
-        header = dv.hdr
-        processing_files_dict = dict()
-        waves = (header.wave1, header.wave2, header.wave3, header.wave4, header.wave5)
-        if np.count_nonzero(waves) == 1:
-            # if it's a single channel file, we don't need to split
-            wavelength = waves[0]
+    array = read_mrc_bound_array(file_path)
+    header = array.Mrc.hdr
+    processing_files_dict = dict()
+    waves = header.wave
+    # waves = (header.wave1, header.wave2, header.wave3, header.wave4, header.wave5)
+    if np.count_nonzero(waves) == 1:
+        # if it's a single channel file, we don't need to split
+        wavelength = waves[0]
+
+        if settings.get_wavelength(wavelength) is not None:
+            processing_files = create_processing_files(
+                file_path=file_path,
+                output_dir=processing_dir,
+                wavelength=wavelength,
+                settings=settings,
+                **config_kwargs,
+            )
+            if processing_files is None:
+                logger.warning(
+                    "No processing files found for '%s' at %i",
+                    file_path,
+                    wavelength,
+                )
+            else:
+                processing_files_dict[wavelength] = processing_files
+
+    else:
+        # otherwise break out individual wavelengths
+        for c, wavelength in enumerate(waves):
+            if wavelength == 0:
+                continue
+            processing_files = None
+            output_path = processing_dir / f"{wavelength}{file_path.suffix}"
+            # assumes channel is the 3rd to last dimension
 
             if settings.get_wavelength(wavelength) is not None:
+
+                # Equivalent of np.take(array, c, -3) but no copying
+                channel_slice: list[slice | int] = [slice(None)] * len(array.shape)
+                channel_slice[-3] = c
+                write_single_channel(
+                    output_path, array[*channel_slice], header, wavelength
+                )
                 processing_files = create_processing_files(
-                    file_path=file_path,
+                    file_path=output_path,
                     output_dir=processing_dir,
                     wavelength=wavelength,
                     settings=settings,
                     **config_kwargs,
                 )
+
                 if processing_files is None:
                     logger.warning(
                         "No processing files found for '%s' at %i",
@@ -168,41 +261,13 @@ def prepare_files(
                         wavelength,
                     )
                 else:
-                    processing_files_dict[wavelength] = processing_files
-
-        else:
-            # otherwise break out individual wavelengths
-            for c, wavelength in enumerate(waves):
-                if wavelength == 0:
-                    continue
-                processing_files = None
-                output_path = processing_dir / f"{wavelength}{file_path.suffix}"
-                # assumes channel is the 3rd to last dimension
-                data = np.take(dv.data.squeeze(), c, -3)
-                if settings.get_wavelength(wavelength) is not None:
-                    write_single_channel(output_path, data, header, wavelength)
-                    processing_files = create_processing_files(
-                        file_path=output_path,
-                        output_dir=processing_dir,
-                        wavelength=wavelength,
-                        settings=settings,
-                        **config_kwargs,
-                    )
-
-                    if processing_files is None:
-                        logger.warning(
-                            "No processing files found for '%s' at %i",
-                            file_path,
+                    if wavelength in processing_files_dict:
+                        raise KeyError(
+                            "Wavelength %i found multiple times within %s",
                             wavelength,
+                            file_path,
                         )
-                    else:
-                        if wavelength in processing_files_dict:
-                            raise KeyError(
-                                "Wavelength %i found multiple times within %s",
-                                wavelength,
-                                file_path,
-                            )
-                        processing_files_dict[wavelength] = processing_files
+                    processing_files_dict[wavelength] = processing_files
     return processing_files_dict
 
 

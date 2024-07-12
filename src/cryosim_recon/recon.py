@@ -2,6 +2,7 @@ from __future__ import annotations
 import logging
 from os.path import abspath
 from pathlib import Path
+import numpy as np
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
 
@@ -11,6 +12,7 @@ from .files.utils import create_filename
 from .files.dv import (
     prepare_files,
     read_dv,
+    read_mrc_bound_array,
     write_single_channel,
     combine_wavelengths_dv,
 )
@@ -30,7 +32,10 @@ logger = logging.getLogger(__name__)
 
 
 def reconstruct(array: NDArray[Any], config_path: str | PathLike[str]) -> NDArray[Any]:
-    return SIMReconstructor(array, config=str(abspath(config_path))).get_result()
+    reconstructor = SIMReconstructor(
+        np.asarray(array), config=str(abspath(config_path))
+    )
+    return reconstructor.get_result()
 
 
 def reconstruct_from_processing_files(
@@ -38,18 +43,18 @@ def reconstruct_from_processing_files(
     wavelength: int,
     output_file: str | PathLike[str],
 ) -> Path:
-    with read_dv(processing_files.image_path) as dv:
-        header = dv.hdr
-        logger.info(
-            "Starting reconstruction of %s with %s",
-            processing_files.image_path,
-            processing_files.config_path,
-        )
-        # Use asarray here as I'm not sure what passing a memmap would do
-        # TODO: try with memmap (i.e. `dv.data.squeeze()`)
-        rec_array = reconstruct(dv.asarray(), processing_files.config_path)
+    data = read_mrc_bound_array(processing_files.image_path)
+    header = data.Mrc.hdr
+    logger.info(
+        "Starting reconstruction of %s with %s",
+        processing_files.image_path,
+        processing_files.config_path,
+    )
+    # Use asarray here as I'm not sure what passing a memmap would do
+    # TODO: try with memmap (i.e. `dv.data.squeeze()`)
+    rec_array = reconstruct(data, processing_files.config_path)
     logger.info("Reconstructed %s", processing_files.image_path)
-    write_single_channel(rec_array, output_file, header, wavelength=wavelength)
+    write_single_channel(output_file, rec_array, header, wavelength=wavelength)
     logger.debug(
         "Reconstruction of %s saved in %s", processing_files.image_path, output_file
     )
