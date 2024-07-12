@@ -11,7 +11,7 @@ from pycudasirecon import make_otf  # type: ignore[import-untyped]
 from .files.dv import read_dv, dv_to_temporary_tiff
 from .files.utils import create_filename, ensure_unique_filepath, ensure_valid_filename
 from .settings import SettingsManager
-from .progress import progress_wrapper
+from .progress import progress_wrapper, logging_redirect
 
 if TYPE_CHECKING:
     from typing import Any, Literal
