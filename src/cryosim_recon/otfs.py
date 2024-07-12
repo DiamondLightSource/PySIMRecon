@@ -57,14 +57,6 @@ def convert_psfs_to_otfs(
                     output_directory=output_directory,
                     ensure_unique=not overwrite,
                 )
-                if otf_path.is_file():
-                    logger.info(
-                        "Skipping PSF to OTF conversion: "
-                        "OTF file %s already exists and PSF file %s has not been modified since it was created",
-                        otf_path,
-                        psf_path,
-                    )
-                    continue
                 otf_kwargs = settings.get_otf_config(wavelength)
                 otf_kwargs.update(kwargs)
                 otf_path = psf_to_otf(
