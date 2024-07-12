@@ -208,7 +208,9 @@ def prepare_files(
 
 @contextmanager
 def dv_to_temporary_tiff(
-    dv_path: str | PathLike[str], delete: bool = True
+    dv_path: str | PathLike[str],
+    directory: str | PathLike[str] | None = None,
+    delete: bool = True,
 ) -> Generator[Path, None, None]:
     dv_path = Path(dv_path)
     tiff_path = None
@@ -217,12 +219,10 @@ def dv_to_temporary_tiff(
     else:
         directory = Path(directory)
     try:
-        tiff_path = get_temporary_path(
-            dv_path.parent, f".{dv_path.stem}", suffix=".tiff"
-        )
+        tiff_path = get_temporary_path(directory, f".{dv_path.stem}", suffix=".tiff")
 
         with read_dv(dv_path) as dv:
-            tf.imwrite(tiff_path, data=dv)
+            tf.imwrite(tiff_path, data=dv.asarray(squeeze=True))
         yield tiff_path
     finally:
         if delete and tiff_path is not None:

@@ -43,7 +43,8 @@ def sim_psf_to_otf(
     config_path: str | PathLike[str],
     *psf_paths: str | PathLike[str],
     output_directory: str | PathLike[str] | None = None,
-    ensure_unique_path: bool = True,
+    overwrite: bool = False,
+    cleanup: bool = True,
     **otf_kwargs: Any,
 ) -> None:
     if otf_kwargs is None:
@@ -54,7 +55,8 @@ def sim_psf_to_otf(
         settings,
         *psf_paths,
         output_directory=output_directory,
-        ensure_unique_path=ensure_unique_path,
+        overwrite=overwrite,
+        cleanup=cleanup,
         **otf_kwargs,
     )
 

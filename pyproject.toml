@@ -20,9 +20,20 @@ requires = [
 ]
 build-backend = "hatchling.build"
 
+[project.scripts]
+sim-recon = "cryosim_recon.cli:sim_recon"
+sim-otf = "cryosim_recon.cli:sim_otf"
+
+[project.optional-dependencies]
+progress = [
+    "tqdm>=4.66.4",
+]
+
 [tool.rye]
 managed = true
 dev-dependencies = [
+    "pytest>=8.2.2",
+    "pytest-cov>=5.0.0",
 ]
 
 [tool.hatch.metadata]

@@ -22,14 +22,14 @@ logger = logging.getLogger(__name__)
 
 def _get_single_channel_wavelength(psf_path: str | PathLike[str]) -> int:
     with read_dv(psf_path) as f:
-        waves: tuple[int, ...] = (
+        waves = (
             f.hdr.wave1,
             f.hdr.wave2,
             f.hdr.wave3,
             f.hdr.wave4,
             f.hdr.wave5,
         )
-    waves = (w for w in waves if w)  # Trim 0s
+    waves = tuple(w for w in waves if w)  # Trim 0s
     assert (
         len(set(waves)) == 1
     ), f"PSFs must be single channel but {psf_path} has wavelengths: {', '.join(str(w) for w in waves)}"
@@ -40,7 +40,8 @@ def convert_psfs_to_otfs(
     settings: SettingsManager,
     *psf_paths: str | PathLike[str],
     output_directory: str | PathLike[str] | None = None,
-    ensure_unique_path: bool = True,
+    overwrite: bool = False,
+    cleanup: bool = True,
     **kwargs,
 ) -> list[Path]:
     completed_otfs: list[Path] = []
@@ -55,8 +56,15 @@ def convert_psfs_to_otfs(
                     psf_path=psf_path,
                     output_directory=output_directory,
                     ensure_unique=not overwrite,
-                    wavelength=wavelength,
                 )
+                if otf_path.is_file():
+                    logger.info(
+                        "Skipping PSF to OTF conversion: "
+                        "OTF file %s already exists and PSF file %s has not been modified since it was created",
+                        otf_path,
+                        psf_path,
+                    )
+                    continue
                 otf_kwargs = settings.get_otf_config(wavelength)
                 otf_kwargs.update(kwargs)
                 otf_path = psf_to_otf(
@@ -81,55 +89,29 @@ def convert_psfs_to_otfs(
                 "OTF creation failed for the following PSFs:\n%s",
                 "\n".join(str(fp) for fp in failed_psfs),
             )
-            if otf_path.is_file():
-                logger.info(
-                    "Skipping PSF to OTF conversion: "
-                    "OTF file %s already exists and PSF file %s has not been modified since it was created",
-                    otf_path,
-                    psf_path,
-                )
-                continue
-            otf_kwargs = settings.get_otf_config(wavelength)
-            otf_kwargs.update(kwargs)
-            otf_path = psf_to_otf(
-                psf_path=psf_path,
-                otf_path=otf_path,
-                wavelength=wavelength,
-                overwrite=True,
-                **otf_kwargs,
+        if completed_otfs:
+            logger.info(
+                "OTFs created:\n%s", "\n".join(str(fp) for fp in completed_otfs)
             )
-        except Exception:
-            logger.error("Error during PSF to OTF conversion for '%s'", exc_info=True)
-        if otf_path is None:
-            failed_psfs.append(psf_path)
         else:
-            completed_otfs.append(otf_path)
-
-    if failed_psfs:
-        logger.warning(
-            "OTF creation failed for the following PSFs:\n%s",
-            "\n".join(str(fp) for fp in failed_psfs),
-        )
-    if completed_otfs:
-        logger.info("OTFs created:\n%s", "\n".join(str(fp) for fp in completed_otfs))
-    else:
-        logger.warning("No OTFs were successfully created")
-    return completed_otfs
+            logger.warning("No OTFs were created")
+        return completed_otfs
 
 
 def psf_to_otf(
     psf_path: str | PathLike[str],
     otf_path: str | PathLike[str],
     overwrite: bool = False,
+    cleanup: bool = True,
     **kwargs: Any,
 ) -> Path | None:
-
+    otf_path = Path(otf_path)
+    psf_path = Path(psf_path)
     logger.info("Making OTF file %s from PSF file %s", otf_path, psf_path)
-    otf_exists = os.path.isfile(otf_path)
-    if otf_exists:
+    if otf_path.is_file():
         if overwrite:
             logger.warning("Overwriting file %s", otf_path)
-            os.unlink(otf_path)
+            otf_path.unlink()
         else:
             raise FileExistsError(f"File {otf_path} already exists")
 
@@ -142,9 +124,11 @@ def psf_to_otf(
         if k in make_otf_kwargs:
             make_otf_kwargs[k] = v
 
-    with dv_to_temporary_tiff(psf_path) as tiff_path:
-        make_otf_kwargs["psf"] = tiff_path
+    with dv_to_temporary_tiff(psf_path, otf_path.parent, delete=cleanup) as tiff_path:
+        make_otf_kwargs["psf"] = str(tiff_path)
         make_otf_kwargs["out_file"] = str(otf_path)
+
+        logger.info("Calling make_otf with arguments: %s", make_otf_kwargs)
         make_otf(**make_otf_kwargs)
 
     if not os.path.isfile(otf_path):

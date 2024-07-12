@@ -60,7 +60,8 @@ def _get_paths_from_section(
     section_name: str,
     config_parser: RawConfigParser,
 ) -> dict[int, Path]:
-    dictionary = {}
+    key: int | str
+    dictionary: dict[int, Path] = {}
     directory = config_parser.get(section_name, __DIRECTORY_KEY, fallback="").strip()
     for key, path_str in config_parser.items(section_name):
         key = key.strip()
