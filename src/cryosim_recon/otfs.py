@@ -56,6 +56,7 @@ def convert_psfs_to_otfs(
                     psf_path=psf_path,
                     output_directory=output_directory,
                     ensure_unique=not overwrite,
+                    wavelength=wavelength,
                 )
                 otf_kwargs = settings.get_otf_config(wavelength)
                 otf_kwargs.update(kwargs)
