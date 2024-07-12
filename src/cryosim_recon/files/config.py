@@ -131,15 +131,9 @@ def create_wavelength_config(
     # Add otf_file that is expected by ReconParams
     config_kwargs["otf_file"] = str(abspath(otf_path))
     # Convert to string so it can be written without a section, like sirecon expects
-    text = ""
-    for key, value in config_kwargs.items():
-        if isinstance(value, (tuple, list)):
-            # Comma separated values
-            value = ",".join(str(i) for i in value)
-        text += f"{key}={value}\n"
-
     with open(output_path, "w") as f:
-        f.write(text)
+        for line in format_kwargs_as_config(config_kwargs):
+            f.write(line + "\n")
     return Path(output_path)
 
 
@@ -190,3 +184,14 @@ def _config_section_to_dict(
         else:
             kwargs[key] = setting_format.conv(value.strip())
     return kwargs
+
+
+def format_kwargs_as_config(kwargs: dict[str, Any]) -> list[str]:
+    """Format kwargs in the way they are presented in configs"""
+    settings_list: list[str] = []
+    for key, value in kwargs.items():
+        if isinstance(value, (tuple, list)):
+            # Comma separated values
+            value = ",".join((str(v) for v in value))
+        settings_list.append(f"{key.replace("_", "-")}={str(value)}")
+    return settings_list

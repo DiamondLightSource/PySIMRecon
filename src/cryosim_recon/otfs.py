@@ -11,6 +11,7 @@ from pycudasirecon import make_otf  # type: ignore[import-untyped]
 from .files.dv import read_dv, dv_to_temporary_tiff
 from .files.utils import create_filename, ensure_unique_filepath, ensure_valid_filename
 from .settings import SettingsManager
+from .files.config import format_kwargs_as_config
 from .progress import progress_wrapper, logging_redirect
 
 if TYPE_CHECKING:
@@ -79,12 +80,12 @@ def convert_psfs_to_otfs(
 
         if failed_psfs:
             logger.warning(
-                "OTF creation failed for the following PSFs:\n%s",
-                "\n".join(str(fp) for fp in failed_psfs),
+                "OTF creation failed for the following PSFs:\n\t%s",
+                "\n\t".join(str(fp) for fp in failed_psfs),
             )
         if completed_otfs:
             logger.info(
-                "OTFs created:\n%s", "\n".join(str(fp) for fp in completed_otfs)
+                "OTFs created:\n\t%s", "\n\t".join(str(fp) for fp in completed_otfs)
             )
         else:
             logger.warning("No OTFs were created")
@@ -121,7 +122,10 @@ def psf_to_otf(
         make_otf_kwargs["psf"] = str(tiff_path)
         make_otf_kwargs["out_file"] = str(otf_path)
 
-        logger.info("Calling make_otf with arguments: %s", make_otf_kwargs)
+        logger.info(
+            "Calling make_otf with arguments:\n\t%s",
+            "\n\t".join(format_kwargs_as_config(make_otf_kwargs)),
+        )
         make_otf(**make_otf_kwargs)
 
     if not os.path.isfile(otf_path):
