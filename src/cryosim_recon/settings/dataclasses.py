@@ -58,7 +58,7 @@ class SettingsManager:
             config = {}
         ws = self.get_wavelength(wavelength)
         if ws is not None:
-            config.update(ws.reconstruction_config)
+            config.update(ws.otf_config)
         return config
 
     def get_otf_path(self, wavelength: int) -> Path | None:
