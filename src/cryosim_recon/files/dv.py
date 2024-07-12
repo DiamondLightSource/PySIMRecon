@@ -73,7 +73,7 @@ def combine_wavelengths_dv(
 
 
 def write_single_channel(
-    array: NDArray[Any], output_file, header, wavelength: int
+    output_file_path: str | PathLike[str], array: NDArray[Any], header, wavelength: int
 ) -> None:
     """Writes a new single-channel file from array data, copying information from hdr"""
     logger.debug("Writing channel %i to %s", wavelength, output_file)
@@ -180,7 +180,7 @@ def prepare_files(
                 # assumes channel is the 3rd to last dimension
                 data = np.take(dv.data.squeeze(), c, -3)
                 if settings.get_wavelength(wavelength) is not None:
-                    write_single_channel(data, output_path, header, wavelength)
+                    write_single_channel(output_path, data, header, wavelength)
                     processing_files = create_processing_files(
                         file_path=output_path,
                         output_dir=processing_dir,
