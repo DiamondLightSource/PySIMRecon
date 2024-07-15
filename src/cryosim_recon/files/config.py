@@ -138,7 +138,7 @@ def create_wavelength_config(
 
 def get_recon_kwargs(
     config_parser: RawConfigParser,
-) -> dict[str, str]:
+) -> dict[str, Any]:
     return _config_section_to_dict(
         config_parser, section_name=__RECON_CONFIG_SECTION, settings_for="recon"
     )
@@ -146,7 +146,7 @@ def get_recon_kwargs(
 
 def get_otf_kwargs(
     config_parser: RawConfigParser,
-) -> dict[str, str]:
+) -> dict[str, Any]:
     return _config_section_to_dict(
         config_parser, section_name=__OTF_CONFIG_SECTION, settings_for="otf"
     )
