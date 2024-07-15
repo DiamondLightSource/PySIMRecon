@@ -155,8 +155,8 @@ def create_processing_files(
     otf_path = Path(
         copyfile(
             otf_path,
-            output_dir
-            / f"{file_path.stem}_{wavelength}_{OTF_NAME_STUB}{otf_path.suffix}",
+            # wavelength is already in the stem
+            output_dir / f"{OTF_NAME_STUB}{wavelength}.otf",
         )
     )
     # Use the configured per-wavelength settings
@@ -164,7 +164,8 @@ def create_processing_files(
     # config_kwargs override those any config defaults set
     kwargs.update(config_kwargs)
     config_path = create_wavelength_config(
-        output_dir / f"{file_path.stem}_{wavelength}.cfg",
+        # wavelength is already in the stem
+        output_dir / f"config{wavelength}.txt",
         otf_path,
         **kwargs,
     )
@@ -218,9 +219,7 @@ def prepare_files(
                 continue
             processing_files = None
             if settings.get_wavelength(wavelength) is not None:
-                proc_output_path = (
-                    processing_dir / f"{file_path.stem}_{wavelength}.tiff"
-                )
+                proc_output_path = processing_dir / f"data{wavelength}.tif"
                 # assumes channel is the 3rd to last dimension
                 # Equivalent of np.take(array, c, -3) but no copying
                 channel_slice: list[slice | int] = [slice(None)] * len(array.shape)
