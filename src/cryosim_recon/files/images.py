@@ -259,6 +259,8 @@ def dv_to_temporary_tiff(
     dv_path: str | PathLike[str],
     directory: str | PathLike[str] | None = None,
     delete: bool = True,
+    xy_shape: tuple[int, int] | None = None,
+    crop: float = 0,
 ) -> Generator[Path, None, None]:
     dv_path = Path(dv_path)
     tiff_path = None
@@ -270,7 +272,24 @@ def dv_to_temporary_tiff(
         tiff_path = get_temporary_path(directory, f".{dv_path.stem}", suffix=".tiff")
 
         with read_dv(dv_path) as dv:
-            tf.imwrite(tiff_path, data=dv.asarray(squeeze=True))  # type: ignore[reportUnknownMemberType]
+            array: NDArray[Any] = dv.asarray(squeeze=True)  # type: ignore[reportUnknownMemberType]
+            if xy_shape is not None:
+                target_yx_shape = np.asarray(xy_shape[::-1], dtype=np.uint16)
+                current_yx_shape = np.asarray(array.shape[1:], dtype=np.uint16)
+                crop_amount = current_yx_shape - target_yx_shape
+                min_bounds = crop_amount // 2
+                max_bounds = current_yx_shape - crop_amount // 2
+                array = array[
+                    :, min_bounds[0] : max_bounds[0], min_bounds[1] : max_bounds[1]
+                ]
+            elif crop > 0 and crop <= 1:
+                yx_shape = np.asarray(array.shape[1:], dtype=np.uint16)
+                min_bounds = np.round((yx_shape * crop) / 2).astype(np.uint16)
+                max_bounds = yx_shape - min_bounds
+                array = array[
+                    :, min_bounds[0] : max_bounds[0], min_bounds[1] : max_bounds[1]
+                ]
+            tf.imwrite(tiff_path, data=array)  # type: ignore[reportUnknownMemberType]
         yield tiff_path
     finally:
         if delete and tiff_path is not None:

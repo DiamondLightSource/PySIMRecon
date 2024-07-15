@@ -118,7 +118,9 @@ def psf_to_otf(
         if k in make_otf_kwargs:
             make_otf_kwargs[k] = v
 
-    with dv_to_temporary_tiff(psf_path, otf_path.parent, delete=cleanup) as tiff_path:
+    with dv_to_temporary_tiff(
+        psf_path, otf_path.parent, delete=cleanup, xy_shape=(256, 256)
+    ) as tiff_path:
         make_otf_kwargs["psf"] = str(tiff_path)
         make_otf_kwargs["out_file"] = str(otf_path)
 
