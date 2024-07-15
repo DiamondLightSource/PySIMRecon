@@ -1,1 +1,1 @@
-from .dataclasses import WavelengthSettings, SettingsManager  # noqa: F401
+from .dataclasses import WavelengthSettings, SettingsManager  #type: ignore[reportUnusedImport]  # noqa: F401

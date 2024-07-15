@@ -9,8 +9,8 @@ if TYPE_CHECKING:
     from ..settings.formatting import SettingFormat
 
 
-def handle_required(parser, namespace: argparse.Namespace, *required: tuple[str, str]):
-    missing_arguments = []
+def handle_required(parser: argparse.ArgumentParser, namespace: argparse.Namespace, *required: tuple[str, str]):
+    missing_arguments: list[str] = []
     for print_name, dest in required:
         if getattr(namespace, dest, None) is None:
             missing_arguments.append(print_name)

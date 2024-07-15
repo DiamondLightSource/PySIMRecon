@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 __OTF_SUFFIX = "_otf"
 __RECON_SUFFIX = "_recon"
 
-WINDOWS_FN_SUB = re.compile("[<>:\"/\\|?*]")
+WINDOWS_FN_SUB = re.compile('[<>:"/\\|?*]')
 LINUX_FN_SUB = re.compile("/")
 DARWIN_FN_SUB = re.compile("[/:]")
 
@@ -56,9 +56,12 @@ def get_temporary_path(directory: Path, stem: str, suffix:str) -> Path:
         tiff_path = (directory / f"{stem}_{uuid4()}").with_suffix(suffix)
         if not tiff_path.exists():
             return tiff_path
-    raise FileExistsError(f"Failed to create temporary file with stem '{stem}' and suffix '{suffix}' in '{directory}' due to multiple collisions")
+    raise FileExistsError(
+        f"Failed to create temporary file with stem '{stem}' and suffix '{suffix}' in '{directory}' due to multiple collisions"
+    )
 
-def ensure_unique_filepath(path: Path, max_iter: int=99)-> Path:
+
+def ensure_unique_filepath(path: Path, max_iter: int = 99) -> Path:
     if not path.exists():
         return path
     if max_iter <= 1:
@@ -72,7 +75,8 @@ def ensure_unique_filepath(path: Path, max_iter: int=99)-> Path:
         f"Failed to create unique file path after {i} attempts. Final attempt was '{output_path}'."  # type: ignore[reportPossiblyUnboundVariable]
     )
 
-def ensure_valid_filename(filename:str) -> str:
+
+def ensure_valid_filename(filename: str) -> str:
     rstrip = " "
     system = platform.system()
     if system == "Windows":

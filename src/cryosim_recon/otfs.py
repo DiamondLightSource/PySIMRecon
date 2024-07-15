@@ -43,7 +43,7 @@ def convert_psfs_to_otfs(
     output_directory: str | PathLike[str] | None = None,
     overwrite: bool = False,
     cleanup: bool = True,
-    **kwargs,
+    **kwargs: Any,
 ) -> list[Path]:
     completed_otfs: list[Path] = []
     failed_psfs: list[str | PathLike[str]] = []
@@ -110,7 +110,7 @@ def psf_to_otf(
             raise FileExistsError(f"File {otf_path} already exists")
 
     make_otf_kwargs: dict[str, Any] = dict(
-        inspect.signature(make_otf).parameters.items()
+        inspect.signature(make_otf).parameters.items()  # type: ignore[reportUnknownArgumentType]
     )
 
     for k, v in kwargs.items():

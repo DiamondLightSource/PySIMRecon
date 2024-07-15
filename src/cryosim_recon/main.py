@@ -47,9 +47,6 @@ def sim_psf_to_otf(
     cleanup: bool = True,
     **otf_kwargs: Any,
 ) -> None:
-    if otf_kwargs is None:
-        otf_kwargs = {}
-
     settings = load_settings(config_path)
     convert_psfs_to_otfs(
         settings,
@@ -69,9 +66,6 @@ def sim_reconstruct(
     cleanup: bool = False,
     **recon_kwargs: Any,
 ) -> None:
-    if recon_kwargs is None:
-        recon_kwargs = {}
-
     settings = load_settings(config_path)
     logger.info("Starting reconstructions")
     run_reconstructions(

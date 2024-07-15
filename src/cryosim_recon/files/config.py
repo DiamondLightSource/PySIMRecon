@@ -60,7 +60,6 @@ def _get_paths_from_section(
     section_name: str,
     config_parser: RawConfigParser,
 ) -> dict[int, Path]:
-    key: int | str
     dictionary: dict[int, Path] = {}
     directory = config_parser.get(section_name, __DIRECTORY_KEY, fallback="").strip()
     for key, path_str in config_parser.items(section_name):
@@ -157,8 +156,8 @@ def _config_section_to_dict(
     config_parser: RawConfigParser,
     section_name: str,
     settings_for: Literal["otf", "recon"],
-):
-    kwargs = {}
+) -> dict[str, Any]:
+    kwargs: dict[str, Any] = {}
     if settings_for == "otf":
         formatters = OTF_FORMATTERS
     elif settings_for == "recon":
@@ -169,7 +168,7 @@ def _config_section_to_dict(
         )
 
     for key, value in config_parser.items(section_name):
-        if value is None or key not in formatters:
+        if key not in formatters:
             logger.debug("Option %s=%s is invalid and will be ignored", key, value)
         setting_format = formatters.get(key)
         if setting_format is None:
@@ -189,6 +188,7 @@ def _config_section_to_dict(
 def format_kwargs_as_config(kwargs: dict[str, Any]) -> list[str]:
     """Format kwargs in the way they are presented in configs"""
     settings_list: list[str] = []
+    value: Any | list[Any] | tuple[Any,...]
     for key, value in kwargs.items():
         if isinstance(value, (tuple, list)):
             # Comma separated values
