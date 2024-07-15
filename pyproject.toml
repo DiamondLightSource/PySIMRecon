@@ -43,3 +43,9 @@ allow-direct-references = true
 packages = [
     "src/cryosim_recon",
 ]
+
+[tool.pyright]
+reportMissingImports = false
+strict = [
+    "src/**",
+]
