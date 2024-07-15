@@ -10,10 +10,11 @@ import numpy as np
 import mrc
 import tifffile as tf
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING, NamedTuple, cast
 
-from .utils import create_filename, get_temporary_path
+from .utils import get_temporary_path, OTF_NAME_STUB
 from .config import create_wavelength_config
+from ..info import __version__
 
 if TYPE_CHECKING:
     from typing import Any
@@ -52,39 +53,19 @@ def read_mrc_bound_array(file_path: str | PathLike[str]) -> NDArray[Any]:
 def write_dv(
     output_file_path: str | PathLike[str],
     array: NDArray[Any],
-    header: np.recarray,
-) -> Generator[np.recarray[Any, Any], None, None]:
+    header: np.recarray[int | float, np.dtype[np.int32 | np.float32]],
+) -> Generator[np.recarray[int | float, np.dtype[np.int32 | np.float32]], None, None]:
     m = None
     try:
         m = mrc.Mrc2(output_file_path, mode="w")
-        m.initHdrForArr(array)
+        m.initHdrForArr(array)  # type: ignore[reportUnknownMemberType]
+        mrc.copyHdrInfo(m.hdr, header)  # type: ignore[reportUnknownMemberType]
 
-        # remove MRC only fields, keeping bits from initHdrForArr:
-        # joint_names = set(m.hdr._array.dtype.names) & set(header._fields)
-        # array_list = m.hdr._array.tolist()
-        # new_mrc_header_rec = m.hdr._array[joint_names]
-
-        # skipped_fields = ("Num", "PixelType", "next")  # from copyHdrInfo
-
-        mrc.copyHdrInfo(m.hdr, header)
-
-        # dv_header_rec = np.rec.fromarrays(tuple([getattr(header, f, None)] for f in header._fields), names=",".join(header._fields), shape=1)  # type: ignore[reportArgumentType])
-
-        # if dv_header_rec.dtype.names is not None:
-        #     for name in dv_header_rec.dtype.names:
-        #         if name not in skipped_fields:
-        #             if hasattr(m.hdr, name):
-        #                 setattr(m.hdr, name, getattr(dv_header_rec, name))
         yield m.hdr  # type: ignore[reportReturnType]
 
-        #
         m.seekHeader()
         m.writeHeader()
-        # m.makeExtendedHdr(numInts=8, numFloats=32, nSecs=array.shape[0])
-        # m.seekExtHeader()
-        # m.writeExtHeader()
-        # m.seekSec(0)
-        m.writeStack(array)
+        m.writeStack(array)  # type: ignore[reportUnknownMemberType]
     finally:
         if m is not None:
             m.close()
@@ -104,8 +85,8 @@ def combine_wavelengths_dv(
 
     with write_dv(
         output_file,
-        array=np.stack(tuple(tf.memmap(fp).squeeze() for fp in file_paths), -3),
-        header=read_mrc_bound_array(input_file).Mrc.hdr,
+        array=np.stack(tuple(tf.memmap(fp).squeeze() for fp in file_paths), -3),  # type: ignore[reportUnknownArgumentType]
+        header=read_mrc_bound_array(input_file).Mrc.hdr,  # type: ignore[reportUnknownArgumentType]
     ):
         pass
 
@@ -119,26 +100,38 @@ def combine_wavelengths_dv(
     return Path(output_file)
 
 
-def write_single_channel(
+def write_single_channel_dv(
     output_file_path: str | PathLike[str],
     array: NDArray[Any],
-    header: np.recarray,
+    header: np.recarray[int | float, np.dtype[np.int32 | np.float32]],
     wavelength: int,
 ) -> None:
     """Writes a new single-channel file from array data, copying information from hdr"""
     logger.debug("Writing channel %i to %s", wavelength, output_file_path)
-
-    # header_dict = header._asdict()
-    # header_dict["wave1"] = wavelength
-    # header_dict["wave2"] = 0
-    # header_dict["wave3"] = 0
-    # header_dict["wave4"] = 0
-    # header_dict["wave5"] = 0
-
-    # header = mrc._new.Header(**header_dict)
     with write_dv(output_file_path, array=array, header=header) as hdr:
         hdr.wave = [wavelength, 0, 0, 0, 0]
         hdr.NumWaves = 1
+    return None
+
+
+def write_single_channel_tiff(
+    output_file_path: str | PathLike[str],
+    array: NDArray[Any],
+) -> None:
+    """Writes a new single-channel file from array data, copying information from hdr"""
+    logger.debug("Writing single channel to %s", output_file_path)
+
+    bigtiff = (
+        array.size * array.itemsize >= np.iinfo(np.uint32).max
+    )  # Check if data bigger than 4GB TIFF limit
+
+    with tf.TiffWriter(output_file_path, mode="w", bigtiff=bigtiff) as tiff:
+        tiff.write(
+            array,
+            photometric="MINISBLACK",
+            metadata={"axes": "ZYX"},
+            software=f"{__package__} {__version__}",
+        )
     return None
 
 
@@ -147,7 +140,7 @@ def create_processing_files(
     output_dir: str | PathLike[str],
     wavelength: int,
     settings: SettingsManager,
-    **config_kwargs,
+    **config_kwargs: Any,
 ) -> ProcessingFiles | None:
     file_path = Path(file_path)
     output_dir = Path(output_dir)
@@ -163,32 +156,15 @@ def create_processing_files(
         copyfile(
             otf_path,
             output_dir
-            / create_filename(
-                file_path.stem,
-                "OTF",
-                wavelength=wavelength,
-                extension=otf_path.suffix,
-            ),
+            / f"{file_path.stem}_{wavelength}_{OTF_NAME_STUB}{otf_path.suffix}",
         )
     )
     # Use the configured per-wavelength settings
     kwargs = settings.get_reconstruction_config(wavelength)
     # config_kwargs override those any config defaults set
     kwargs.update(config_kwargs)
-
-    # data = read_mrc_bound_array(file_path)
-    # # Take from dv file, not config
-    # kwargs["zres"] = data.Mrc.header.dz
-    # kwargs["xyres"] = data.Mrc.header.dx
-    # del data
-
-    with read_dv(file_path) as dv:
-        # Take from dv file, not config
-        kwargs["zres"] = dv.hdr.dz
-        kwargs["xyres"] = dv.hdr.dx
     config_path = create_wavelength_config(
-        output_dir
-        / f"{create_filename(file_path.stem, 'config', wavelength=wavelength, extension='.cfg')}",
+        output_dir / f"{file_path.stem}_{wavelength}.cfg",
         otf_path,
         **kwargs,
     )
@@ -201,13 +177,19 @@ def prepare_files(
     settings: SettingsManager,
     **config_kwargs: Any,
 ) -> dict[int, ProcessingFiles]:
+    waves: tuple[int, int, int, int, int]
+
     file_path = Path(file_path)
     processing_dir = Path(processing_dir)
     array = read_mrc_bound_array(file_path)
-    header = array.Mrc.hdr
-    processing_files_dict = dict()
-    waves = header.wave
-    # waves = (header.wave1, header.wave2, header.wave3, header.wave4, header.wave5)
+    header = array.Mrc.hdr  # type: ignore[reportUnknownMemberType]
+    processing_files_dict: dict[int, ProcessingFiles] = dict()
+    waves = cast(tuple[int, int, int, int, int], header.wave)  # type: ignore[reportUnknownMemberType]
+    # Get resolution values from DV file (they get applied to TIFFs later)
+    # Resolution defaults to metadata values but kwargs can override
+    config_kwargs["zres"] = config_kwargs.get("zres", header.d[2])  # type: ignore[reportUnknownMemberType]
+    # Assumes square pixels:
+    config_kwargs["xyres"] = config_kwargs.get("xyres", header.d[0])  # type: ignore[reportUnknownMemberType]
     if np.count_nonzero(waves) == 1:
         # if it's a single channel file, we don't need to split
         wavelength = waves[0]
@@ -235,19 +217,20 @@ def prepare_files(
             if wavelength == 0:
                 continue
             processing_files = None
-            output_path = processing_dir / f"{wavelength}{file_path.suffix}"
-            # assumes channel is the 3rd to last dimension
-
             if settings.get_wavelength(wavelength) is not None:
-
+                proc_output_path = (
+                    processing_dir / f"{file_path.stem}_{wavelength}.tiff"
+                )
+                # assumes channel is the 3rd to last dimension
                 # Equivalent of np.take(array, c, -3) but no copying
                 channel_slice: list[slice | int] = [slice(None)] * len(array.shape)
                 channel_slice[-3] = c
-                write_single_channel(
-                    output_path, array[*channel_slice], header, wavelength
+                write_single_channel_tiff(
+                    proc_output_path,
+                    array[*channel_slice],
                 )
                 processing_files = create_processing_files(
-                    file_path=output_path,
+                    file_path=proc_output_path,
                     output_dir=processing_dir,
                     wavelength=wavelength,
                     settings=settings,
@@ -287,8 +270,13 @@ def dv_to_temporary_tiff(
         tiff_path = get_temporary_path(directory, f".{dv_path.stem}", suffix=".tiff")
 
         with read_dv(dv_path) as dv:
-            tf.imwrite(tiff_path, data=dv.asarray(squeeze=True))
+            tf.imwrite(tiff_path, data=dv.asarray(squeeze=True))  # type: ignore[reportUnknownMemberType]
         yield tiff_path
     finally:
         if delete and tiff_path is not None:
             os.unlink(tiff_path)
+
+
+def read_tiff(filepath: str | PathLike[str]) -> NDArray[Any]:
+    with tf.TiffFile(filepath) as tiff:
+        return tiff.asarray()

@@ -8,8 +8,8 @@ from typing import TYPE_CHECKING
 
 from pycudasirecon import make_otf  # type: ignore[import-untyped]
 
-from .files.dv import read_dv, dv_to_temporary_tiff
-from .files.utils import create_filename, ensure_unique_filepath, ensure_valid_filename
+from .files.images import read_dv, dv_to_temporary_tiff
+from .files.utils import ensure_unique_filepath, ensure_valid_filename, OTF_NAME_STUB
 from .settings import SettingsManager
 from .files.config import format_kwargs_as_config
 from .progress import progress_wrapper, logging_redirect
@@ -154,7 +154,7 @@ def psf_path_to_otf_path(
     else:
         output_directory = Path(output_directory)
 
-    file_stem = f"{create_filename(stem=psf_path.stem, file_type='OTF', wavelength=wavelength)}_{timestamp}"
+    file_stem = f"{psf_path.stem}_{wavelength}_{OTF_NAME_STUB}_{timestamp}"
     output_path = output_directory / ensure_valid_filename(f"{file_stem}{suffix}")
 
     if ensure_unique:

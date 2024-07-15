@@ -8,12 +8,11 @@ from typing import TYPE_CHECKING
 
 from pycudasirecon import SIMReconstructor  # type: ignore[import-untyped]
 
-from .files.utils import create_filename
-from .files.dv import (
+from .files.utils import RECON_NAME_STUB
+from .files.images import (
     prepare_files,
-    read_dv,
-    read_mrc_bound_array,
-    write_single_channel,
+    read_tiff,
+    write_single_channel_tiff,
     combine_wavelengths_dv,
 )
 
@@ -25,7 +24,7 @@ if TYPE_CHECKING:
     from os import PathLike
     from numpy.typing import NDArray
 
-    from .files.dv import ProcessingFiles
+    from .files.images import ProcessingFiles
 
 
 logger = logging.getLogger(__name__)
@@ -35,16 +34,14 @@ def reconstruct(array: NDArray[Any], config_path: str | PathLike[str]) -> NDArra
     reconstructor = SIMReconstructor(
         np.asarray(array), config=str(abspath(config_path))
     )
-    return reconstructor.get_result()
+    return reconstructor.get_result()  # type: ignore[reportUnknownMemberType]
 
 
 def reconstruct_from_processing_files(
     processing_files: ProcessingFiles,
-    wavelength: int,
     output_file: str | PathLike[str],
 ) -> Path:
-    data = read_mrc_bound_array(processing_files.image_path)
-    header = data.Mrc.hdr
+    data = read_tiff(processing_files.image_path)
     logger.info(
         "Starting reconstruction of %s with %s",
         processing_files.image_path,
@@ -54,7 +51,7 @@ def reconstruct_from_processing_files(
     # TODO: try with memmap (i.e. `dv.data.squeeze()`)
     rec_array = reconstruct(data, processing_files.config_path)
     logger.info("Reconstructed %s", processing_files.image_path)
-    write_single_channel(output_file, rec_array, header, wavelength=wavelength)
+    write_single_channel_tiff(output_file, rec_array)
     logger.debug(
         "Reconstruction of %s saved in %s", processing_files.image_path, output_file
     )
@@ -104,28 +101,18 @@ def run_reconstructions(
                     for wavelength, processing_files in progress_wrapper(
                         processing_files_dict.items(), unit="wavelength"
                     ):
-                        filename = create_filename(
-                            sim_data_path.stem,
-                            "recon",
-                            wavelength=wavelength,
-                            extension=sim_data_path.suffix,
-                        )
+                        filename = f"{sim_data_path.stem}_{wavelength}_{RECON_NAME_STUB}{sim_data_path.suffix}"
                         output_file = processing_directory / filename
                         rec_path = reconstruct_from_processing_files(
                             processing_files,
-                            wavelength,
                             output_file=output_file,
                         )
                         rec_paths.append(rec_path)
                     if stitch_channels:
+                        filename = f"{sim_data_path.stem}_{RECON_NAME_STUB}{sim_data_path.suffix}"
                         combine_wavelengths_dv(
                             sim_data_path,
-                            output_directory
-                            / create_filename(
-                                sim_data_path.stem,
-                                "recon",
-                                extension=sim_data_path.suffix,
-                            ),
+                            output_directory / filename,
                             *rec_paths,
                             delete=cleanup,  # Clean as you go
                         )
