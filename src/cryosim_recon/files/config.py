@@ -168,6 +168,7 @@ def _config_section_to_dict(
         )
 
     for key, value in config_parser.items(section_name):
+        key = key.replace("-", "_")
         if key not in formatters:
             logger.debug("Option %s=%s is invalid and will be ignored", key, value)
         setting_format = formatters.get(key)
