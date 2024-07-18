@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 def _get_single_channel_wavelength(psf_path: str | PathLike[str]) -> int:
     with read_dv(psf_path) as f:
-        waves = (
+        waves: tuple[int, ...] = (
             f.hdr.wave1,
             f.hdr.wave2,
             f.hdr.wave3,
