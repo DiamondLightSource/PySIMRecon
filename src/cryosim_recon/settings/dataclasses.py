@@ -9,6 +9,13 @@ if TYPE_CHECKING:
     from pathlib import Path
     from collections.abc import Iterable
 
+_REQUIRED_DEFAULTS = {
+    "nphases": 5,
+    "ndirs": 3,
+    "zoomfact": 2,
+    "zzoom": 1,
+}
+
 
 @dataclass(slots=True)
 class WavelengthSettings:
