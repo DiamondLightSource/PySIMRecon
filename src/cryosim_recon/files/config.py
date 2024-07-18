@@ -189,7 +189,7 @@ def _config_section_to_dict(
 def format_kwargs_as_config(kwargs: dict[str, Any]) -> list[str]:
     """Format kwargs in the way they are presented in configs"""
     settings_list: list[str] = []
-    value: Any | list[Any] | tuple[Any,...]
+    value: Any | list[Any] | tuple[Any, ...]
     for key, value in kwargs.items():
         if isinstance(value, (tuple, list)):
             # Comma separated values
