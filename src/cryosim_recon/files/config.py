@@ -194,5 +194,5 @@ def format_kwargs_as_config(kwargs: dict[str, Any]) -> list[str]:
         if isinstance(value, (tuple, list)):
             # Comma separated values
             value = ",".join((str(v) for v in value))
-        settings_list.append(f"{key.replace("_", "-")}={str(value)}")
+        settings_list.append(f"{key.replace('_', '-')}={str(value)}")
     return settings_list
