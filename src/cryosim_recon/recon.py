@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from os import PathLike
     from numpy.typing import NDArray
 
-    from .files.images import ProcessingFiles
+    from .files.images import ProcessingInfo
 
 
 logger = logging.getLogger(__name__)
@@ -37,23 +37,23 @@ def reconstruct(array: NDArray[Any], config_path: str | PathLike[str]) -> NDArra
     return reconstructor.get_result()  # type: ignore[reportUnknownMemberType]
 
 
-def reconstruct_from_processing_files(
-    processing_files: ProcessingFiles,
+def reconstruct_from_processing_info(
+    processing_info: ProcessingInfo,
     output_file: str | PathLike[str],
 ) -> Path:
-    data = read_tiff(processing_files.image_path)
+    data = read_tiff(processing_info.image_path)
     logger.info(
         "Starting reconstruction of %s with %s",
-        processing_files.image_path,
-        processing_files.config_path,
+        processing_info.image_path,
+        processing_info.config_path,
     )
     # Use asarray here as I'm not sure what passing a memmap would do
     # TODO: try with memmap (i.e. `dv.data.squeeze()`)
-    rec_array = reconstruct(data, processing_files.config_path)
-    logger.info("Reconstructed %s", processing_files.image_path)
+    rec_array = reconstruct(data, processing_info.config_path)
+    logger.info("Reconstructed %s", processing_info.image_path)
     write_single_channel_tiff(output_file, rec_array)
     logger.debug(
-        "Reconstruction of %s saved in %s", processing_files.image_path, output_file
+        "Reconstruction of %s saved in %s", processing_info.image_path, output_file
     )
     return Path(output_file)
 
@@ -90,7 +90,7 @@ def run_reconstructions(
                     # These processing files are cleaned up by TemporaryDirectory
                     # As single-wavelength files will be used directly and we don't
                     # want to delete real input files!
-                    processing_files_dict = prepare_files(
+                    processing_info_dict = prepare_files(
                         sim_data_path,
                         processing_directory,
                         settings=settings,
@@ -98,13 +98,13 @@ def run_reconstructions(
                     )
 
                     rec_paths: list[Path] = []
-                    for wavelength, processing_files in progress_wrapper(
-                        processing_files_dict.items(), unit="wavelength"
+                    for wavelength, processing_info in progress_wrapper(
+                        processing_info_dict.items(), unit="wavelength"
                     ):
                         filename = f"{sim_data_path.stem}_{wavelength}_{RECON_NAME_STUB}{sim_data_path.suffix}"
                         output_file = processing_directory / filename
-                        rec_path = reconstruct_from_processing_files(
-                            processing_files,
+                        rec_path = reconstruct_from_processing_info(
+                            processing_info,
                             output_file=output_file,
                         )
                         rec_paths.append(rec_path)

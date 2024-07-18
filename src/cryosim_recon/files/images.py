@@ -18,7 +18,7 @@ from ..info import __version__
 
 if TYPE_CHECKING:
     from typing import Any
-    from collections.abc import Generator
+    from collections.abc import Generator, Collection
     from os import PathLike
     from numpy.typing import NDArray
     from ..settings import SettingsManager
@@ -27,10 +27,12 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class ProcessingFiles(NamedTuple):
+class ProcessingInfo(NamedTuple):
     image_path: Path
     otf_path: Path
     config_path: Path
+    output_path: Path
+    kwargs: dict[str, Any]
 
 
 def read_dv(file_path: str | PathLike[str]) -> mrc.DVFile:
@@ -152,13 +154,13 @@ def write_single_channel_tiff(
     return None
 
 
-def create_processing_files(
+def create_processing_info(
     file_path: str | PathLike[str],
     output_dir: str | PathLike[str],
     wavelength: int,
     settings: SettingsManager,
     **config_kwargs: Any,
-) -> ProcessingFiles | None:
+) -> ProcessingInfo | None:
     file_path = Path(file_path)
     output_dir = Path(output_dir)
     if not file_path.is_file():
@@ -187,7 +189,14 @@ def create_processing_files(
         wavelength,
         **kwargs,
     )
-    return ProcessingFiles(file_path, otf_path, config_path)
+    return ProcessingInfo(
+        file_path,
+        otf_path,
+        config_path,
+        output_dir
+        / f"{file_path.stem}_{RECON_NAME_STUB}_{wavelength}{file_path.suffix}",
+        kwargs,
+    )
 
 
 def prepare_files(
@@ -195,14 +204,14 @@ def prepare_files(
     processing_dir: str | PathLike[str],
     settings: SettingsManager,
     **config_kwargs: Any,
-) -> dict[int, ProcessingFiles]:
+) -> dict[int, ProcessingInfo]:
     waves: tuple[int, int, int, int, int]
 
     file_path = Path(file_path)
     processing_dir = Path(processing_dir)
     array = read_mrc_bound_array(file_path)
     header = array.Mrc.hdr  # type: ignore[reportUnknownMemberType]
-    processing_files_dict: dict[int, ProcessingFiles] = dict()
+    processing_info_dict: dict[int, ProcessingInfo] = dict()
     waves = cast(tuple[int, int, int, int, int], header.wave)  # type: ignore[reportUnknownMemberType]
     # Get resolution values from DV file (they get applied to TIFFs later)
     # Resolution defaults to metadata values but kwargs can override
@@ -214,28 +223,28 @@ def prepare_files(
         wavelength = waves[0]
 
         if settings.get_wavelength(wavelength) is not None:
-            processing_files = create_processing_files(
+            processing_info = create_processing_info(
                 file_path=file_path,
                 output_dir=processing_dir,
                 wavelength=wavelength,
                 settings=settings,
                 **config_kwargs,
             )
-            if processing_files is None:
+            if processing_info is None:
                 logger.warning(
                     "No processing files found for '%s' at %i",
                     file_path,
                     wavelength,
                 )
             else:
-                processing_files_dict[wavelength] = processing_files
+                processing_info_dict[wavelength] = processing_info
 
     else:
         # otherwise break out individual wavelengths
         for c, wavelength in enumerate(waves):
             if wavelength == 0:
                 continue
-            processing_files = None
+            processing_info = None
             if settings.get_wavelength(wavelength) is not None:
                 proc_output_path = processing_dir / f"data{wavelength}.tif"
                 # assumes channel is the 3rd to last dimension
@@ -246,7 +255,7 @@ def prepare_files(
                     proc_output_path,
                     array[*channel_slice],
                 )
-                processing_files = create_processing_files(
+                processing_info = create_processing_info(
                     file_path=proc_output_path,
                     output_dir=processing_dir,
                     wavelength=wavelength,
@@ -254,21 +263,21 @@ def prepare_files(
                     **config_kwargs,
                 )
 
-                if processing_files is None:
+                if processing_info is None:
                     logger.warning(
                         "No processing files found for '%s' at %i",
                         file_path,
                         wavelength,
                     )
                 else:
-                    if wavelength in processing_files_dict:
+                    if wavelength in processing_info_dict:
                         raise KeyError(
                             "Wavelength %i found multiple times within %s",
                             wavelength,
                             file_path,
                         )
-                    processing_files_dict[wavelength] = processing_files
-    return processing_files_dict
+                    processing_info_dict[wavelength] = processing_info
+    return processing_info_dict
 
 
 @contextmanager
