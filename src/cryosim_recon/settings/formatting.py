@@ -71,7 +71,7 @@ RECON_FORMATTERS: dict[str, SettingFormat] = {
     ),
     # playing with it extensively is strongly encouraged
     "zoomfact": SettingFormat(
-        int, description="lateral zoom factor in the output over the input images;"
+        Decimal, description="lateral zoom factor in the output over the input images;"
     ),
     # leaving it at 2 should be fine in most cases
     "zzoom": SettingFormat(int, description="axial zoom factor; almost never needed"),
