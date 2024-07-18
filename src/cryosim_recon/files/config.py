@@ -125,8 +125,10 @@ def get_wavelength_settings(
 def create_wavelength_config(
     output_path: str | PathLike[str],
     otf_path: str | PathLike[str],
+    wavelength: int,
     **config_kwargs: Any,
 ) -> Path:
+    config_kwargs["wavelength"] = wavelength
     # Add otf_file that is expected by ReconParams
     config_kwargs["otf_file"] = str(abspath(otf_path))
     # Convert to string so it can be written without a section, like sirecon expects

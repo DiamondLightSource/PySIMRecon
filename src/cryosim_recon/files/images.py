@@ -167,6 +167,7 @@ def create_processing_files(
         # wavelength is already in the stem
         output_dir / f"config{wavelength}.txt",
         otf_path,
+        wavelength,
         **kwargs,
     )
     return ProcessingFiles(file_path, otf_path, config_path)
