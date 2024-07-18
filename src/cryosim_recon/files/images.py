@@ -49,6 +49,23 @@ def read_mrc_bound_array(file_path: str | PathLike[str]) -> NDArray[Any]:
     return mrc.mrc.imread(str(file_path))  # type: ignore[reportReturnType]
 
 
+def get_mrc_header_array(
+    file_path: str | PathLike[str],
+) -> np.recarray[float | int | bytes, np.dtype[np.float_ | np.int_ | np.bytes_]]:
+    dv = read_mrc_bound_array(file_path)
+    # This black magic is from the commented out bits of `makeHdrArray`.
+    # Setting the memmap as a recarray, then `deepcopy`ing it allows the header
+    # to be returned without requiring the large overall memmap to be kept open
+    header_array = dv.Mrc.hdr._array.view()  # type: ignore[reportUnknownMemberType]
+    header_array.__class__ = np.recarray
+    return deepcopy(
+        cast(
+            np.recarray[float | int | bytes, np.dtype[np.float_ | np.int_ | np.bytes_]],
+            header_array,
+        )
+    )
+
+
 @contextmanager
 def write_dv(
     output_file_path: str | PathLike[str],
