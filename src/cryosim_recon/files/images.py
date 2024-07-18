@@ -6,13 +6,14 @@ import logging
 import os
 from pathlib import Path
 from shutil import copyfile
+from copy import deepcopy
 import numpy as np
 import mrc
 import tifffile as tf
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, NamedTuple, cast
 
-from .utils import get_temporary_path, OTF_NAME_STUB
+from .utils import get_temporary_path, OTF_NAME_STUB, RECON_NAME_STUB
 from .config import create_wavelength_config
 from ..info import __version__
 
@@ -68,69 +69,53 @@ def get_mrc_header_array(
     )
 
 
-@contextmanager
 def write_dv(
-    output_file_path: str | PathLike[str],
-    array: NDArray[Any],
-    header: np.recarray[int | float, np.dtype[np.int32 | np.float32]],
-) -> Generator[np.recarray[int | float, np.dtype[np.int32 | np.float32]], None, None]:
-    m = None
-    try:
-        m = mrc.Mrc2(output_file_path, mode="w")
-        m.initHdrForArr(array)  # type: ignore[reportUnknownMemberType]
-        mrc.copyHdrInfo(m.hdr, header)  # type: ignore[reportUnknownMemberType]
-
-        yield m.hdr  # type: ignore[reportReturnType]
-
-        m.seekHeader()
-        m.writeHeader()
-        m.writeStack(array)  # type: ignore[reportUnknownMemberType]
-    finally:
-        if m is not None:
-            m.close()
-
-
-def combine_wavelengths_dv(
     input_file: str | PathLike[str],
     output_file: str | PathLike[str],
-    *file_paths: str | PathLike[str],
-    delete: bool = False,
+    array: NDArray[Any],
+    wavelengths: Collection[int],
+    zoomfact: float,
+    zzoom: int,
 ) -> Path:
-    logger.debug(
-        "Combining wavelengths to %s from:\n%s",
+    logger.info(
+        "Writing array to %s with wavelengths %s",
         output_file,
-        "\n\t".join(str(fp) for fp in file_paths),
+        ", ".join((str(w) for w in wavelengths)),
     )
-
-    with write_dv(
+    if len(wavelengths) != array.shape[-3]:
+        raise ValueError(
+            "Length of wavelengths list must be equal to the number of channels in the array"
+        )
+    wave = [*wavelengths, 0, 0, 0, 0, 0][:5]
+    # header_array = get_mrc_header_array(input_file)
+    input_data = read_mrc_bound_array(input_file)
+    header = input_data.Mrc.hdr  # type: ignore
+    mrc.save(  # type: ignore
+        array,  # type: ignore
         output_file,
-        array=np.stack(tuple(tf.memmap(fp).squeeze() for fp in file_paths), -3),  # type: ignore[reportUnknownArgumentType]
-        header=read_mrc_bound_array(input_file).Mrc.hdr,  # type: ignore[reportUnknownArgumentType]
-    ):
-        pass
-
-    if delete:
-        try:
-            for f in file_paths:
-                os.remove(f)
-        except Exception:
-            pass
-
+        hdr=header,  # type: ignore
+        metadata={
+            "dx": header.d[2] / zoomfact,  # type: ignore
+            "dy": header.d[1] / zoomfact,  # type: ignore
+            "dz": header.d[0] / zzoom,  # type: ignore
+            "wave": wave,
+        },
+    )
+    logger.info(
+        "%s saved",
+        output_file,
+    )
     return Path(output_file)
 
 
-def write_single_channel_dv(
-    output_file_path: str | PathLike[str],
-    array: NDArray[Any],
-    header: np.recarray[int | float, np.dtype[np.int32 | np.float32]],
-    wavelength: int,
-) -> None:
-    """Writes a new single-channel file from array data, copying information from hdr"""
-    logger.debug("Writing channel %i to %s", wavelength, output_file_path)
-    with write_dv(output_file_path, array=array, header=header) as hdr:
-        hdr.wave = [wavelength, 0, 0, 0, 0]
-        hdr.NumWaves = 1
-    return None
+def combine_tiffs(
+    *file_paths: str | PathLike[str],
+) -> NDArray[Any]:
+    logger.debug(
+        "Combining tiffs from:\n%s",
+        "\n\t".join(str(fp) for fp in file_paths),
+    )
+    return np.stack(tuple(tf.memmap(fp).squeeze() for fp in file_paths), -3)  # type: ignore
 
 
 def write_single_channel_tiff(
@@ -144,14 +129,15 @@ def write_single_channel_tiff(
         array.size * array.itemsize >= np.iinfo(np.uint32).max
     )  # Check if data bigger than 4GB TIFF limit
 
-    with tf.TiffWriter(output_file_path, mode="w", bigtiff=bigtiff) as tiff:
+    with tf.TiffWriter(
+        output_file_path, mode="w", bigtiff=bigtiff, shaped=True
+    ) as tiff:
         tiff.write(
             array,
             photometric="MINISBLACK",
             metadata={"axes": "ZYX"},
             software=f"{__package__} {__version__}",
         )
-    return None
 
 
 def create_processing_info(
