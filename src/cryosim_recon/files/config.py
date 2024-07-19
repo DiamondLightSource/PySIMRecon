@@ -68,15 +68,17 @@ def _get_paths_from_section(
             # Ignore __DIRECTORY_KEY
             continue
         try:
-            key = _parse_wavelength_key(key)
+            wavelength = _parse_wavelength_key(key)
         except Exception:
             logger.warning("'%s' is not a valid wavelength (must be an integer)", key)
             continue
         try:
-            key, path = _handle_paths_from_config(key, path_str, directory)
-            dictionary[key] = path
+            wavelength, path = _handle_paths_from_config(
+                wavelength, path_str, directory
+            )
+            dictionary[wavelength] = path
         except Exception as e:
-            logger.warning("%s file path error: %s", key, e)
+            logger.warning("%i file path error: %s", wavelength, e)
     return dictionary
 
 

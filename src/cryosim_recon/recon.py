@@ -154,6 +154,7 @@ def run_reconstructions(
         for sim_data_path in progress_wrapper(
             sim_data_paths, desc="SIM data files", unit="file"
         ):
+            sim_data_path: str | PathLike[str]
             try:
                 sim_data_path = Path(sim_data_path)
                 if not sim_data_path.is_file():

@@ -59,7 +59,7 @@ def get_mrc_header_array(
     # This black magic is from the commented out bits of `makeHdrArray`.
     # Setting the memmap as a recarray, then `deepcopy`ing it allows the header
     # to be returned without requiring the large overall memmap to be kept open
-    header_array = dv.Mrc.hdr._array.view()  # type: ignore[reportUnknownMemberType]
+    header_array = dv.Mrc.hdr._array.view()  # type: ignore[attr-defined]
     header_array.__class__ = np.recarray
     return deepcopy(
         cast(
