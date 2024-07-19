@@ -194,7 +194,7 @@ def prepare_files(
     file_path = Path(file_path)
     processing_dir = Path(processing_dir)
     array = read_mrc_bound_array(file_path)
-    header = array.Mrc.hdr  # type: ignore[reportUnknownMemberType]
+    header = array.Mrc.hdr  # type: ignore[attr-defined]
     processing_info_dict: dict[int, ProcessingInfo] = dict()
     waves = cast(tuple[int, int, int, int, int], header.wave)  # type: ignore[reportUnknownMemberType]
     # Get resolution values from DV file (they get applied to TIFFs later)
