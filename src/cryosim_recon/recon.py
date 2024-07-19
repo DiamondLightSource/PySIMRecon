@@ -100,7 +100,7 @@ def reconstruct(
         return _recon_get_result(reconstructor, output_shape=(z, y, x))
         # return reconstructor.get_result()  # type: ignore[reportUnknownMemberType]
     except:  # noqa: E722
-        logging.error(
+        logger.error(
             "Exception raised during reconstruction with config %s",
             config_path,
             exc_info=True,
@@ -201,7 +201,7 @@ def run_reconstructions(
                     if stitch_channels and zoom_factors.count(zoom_factors[0]) != len(
                         zoom_factors
                     ):
-                        logging.warning(
+                        logger.warning(
                             "Unable to stitch files due to mismatched zoom factors between wavelengths"
                         )
                         stitch_channels = False
