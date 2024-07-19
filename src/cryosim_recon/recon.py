@@ -110,14 +110,12 @@ def reconstruct(
         )
 
 
-def reconstruct_from_processing_info(
-    processing_info: ProcessingInfo,
-    output_file: str | PathLike[str],
-) -> Path:
+def reconstruct_from_processing_info(processing_info: ProcessingInfo) -> Path:
     logger.info(
-        "Starting reconstruction of %s with %s",
+        "Starting reconstruction of %s with %s to be saved as %s",
         processing_info.image_path,
         processing_info.config_path,
+        processing_info.output_path,
     )
     # Get parameters from kwargs for scaling outputs
     zoomfact = float(processing_info.kwargs["zoomfact"])  # stored as Decimal
@@ -134,11 +132,13 @@ def reconstruct_from_processing_info(
     #     processing_info.config_path,
     # )
     logger.info("Reconstructed %s", processing_info.image_path)
-    write_single_channel_tiff(output_file, rec_array)
+    write_single_channel_tiff(processing_info.output_path, rec_array)
     logger.debug(
-        "Reconstruction of %s saved in %s", processing_info.image_path, output_file
+        "Reconstruction of %s saved in %s",
+        processing_info.image_path,
+        processing_info.output_path,
     )
-    return Path(output_file)
+    return Path(processing_info.output_path)
 
 
 def run_reconstructions(
@@ -185,10 +185,7 @@ def run_reconstructions(
                     for _, processing_info in progress_wrapper(
                         processing_info_dict.items(), unit="wavelength", leave=False
                     ):
-                        reconstruct_from_processing_info(
-                            processing_info,
-                            output_file=processing_info.output_path,
-                        )
+                        reconstruct_from_processing_info(processing_info)
 
                         # Needed to check the pixel sizes will remain consistent between wavelengths
                         zoom_factors.append(
