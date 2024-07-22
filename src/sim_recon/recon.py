@@ -9,7 +9,7 @@ import numpy as np
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
 
-from pycudasirecon.sim_reconstructor import SIMReconstructor, lib  # type: ignore[reportMissingTypeStubs]
+from pycudasirecon.sim_reconstructor import SIMReconstructor, lib  # type: ignore[import-untyped]
 
 from .files.utils import redirect_output_to, RECON_NAME_STUB
 from .files.images import (

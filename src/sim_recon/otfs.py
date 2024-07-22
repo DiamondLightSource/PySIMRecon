@@ -54,7 +54,6 @@ def convert_psfs_to_otfs(
 
     with logging_redirect():
         for psf_path in progress_wrapper(psf_paths, desc="PSF to OTF conversions"):
-            psf_path: str | PathLike[str]
             otf_path: Path | None = None
             try:
                 wavelength = _get_single_channel_wavelength(psf_path)
