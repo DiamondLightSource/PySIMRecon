@@ -196,12 +196,12 @@ def prepare_files(
     array = read_mrc_bound_array(file_path)
     header = array.Mrc.hdr  # type: ignore[attr-defined]
     processing_info_dict: dict[int, ProcessingInfo] = dict()
-    waves = cast(tuple[int, int, int, int, int], header.wave)  # type: ignore[reportUnknownMemberType]
+    waves = cast(tuple[int, int, int, int, int], header.wave)
     # Get resolution values from DV file (they get applied to TIFFs later)
     # Resolution defaults to metadata values but kwargs can override
-    config_kwargs["zres"] = config_kwargs.get("zres", header.d[2])  # type: ignore[reportUnknownMemberType]
+    config_kwargs["zres"] = config_kwargs.get("zres", header.d[2])
     # Assumes square pixels:
-    config_kwargs["xyres"] = config_kwargs.get("xyres", header.d[0])  # type: ignore[reportUnknownMemberType]
+    config_kwargs["xyres"] = config_kwargs.get("xyres", header.d[0])
     if np.count_nonzero(waves) == 1:
         # if it's a single channel file, we don't need to split
         wavelength = waves[0]
@@ -282,7 +282,7 @@ def dv_to_temporary_tiff(
         tiff_path = get_temporary_path(directory, f".{dv_path.stem}", suffix=".tiff")
 
         with read_dv(dv_path) as dv:
-            array: NDArray[Any] = dv.asarray(squeeze=True)  # type: ignore[reportUnknownMemberType]
+            array: NDArray[Any] = dv.asarray(squeeze=True)
             if xy_shape is not None:
                 target_yx_shape = np.asarray(xy_shape[::-1], dtype=np.uint16)
                 current_yx_shape = np.asarray(array.shape[1:], dtype=np.uint16)
@@ -315,7 +315,7 @@ def dv_to_temporary_tiff(
                 ]
             elif crop > 1:
                 logger.warning("A crop of >1 is invalid, no crop will be applied")
-            tf.imwrite(tiff_path, data=array)  # type: ignore[reportUnknownMemberType]
+            tf.imwrite(tiff_path, data=array)
         yield tiff_path
     finally:
         if delete and tiff_path is not None:

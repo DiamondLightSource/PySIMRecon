@@ -100,7 +100,7 @@ def reconstruct(
         y = int(round(y * zoomfact))
 
         return _recon_get_result(reconstructor, output_shape=(z, y, x))
-        # return reconstructor.get_result()  # type: ignore[reportUnknownMemberType]
+        # return reconstructor.get_result()
     except Exception:
         # Unlikely to ever hit this as errors from the C++ just kill the process
         logger.error(
