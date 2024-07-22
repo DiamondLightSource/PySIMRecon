@@ -45,7 +45,6 @@ packages = [
 ]
 
 [tool.pyright]
-reportMissingImports = false
-strict = [
+include = [
     "src/**",
 ]
