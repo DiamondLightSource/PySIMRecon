@@ -88,10 +88,23 @@ def write_dv(
     # header_array = get_mrc_header_array(input_file)
     input_data = read_mrc_bound_array(input_file)
     header = input_data.Mrc.hdr  # type: ignore
-    mrc.save(
-        array,
+    # mrc.save(  # type: ignore
+    #     array,  # type: ignore
+    #     output_file,
+    #     hdr=header,  # type: ignore
+    #     metadata={
+    #         "dx": header.d[2] / zoomfact,  # type: ignore
+    #         "dy": header.d[1] / zoomfact,  # type: ignore
+    #         "dz": header.d[0] / zzoom,  # type: ignore
+    #         "wave": wave,
+    #     },
+    # )
+    save_dv(  # type: ignore
+        array,  # type: ignore
         output_file,
-        hdr=header,
+        hdr=header,  # type: ignore
+        extInts=8,
+        extFloats=32,
         metadata={
             "dx": header.d[2] / zoomfact,
             "dy": header.d[1] / zoomfact,
@@ -315,3 +328,96 @@ def write_tiff(output_path: str | PathLike[str], array: NDArray[Any]) -> None:
             metadata={"axes": "ZYX"},
             software=f"{__package__} {__version__}",
         )
+
+
+def save_dv(
+    a: NDArray[Any],
+    fn: str | PathLike[str],
+    overwrite: bool = True,
+    hdr: object = None,
+    extInts: int | None = None,
+    extFloats: int | None = None,
+    metadata: dict[str, Any] | None = None,
+):
+    """reimplementation of mrc.mrc.save removing unwanted features and adding extended header"""
+    if os.path.exists(fn):
+        if not overwrite:
+            raise FileExistsError("Not overwriting existing file '%s'" % fn)
+
+    m = Mrc2(fn, mode="w")
+    m.initHdrForArr(a, zAxisOrder)
+    if hdr is not None:
+        copyHdrInfo(m.hdr, hdr)
+    else:
+        # added by Talley to detect whether array is Mrc format and copy header if so
+        if hasattr(a, "Mrc"):
+            if hasattr(a.Mrc, "hdr"):
+                copyHdrInfo(m.hdr, a.Mrc.hdr)
+
+    mrc.mrc.calculate_mmm(a, m)
+    mrc.mrc.add_metadata(metadata, m.hdr)
+    if extInts is not None or extFloats is not None:
+        insert_extended_header(m, extInts, extFloats)
+    m.writeHeader()
+    m.writeExtHeader()
+    m.writeStack(a)
+    m.close()
+
+
+def insert_extended_header(m: mrc.Mrc2, num_ints: int, num_floats: int):
+    m._extHdrNumInts = m.hdr.NumIntegers = num_ints
+    m._extHdrNumFloats = m.hdr.NumFloats = num_floats
+    m._extHdrBytesPerSec = (m._extHdrNumInts + m._extHdrNumFloats) * 4
+
+    nSecs = m._shape[0]
+
+    m._extHdrSize = m.hdr.next = mrc.mrc.minExtHdrSize(nSecs, m._extHdrBytesPerSec)
+    m._dataOffset = m._hdrSize + m._extHdrSize
+    if m._extHdrSize > 0 and (m._extHdrNumInts > 0 or m._extHdrNumFloats > 0):
+        nSecs = int(m._extHdrSize / m._extHdrBytesPerSec)
+        m._extHdrArray = np.recarray(
+            nSecs,  # None,#m._f,
+            formats="%di4,%df4" % (m._extHdrNumInts, m._extHdrNumFloats),
+            names="int,float",
+        )
+        # shape=nSecs)#  ,
+        # byteorder=byteorder)
+        m.extInts = m._extHdrArray.field("int")
+        m.extFloats = m._extHdrArray.field("float")
+    byteorder = "="
+    _fmt = "%sf4" % (byteorder)
+    dv_floats: list[tuple[str, str]] = []
+    names = (
+        "photosensorReading",
+        "timeStampSeconds",
+        "stageXCoord",
+        "stageYCoord",
+        "stageZCoord",
+        "minInten",
+        "maxInten",
+        "meanInten",
+        "expTime",
+        "ndFilter",
+        "exWavelen",
+        "emWavelen",
+        "intenScaling",
+        "energyConvFactor",
+    )
+    for name in names:
+        dv_floats.append((name, _fmt))
+    for i in range(num_floats - len(names)):
+        dv_floats.append(("empty%d" % i, _fmt))
+    dv_dtype = np.dtype(dv_floats)
+
+    type_descr = np.dtype(
+        [
+            ("int", "%s%di4" % (byteorder, num_ints)),
+            ("float", dv_dtype),
+        ]
+    )
+
+    m._extHdrArray = np.recarray(shape=nSecs, dtype=type_descr)
+    if m._fileIsByteSwapped:
+        m._extHdrArray = m._extHdrArray.newbyteorder()
+    m.extInts = m._extHdrArray.field("int")
+    m.extFloats = m._extHdrArray.field("float")
