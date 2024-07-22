@@ -11,6 +11,7 @@ import tifffile as tf
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, NamedTuple, cast
 
+from .dv import save_dv, Wavelengths
 from .utils import OTF_NAME_STUB, RECON_NAME_STUB
 from .config import create_wavelength_config
 from ..info import __version__
@@ -85,26 +86,29 @@ def write_dv(
             "Length of wavelengths list must be equal to the number of channels in the array"
         )
     wave = [*wavelengths, 0, 0, 0, 0, 0][:5]
-    # header_array = get_mrc_header_array(input_file)
     input_data = read_mrc_bound_array(input_file)
     header = input_data.Mrc.hdr  # type: ignore
-    # mrc.save(  # type: ignore
-    #     array,  # type: ignore
-    #     output_file,
-    #     hdr=header,  # type: ignore
-    #     metadata={
-    #         "dx": header.d[2] / zoomfact,  # type: ignore
-    #         "dy": header.d[1] / zoomfact,  # type: ignore
-    #         "dz": header.d[0] / zzoom,  # type: ignore
-    #         "wave": wave,
-    #     },
-    # )
-    save_dv(  # type: ignore
-        array,  # type: ignore
+
+    # extended_header has 16 values per image, but is stored in arrays of 2
+    ext_header_image_step_size = 16
+    wavelengths_list = [
+        # This counts on the fact that the data is stored zw
+        Wavelengths(
+            *input_data.Mrc.extended_header[i],  # stored in
+        )
+        for i in range(
+            5,
+            ext_header_image_step_size * array.shape[-3] + 1,
+            ext_header_image_step_size,
+        )  # Number of channels
+    ]
+    save_dv(
+        array,
         output_file,
-        hdr=header,  # type: ignore
-        extInts=8,
-        extFloats=32,
+        header=header,
+        extended_header_ints=8,
+        extended_header_floats=32,
+        wavelengths_list=wavelengths_list,
         metadata={
             "dx": header.d[2] / zoomfact,
             "dy": header.d[1] / zoomfact,
