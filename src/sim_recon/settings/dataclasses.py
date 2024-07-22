@@ -48,7 +48,8 @@ class SettingsManager:
         self, wavelength: int, include_defaults: bool = True
     ) -> dict[str, Any]:
         if include_defaults:
-            config = self.default_reconstruction_config.copy()
+            config = _REQUIRED_DEFAULTS.copy()
+            config.update(self.default_reconstruction_config)
         else:
             config = {}
         ws = self.get_wavelength(wavelength)
