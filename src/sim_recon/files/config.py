@@ -65,7 +65,6 @@ def _get_paths_from_section(
     for key, path_str in config_parser.items(section_name):
         key = key.strip()
         if key in (__DIRECTORY_KEY, __DEFAULTS_KEY):
-            # Ignore __DIRECTORY_KEY
             continue
         try:
             wavelength = _parse_wavelength_key(key)
