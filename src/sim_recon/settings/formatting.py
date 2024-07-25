@@ -160,9 +160,9 @@ RECON_FORMATTERS: dict[str, SettingFormat] = {
     "zres": SettingFormat(
         Decimal, description="z pixel size (only used for TIFF files)"
     ),
-    # "zresPSF": SettingFormat(
-    #     Decimal, description="z pixel size used in PSF TIFF files)"
-    # ),
+    "zresPSF": SettingFormat(
+        Decimal, description="z pixel size (used in PSF TIFF files)"
+    ),
     "wavelength": SettingFormat(
         int, description="emission wavelength in nanometers (only used for TIFF files)"
     ),
