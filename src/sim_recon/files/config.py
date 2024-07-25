@@ -69,7 +69,10 @@ def _get_paths_from_section(
         try:
             wavelength = _parse_wavelength_key(key)
         except Exception:
-            logger.warning("'%s' is not a valid wavelength (must be an integer)", key)
+            logger.warning(
+                "'%s' is not a valid wavelength (must be an integer in nm)",
+                key,
+            )
             continue
         try:
             wavelength, path = _handle_paths_from_config(
