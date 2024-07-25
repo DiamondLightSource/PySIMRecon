@@ -16,12 +16,11 @@ DARWIN_FN_SUB = re.compile("[/:]")
 
 
 def get_temporary_path(directory: Path, stem: str, suffix: str) -> Path:
-    for _ in range(4):
-        tiff_path = (directory / f"{stem}_{uuid4()}").with_suffix(suffix)
-        if not tiff_path.exists():
-            return tiff_path
+    tiff_path = (directory / f"{stem}_{uuid4()}").with_suffix(suffix)
+    if not tiff_path.exists():
+        return tiff_path
     raise FileExistsError(
-        f"Failed to create temporary file with stem '{stem}' and suffix '{suffix}' in '{directory}' due to multiple collisions"
+        f"Failed to create temporary file as the following already exists: {tiff_path}"
     )
 
 
