@@ -1,6 +1,6 @@
 from importlib import metadata
 
-if __package__ is not None:
-    __version__ = metadata.metadata(__package__)["version"]
-else:
+try:
+    __version__ = metadata.metadata("PySIMRecon")["version"]
+except metadata.PackageNotFoundError:
     __version__ = None
