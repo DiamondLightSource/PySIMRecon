@@ -288,6 +288,20 @@ def dv_to_temporary_tiff(
             if xy_shape is not None:
                 target_yx_shape = np.asarray(xy_shape[::-1], dtype=np.uint16)
                 current_yx_shape = np.asarray(array.shape[1:], dtype=np.uint16)
+
+                # Check for dimensions larger than the current image
+                for i in range(2):
+                    if target_yx_shape[i] > current_yx_shape[i]:
+                        logger.warning(
+                            "No resizing will be applied to dimension %i as "
+                            "size %i has been requested, which is larger than "
+                            "the current size %i",
+                            i,
+                            target_yx_shape[i],
+                            current_yx_shape[i],
+                        )
+                        target_yx_shape[i] = current_yx_shape[i]
+
                 crop_amount = current_yx_shape - target_yx_shape
                 min_bounds = crop_amount // 2
                 max_bounds = current_yx_shape - crop_amount // 2
@@ -301,6 +315,8 @@ def dv_to_temporary_tiff(
                 array = array[
                     :, min_bounds[0] : max_bounds[0], min_bounds[1] : max_bounds[1]
                 ]
+            elif crop > 1:
+                logger.warning("A crop of >1 is invalid, no crop will be applied")
             tf.imwrite(tiff_path, data=array)  # type: ignore[reportUnknownMemberType]
         yield tiff_path
     finally:
