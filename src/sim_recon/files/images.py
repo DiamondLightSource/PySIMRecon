@@ -47,7 +47,7 @@ def read_mrc_bound_array(file_path: str | PathLike[str]) -> NDArray[Any]:
     if not file_path.is_file():
         raise FileNotFoundError(f"File {file_path} not found")
     logger.debug("Reading %s", file_path)
-    return mrc.mrc.imread(str(file_path))  # type: ignore[reportReturnType]
+    return mrc.mrc.imread(str(file_path))
 
 
 def get_mrc_header_array(
@@ -88,10 +88,10 @@ def write_dv(
     # header_array = get_mrc_header_array(input_file)
     input_data = read_mrc_bound_array(input_file)
     header = input_data.Mrc.hdr  # type: ignore
-    mrc.save(  # type: ignore
-        array,  # type: ignore
+    mrc.save(
+        array,
         output_file,
-        hdr=header,  # type: ignore
+        hdr=header,
         metadata={
             "dx": header.d[2] / zoomfact,
             "dy": header.d[1] / zoomfact,
@@ -113,7 +113,7 @@ def combine_tiffs(
         "Combining tiffs from:\n%s",
         "\n\t".join(str(fp) for fp in file_paths),
     )
-    return np.stack(tuple(tf.memmap(fp).squeeze() for fp in file_paths), -3)  # type: ignore
+    return np.stack(tuple(tf.memmap(fp).squeeze() for fp in file_paths), -3)
 
 
 def write_single_channel_tiff(

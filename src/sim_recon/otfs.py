@@ -116,7 +116,7 @@ def psf_to_otf(
             raise FileExistsError(f"File {otf_path} already exists")
 
     make_otf_kwargs: dict[str, Any] = dict(
-        inspect.signature(make_otf).parameters.items()  # type: ignore[reportUnknownArgumentType]
+        inspect.signature(make_otf).parameters.items()
     )
 
     for k, v in kwargs.items():
