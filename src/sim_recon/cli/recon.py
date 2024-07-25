@@ -1,12 +1,11 @@
 import logging
-import sys
 
 from ..main import sim_reconstruct
 from .parsing import parse_recon_args
 
 
 def sim_recon():
-    namespace, recon_kwargs = parse_recon_args(*sys.argv[1:])
+    namespace, recon_kwargs = parse_recon_args()
     logging.basicConfig(level=logging.DEBUG if namespace.verbose else logging.INFO)
 
     sim_reconstruct(

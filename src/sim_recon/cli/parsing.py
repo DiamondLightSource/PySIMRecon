@@ -6,10 +6,15 @@ from ..settings.formatting import OTF_FORMATTERS, RECON_FORMATTERS
 
 if TYPE_CHECKING:
     from typing import Any
+    from collections.abc import Sequence
     from ..settings.formatting import SettingFormat
 
 
-def handle_required(parser: argparse.ArgumentParser, namespace: argparse.Namespace, *required: tuple[str, str]):
+def handle_required(
+    parser: argparse.ArgumentParser,
+    namespace: argparse.Namespace,
+    *required: tuple[str, str],
+):
     missing_arguments: list[str] = []
     for print_name, dest in required:
         if getattr(namespace, dest, None) is None:
@@ -46,7 +51,9 @@ def _add_override_args_from_formatters(
             )
 
 
-def parse_otf_args(*args: str) -> tuple[argparse.Namespace, dict[str, Any]]:
+def parse_otf_args(
+    args: Sequence[str] | None = None,
+) -> tuple[argparse.Namespace, dict[str, Any]]:
     parser = argparse.ArgumentParser(prog="sim-otf", add_help=False)
     parser.add_argument(
         "-c",
@@ -116,7 +123,9 @@ def parse_otf_args(*args: str) -> tuple[argparse.Namespace, dict[str, Any]]:
     return namespace, otf_kwargs
 
 
-def parse_recon_args(*args: str) -> tuple[argparse.Namespace, dict[str, Any]]:
+def parse_recon_args(
+    args: Sequence[str] | None = None,
+) -> tuple[argparse.Namespace, dict[str, Any]]:
     parser = argparse.ArgumentParser(prog="sim-recon", add_help=False)
     parser.add_argument(
         "-c",
