@@ -49,7 +49,7 @@ def _recon_get_result(
     `lib.SR_getResult`. To work around this, define the expected output shape manually.
     """
     _result = np.empty(output_shape, np.float32)
-    lib.SR_getResult(reconstructor._ptr, _result)  # type: ignore[reportPrivateUsage]
+    lib.SR_getResult(reconstructor._ptr, _result)
     return _result
 
 
@@ -175,7 +175,6 @@ def run_reconstructions(
         for sim_data_path in progress_wrapper(
             sim_data_paths, desc="SIM data files", unit="file"
         ):
-            sim_data_path: str | PathLike[str]
             try:
                 sim_data_path = Path(sim_data_path)
                 if not sim_data_path.is_file():

@@ -93,9 +93,9 @@ def write_dv(
         output_file,
         hdr=header,  # type: ignore
         metadata={
-            "dx": header.d[2] / zoomfact,  # type: ignore
-            "dy": header.d[1] / zoomfact,  # type: ignore
-            "dz": header.d[0] / zzoom,  # type: ignore
+            "dx": header.d[2] / zoomfact,
+            "dy": header.d[1] / zoomfact,
+            "dz": header.d[0] / zzoom,
             "wave": wave,
         },
     )
