@@ -1,6 +1,8 @@
 # PySIMRecon
 
-A simple tool to reconstruct SIM data and and process OTFs from Microscope-Cockpit's DV files with pyCUDAsirecon from DLS B24's cryoSIM
+Easy to use wrapper for pyCUDAsirecon, allowing the use of DV files without PRIISM.
+
+This is built for easy use from the command line or as part of an auto-processing pipeline, allowing parameters to be pre-configured or defined at runtime.
 
 ### Goal
 

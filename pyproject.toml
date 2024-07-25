@@ -1,7 +1,7 @@
 [project]
 name = "PySIMRecon"
 version = "0.1.0"
-description = "A simple tool to reconstruct SIM data and and process OTFs from Microscope-Cockpit's DV files with pyCUDAsirecon from DLS B24's cryoSIM"
+description = "Easy to use wrapper for pyCUDAsirecon, allowing the use of DV files without PRIISM"
 authors = [
     { name = "Thomas Fish", email = "thomas.fish@diamond.ac.uk" },
 ]
