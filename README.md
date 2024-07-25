@@ -1,4 +1,4 @@
-# cryosim-recon
+# PySIMRecon
 
 A simple tool to reconstruct SIM data and and process OTFs from Microscope-Cockpit's DV files with pyCUDAsirecon from DLS B24's cryoSIM
 
