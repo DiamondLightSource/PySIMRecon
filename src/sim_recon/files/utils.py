@@ -1,9 +1,17 @@
 from __future__ import annotations
 import logging
 import platform
+import os
+import sys
 import re
 from pathlib import Path
 from uuid import uuid4
+from contextlib import contextmanager
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from os import PathLike
+    from collections.abc import Generator
 
 logger = logging.getLogger(__name__)
 
@@ -60,3 +68,24 @@ def ensure_valid_filename(filename: str) -> str:
         logger.debug("Removed invalid filename characters: '%s' is now '%s'")
 
     return new_filename
+
+
+@contextmanager
+def redirect_output_to(file_path: str | PathLike[str]) -> Generator[None, None, None]:
+    # Can't use contextlib's redirect_stdout and redirect_stderr as the C++ output isn't captured
+    file_path = Path(file_path)
+    # Save original file descriptors
+    stdout_fd = sys.stdout.fileno()
+    stderr_fd = sys.stderr.fileno()
+    saved_stdout_fd = os.dup(stdout_fd)
+    saved_stderr_fd = os.dup(stderr_fd)
+    try:
+        f = file_path.open("w+")
+        f_fd = f.fileno()
+        os.dup2(f_fd, stdout_fd)
+        os.dup2(f_fd, stderr_fd)
+        yield
+    finally:
+        # Reset stdout and stderr file descriptors
+        os.dup2(saved_stdout_fd, stdout_fd)
+        os.dup2(saved_stderr_fd, stderr_fd)
