@@ -27,7 +27,7 @@ __OTF_CONFIG_SECTION = "otf config"
 
 
 def read_config(input_config: str | PathLike[str]) -> RawConfigParser:
-    config_parser = RawConfigParser(**__PARSER_KWARGS)
+    config_parser = RawConfigParser(**__PARSER_KWARGS)  # type: ignore[call-overload]
     config_parser.optionxform = str  # Keep option cases (necessary for using as kwargs)
     config_parser.read(input_config)
     return config_parser
