@@ -1,5 +1,3 @@
-"""This file contains functions adapted from https://github.com/scopetools/cudasirecon/blob/master/recon.py"""
-
 from __future__ import annotations
 
 import logging
