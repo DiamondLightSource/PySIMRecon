@@ -35,7 +35,7 @@ def ensure_unique_filepath(path: Path, max_iter: int = 99) -> Path:
             logger.debug("'%s' was not unique, so '%s' will be used", path, output_path)
             return output_path
     raise IOError(
-        f"Failed to create unique file path after {i} attempts. Final attempt was '{output_path}'."  # type: ignore[reportPossiblyUnboundVariable]
+        f"Failed to create unique file path after {max_iter} attempts. Final attempt was '{output_path}'."  # type: ignore[reportPossiblyUnboundVariable]
     )
 
 
