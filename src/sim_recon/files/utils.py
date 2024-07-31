@@ -56,6 +56,10 @@ def ensure_valid_filename(filename: str) -> str:
     new_filename = re.sub(invalid_chars, "_", new_filename)
 
     if filename != new_filename:
-        logger.debug("Removed invalid filename characters: '%s' is now '%s'")
+        logger.debug(
+            "Removed invalid filename characters: '%s' is now '%s'",
+            filename,
+            new_filename,
+        )
 
     return new_filename

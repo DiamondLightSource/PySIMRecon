@@ -72,7 +72,9 @@ def convert_psfs_to_otfs(
                 )
             except Exception:
                 logger.error(
-                    "Error during PSF to OTF conversion for '%s'", exc_info=True
+                    "Error during PSF to OTF conversion for '%s'",
+                    psf_path,
+                    exc_info=True,
                 )
             if otf_path is None:
                 failed_psfs.append(psf_path)
