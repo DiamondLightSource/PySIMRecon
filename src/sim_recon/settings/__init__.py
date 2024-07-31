@@ -1,1 +1,3 @@
-from .dataclasses import WavelengthSettings, SettingsManager  #type: ignore[reportUnusedImport]  # noqa: F401
+from .dataclasses import WavelengthSettings, SettingsManager
+
+__all__ = ("SettingsManager", "WavelengthSettings")
