@@ -21,8 +21,8 @@ requires = [
 build-backend = "hatchling.build"
 
 [project.scripts]
-sim-recon = "sim_recon.cli:sim_recon"
-sim-otf = "sim_recon.cli:sim_otf"
+sim-recon = "sim_recon.cli.recon:main"
+sim-otf = "sim_recon.cli.otf:main"
 
 [project.optional-dependencies]
 progress = [

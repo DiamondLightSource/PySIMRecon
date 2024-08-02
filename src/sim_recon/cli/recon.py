@@ -5,7 +5,7 @@ from .parsing import parse_recon_args
 from ..progress import set_use_tqdm
 
 
-def sim_recon():
+def main() -> None:
     namespace, recon_kwargs = parse_recon_args()
 
     set_use_tqdm(namespace.use_tqdm)
@@ -24,4 +24,4 @@ def sim_recon():
 
 
 if __name__ == "__main__":
-    sim_recon()
+    main()
