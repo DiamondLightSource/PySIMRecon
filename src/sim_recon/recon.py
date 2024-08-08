@@ -4,13 +4,14 @@ import subprocess
 import os
 from os.path import abspath
 from pathlib import Path
+from uuid import uuid4
 import numpy as np
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
 
 from pycudasirecon.sim_reconstructor import SIMReconstructor, lib  # type: ignore[reportMissingTypeStubs]
 
-from .files.utils import RECON_NAME_STUB
+from .files.utils import redirect_output_to, RECON_NAME_STUB
 from .files.images import (
     prepare_files,
     read_tiff,
@@ -122,10 +123,14 @@ def reconstruct_from_processing_info(processing_info: ProcessingInfo) -> Path:
     zzoom = processing_info.kwargs["zzoom"]
     ndirs = processing_info.kwargs["ndirs"]
     nphases = processing_info.kwargs["nphases"]
+
     data = read_tiff(processing_info.image_path)  # Cannot use a memmap here!
-    rec_array = reconstruct(
-        data, processing_info.config_path, zoomfact, zzoom, ndirs, nphases
-    )
+
+    with redirect_output_to(processing_info.output_path.with_suffix(".log")):
+        rec_array = reconstruct(
+            data, processing_info.config_path, zoomfact, zzoom, ndirs, nphases
+        )
+
     # rec_array = subprocess_recon(
     #     processing_info.image_path,
     #     processing_info.otf_path,
