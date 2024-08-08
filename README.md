@@ -1,10 +1,12 @@
-# cryosim-recon
+# PySIMRecon
 
-A simple tool to process Microscope-Cockpit's DV files with pyCUDAdecon
+Easy to use wrapper for pyCUDAsirecon, allowing the use of DV (DeltaVision) files without IVE/Priism (UCSF library with MRC/DV support).
+
+This is built for easy use from the command line or as part of an auto-processing pipeline, allowing parameters to be pre-configured or defined at runtime.
 
 ### Goal
 
-To reconstruct the SIM data from the cryoSIM at B24, Diamond from the .dv files created by Cockpit. Requirements are:
+To reconstruct the SIM data and create OTFs from PSFs from the cryoSIM at B24, Diamond from the .dv files created by Cockpit. Requirements are:
 
 - Easy to use
 - Open source

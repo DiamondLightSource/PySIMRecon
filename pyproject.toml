@@ -1,27 +1,51 @@
-[tool.poetry]
-name = "cryosim-recon"
+[project]
+name = "PySIMRecon"
 version = "0.1.0"
-description = "A simple tool to process Microscope-Cockpit's DV files with pyCUDAdecon"
+description = "Easy to use wrapper for pyCUDAsirecon, allowing the use of DV (DeltaVision) files without IVE/Priism"
 authors = [
-    "Thomas Fish <thomas.fish@diamond.ac.uk>",
+    { name = "Thomas Fish", email = "thomas.fish@diamond.ac.uk" },
+]
+dependencies = [
+    "pycudasirecon ~= 0.1.0",
+    "numpy ~= 1.26.4",
+    "tifffile >=2024.2.12",
+    "mrc>=0.3.1",
 ]
 readme = "README.md"
-packages = [
-    { include = "cryosim_recon", from = "src" },
-]
-
-[tool.poetry.dependencies]
-python = "^3.11"
-pycudadecon = "^0.4.1"
-condasirecon = "^1.2.0"
-mrcfile = "^1.5.0"
-numpy = "^1.26.4"
-
-[tool.poetry.group.dev.dependencies]
-pytest = "^8.1.1"
+requires-python = ">= 3.11"
 
 [build-system]
 requires = [
-    "poetry-core",
+    "hatchling",
 ]
-build-backend = "poetry.core.masonry.api"
+build-backend = "hatchling.build"
+
+[project.scripts]
+sim-recon = "sim_recon.cli:sim_recon"
+sim-otf = "sim_recon.cli:sim_otf"
+
+[project.optional-dependencies]
+progress = [
+    "tqdm>=4.66.4",
+]
+
+[tool.rye]
+managed = true
+dev-dependencies = [
+    "pytest>=8.2.2",
+    "pytest-cov>=5.0.0",
+]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = [
+    "src/sim_recon",
+]
+
+[tool.pyright]
+reportMissingImports = false
+strict = [
+    "src/**",
+]
