@@ -106,6 +106,27 @@ def write_dv(
     return Path(output_file)
 
 
+def _prepare_config_kwargs(
+    settings: SettingsManager,
+    wavelength: int,
+    otf_path: str | PathLike[str],
+    **config_kwargs: Any,
+) -> dict[str, Any]:
+    # Use the configured per-wavelength settings
+    kwargs = settings.get_reconstruction_config(wavelength)
+
+    # config_kwargs override those any config defaults set
+    kwargs.update(config_kwargs)
+
+    # Set final variables:
+    kwargs["wavelength"] = wavelength
+    # Add otf_file that is expected by ReconParams
+    # Needs to be absolute because we don't know where this might be run from
+    kwargs["otf_file"] = str(Path(otf_path).absolute())
+
+    return kwargs
+
+
 def create_processing_info(
     file_path: str | PathLike[str],
     output_dir: str | PathLike[str],
@@ -132,16 +153,14 @@ def create_processing_info(
             output_dir / f"{OTF_NAME_STUB}{wavelength}.otf",
         )
     )
-    # Use the configured per-wavelength settings
-    kwargs = settings.get_reconstruction_config(wavelength)
-    # config_kwargs override those any config defaults set
-    kwargs.update(config_kwargs)
+
+    kwargs = _prepare_config_kwargs(
+        settings, wavelength=wavelength, otf_path=otf_path, **config_kwargs
+    )
+
     config_path = create_wavelength_config(
-        # wavelength is already in the stem
         output_dir / f"config{wavelength}.txt",
         file_path,
-        otf_path,
-        wavelength,
         **kwargs,
     )
     return ProcessingInfo(
