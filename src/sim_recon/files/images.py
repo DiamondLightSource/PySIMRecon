@@ -339,7 +339,7 @@ def write_tiff(
     )  # Check if data bigger than 4GB TIFF limit
 
     tiff_kwargs: dict[str, Any] = {
-        "software": f"{__package__} {__version__}",
+        "software": f"PySIMRecon {__version__}",
         "photometric": "MINISBLACK",
         "metadata": {"axes": "ZYX"},
     }
