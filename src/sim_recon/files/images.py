@@ -94,7 +94,7 @@ def write_dv(
     wavelengths_list = [
         # This counts on the fact that the data is stored zw
         Wavelengths(
-            *input_data.Mrc.extended_header[i],  # stored in
+            *input_data.Mrc.extended_header[i],  # type: ignore[attr-defined]
         )
         for i in range(
             5,
