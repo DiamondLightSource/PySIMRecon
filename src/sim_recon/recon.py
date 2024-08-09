@@ -3,6 +3,7 @@ import logging
 import subprocess
 import multiprocessing
 import os
+import traceback
 from os.path import abspath
 from pathlib import Path
 import numpy as np
@@ -211,8 +212,9 @@ def run_reconstructions(
                                 reconstruct_from_processing_info,
                                 args=(processing_info,),
                                 error_callback=lambda e: logger.error(
-                                    "Error occurred during reconstruction",
-                                    exc_info=True,
+                                    # exc_info doesn't work with this
+                                    "Error occurred during reconstruction: %s",
+                                    "".join(traceback.format_exception(e)),
                                 ),
                             )
                         )
