@@ -9,7 +9,7 @@ import numpy as np
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
 
-from pycudasirecon.sim_reconstructor import SIMReconstructor, lib  # type: ignore[reportMissingTypeStubs]
+from pycudasirecon.sim_reconstructor import SIMReconstructor, lib  # type: ignore[import-untyped]
 
 from .files.utils import redirect_output_to, RECON_NAME_STUB
 from .files.images import (
@@ -49,7 +49,7 @@ def _recon_get_result(
     `lib.SR_getResult`. To work around this, define the expected output shape manually.
     """
     _result = np.empty(output_shape, np.float32)
-    lib.SR_getResult(reconstructor._ptr, _result)  # type: ignore[reportPrivateUsage]
+    lib.SR_getResult(reconstructor._ptr, _result)
     return _result
 
 
@@ -100,7 +100,7 @@ def reconstruct(
         y = int(round(y * zoomfact))
 
         return _recon_get_result(reconstructor, output_shape=(z, y, x))
-        # return reconstructor.get_result()  # type: ignore[reportUnknownMemberType]
+        # return reconstructor.get_result()
     except Exception:
         # Unlikely to ever hit this as errors from the C++ just kill the process
         logger.error(
@@ -175,7 +175,6 @@ def run_reconstructions(
         for sim_data_path in progress_wrapper(
             sim_data_paths, desc="SIM data files", unit="file"
         ):
-            sim_data_path: str | PathLike[str]
             try:
                 sim_data_path = Path(sim_data_path)
                 if not sim_data_path.is_file():

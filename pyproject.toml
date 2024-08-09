@@ -45,7 +45,9 @@ packages = [
 ]
 
 [tool.pyright]
-reportMissingImports = false
-strict = [
+include = [
     "src/**",
 ]
+
+[tool.mypy]
+warn_unused_ignores = true

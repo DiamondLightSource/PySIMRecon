@@ -12,7 +12,7 @@ if TYPE_CHECKING:
         Protocol,
     )
     from collections.abc import Iterable, Generator
-    from contextlib import _GeneratorContextManager  # type: ignore
+    from contextlib import _GeneratorContextManager
 
     _T = TypeVar("_T")
 
