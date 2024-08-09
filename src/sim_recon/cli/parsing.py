@@ -10,6 +10,31 @@ if TYPE_CHECKING:
     from ..settings.formatting import SettingFormat
 
 
+def _add_help(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "-h",
+        "--help",
+        action="help",
+        default=argparse.SUPPRESS,
+        help="show this help message and exit",
+    )
+
+
+def _add_general_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Show more logging",
+    )
+    parser.add_argument(
+        "--no-progress",
+        action="store_false",
+        dest="use_tqdm",
+        help="turn off progress bars (only has an affect if tqdm is installed)",
+    )
+
+
 def handle_required(
     parser: argparse.ArgumentParser,
     namespace: argparse.Namespace,
@@ -85,24 +110,14 @@ def parse_otf_args(
         action="store_false",
         help="If specified, files created during the reconstruction process will not be cleaned up",
     )
-    parser.add_argument(
-        "-v",
-        "--verbose",
-        action="store_true",
-        help="If specified, files will be overwritten if they already exist (unique filenames will be used otherwise)",
-    )
+
+    _add_general_args(parser)
 
     namespace, unknown = parser.parse_known_args(args)
 
     _add_override_args_from_formatters(parser, OTF_FORMATTERS)
 
-    parser.add_argument(
-        "-h",
-        "--help",
-        action="help",
-        default=argparse.SUPPRESS,
-        help="show this help message and exit",
-    )
+    _add_help(parser)
 
     override_namespace = parser.parse_args(unknown)
 
@@ -163,25 +178,15 @@ def parse_recon_args(
         action="store_true",
         help="If specified, up to 2 processes will be run at a time",
     )
-    parser.add_argument(
-        "-v",
-        "--verbose",
-        action="store_true",
-        help="If specified, files will be overwritten if they already exist (unique filenames will be used otherwise)",
-    )
+
+    _add_general_args(parser)
 
     namespace, unknown = parser.parse_known_args(args)
 
     # Now add override arguments so they show up in --help
     _add_override_args_from_formatters(parser, RECON_FORMATTERS)
 
-    parser.add_argument(
-        "-h",
-        "--help",
-        action="help",
-        default=argparse.SUPPRESS,
-        help="show this help message and exit",
-    )
+    _add_help(parser)
 
     override_namespace = parser.parse_args(unknown)
 
