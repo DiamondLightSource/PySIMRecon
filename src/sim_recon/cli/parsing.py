@@ -158,6 +158,12 @@ def parse_recon_args(
         help="If specified, files created during the reconstruction process will not be cleaned up",
     )
     parser.add_argument(
+        "--parallel",
+        dest="parallel_process",
+        action="store_true",
+        help="If specified, up to 2 processes will be run at a time",
+    )
+    parser.add_argument(
         "-v",
         "--verbose",
         action="store_true",
