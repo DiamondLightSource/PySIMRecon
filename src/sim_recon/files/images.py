@@ -220,7 +220,7 @@ def prepare_files(
             processing_info = None
             if settings.get_wavelength(wavelength) is not None:
                 try:
-                    split_file_path = processing_dir / f"data{wavelength}.tif"
+                    split_file_path = processing_dir / f"data{wavelength}.tiff"
                     # assumes channel is the 3rd to last dimension
                     # Equivalent of np.take(array, c, -3) but no copying
                     channel_slice: list[slice | int] = [slice(None)] * len(array.shape)
