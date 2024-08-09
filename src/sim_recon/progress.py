@@ -43,18 +43,18 @@ def _passthrough_logging_redirect() -> Generator[None, None, None]:
 
 
 class ProgressManager:
-    _USE_TQDM = False
+    _use_tqdm = False
     progress_wrapper: _ProgressWrapperProtocol = _passthrough_wrapper
     logging_redirect = _passthrough_logging_redirect
 
     @classmethod
     def set_use_tqdm(cls, v: bool) -> None:
-        cls.__USE_TQDM = v
+        cls._use_tqdm = v
         cls.update_progress_wrapper()
 
     @classmethod
     def get_use_tqdm(cls) -> bool:
-        return cls.__USE_TQDM
+        return cls._use_tqdm
 
     @classmethod
     def update_progress_wrapper(cls):
