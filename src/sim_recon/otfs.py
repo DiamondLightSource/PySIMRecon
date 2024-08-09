@@ -9,7 +9,12 @@ from typing import TYPE_CHECKING
 from pycudasirecon import make_otf  # type: ignore[import-untyped]
 
 from .files.images import read_dv, dv_to_temporary_tiff
-from .files.utils import ensure_unique_filepath, ensure_valid_filename, OTF_NAME_STUB
+from .files.utils import (
+    ensure_unique_filepath,
+    ensure_valid_filename,
+    get_temporary_path,
+    OTF_NAME_STUB,
+)
 from .settings import SettingsManager
 from .files.config import format_kwargs_as_config
 from .progress import get_progress_wrapper, get_logging_redirect
@@ -125,7 +130,10 @@ def psf_to_otf(
             make_otf_kwargs[k] = v
 
     with dv_to_temporary_tiff(
-        psf_path, otf_path.parent, delete=cleanup, xy_shape=(256, 256)
+        psf_path,
+        get_temporary_path(otf_path.parent, f".{psf_path.stem}", suffix=".tiff"),
+        delete=cleanup,
+        xy_shape=(256, 256),
     ) as tiff_path:
         make_otf_kwargs["psf"] = str(tiff_path)
         make_otf_kwargs["out_file"] = str(otf_path)

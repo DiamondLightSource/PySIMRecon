@@ -11,7 +11,7 @@ import tifffile as tf
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, NamedTuple, cast
 
-from .utils import get_temporary_path, OTF_NAME_STUB, RECON_NAME_STUB
+from .utils import OTF_NAME_STUB, RECON_NAME_STUB
 from .config import create_wavelength_config
 from ..info import __version__
 
@@ -242,59 +242,50 @@ def prepare_files(
 @contextmanager
 def dv_to_temporary_tiff(
     dv_path: str | PathLike[str],
-    directory: str | PathLike[str] | None = None,
-    delete: bool = True,
+    tiff_path: str | PathLike[str],
+    squeeze: bool = True,
+    delete: bool = False,
     xy_shape: tuple[int, int] | None = None,
     crop: float = 0,
 ) -> Generator[Path, None, None]:
-    dv_path = Path(dv_path)
-    tiff_path = None
-    if directory is None:
-        directory = dv_path.parent
-    else:
-        directory = Path(directory)
     try:
-        tiff_path = get_temporary_path(directory, f".{dv_path.stem}", suffix=".tiff")
-
-        with read_dv(dv_path) as dv:
-            array: NDArray[Any] = dv.asarray(squeeze=True)
-            if xy_shape is not None:
-                target_yx_shape = np.asarray(xy_shape[::-1], dtype=np.uint16)
-                current_yx_shape = np.asarray(array.shape[1:], dtype=np.uint16)
-
-                # Check for dimensions larger than the current image
-                for i in range(2):
-                    if target_yx_shape[i] > current_yx_shape[i]:
-                        logger.warning(
-                            "No resizing will be applied to dimension %i as "
-                            "size %i has been requested, which is larger than "
-                            "the current size %i",
-                            i,
-                            target_yx_shape[i],
-                            current_yx_shape[i],
-                        )
-                        target_yx_shape[i] = current_yx_shape[i]
-
-                crop_amount = current_yx_shape - target_yx_shape
-                min_bounds = crop_amount // 2
-                max_bounds = current_yx_shape - crop_amount // 2
-                array = array[
-                    :, min_bounds[0] : max_bounds[0], min_bounds[1] : max_bounds[1]
-                ]
-            elif crop > 0 and crop <= 1:
-                yx_shape = np.asarray(array.shape[1:], dtype=np.uint16)
-                min_bounds = np.round((yx_shape * crop) / 2).astype(np.uint16)
-                max_bounds = yx_shape - min_bounds
-                array = array[
-                    :, min_bounds[0] : max_bounds[0], min_bounds[1] : max_bounds[1]
-                ]
-            elif crop > 1:
-                logger.warning("A crop of >1 is invalid, no crop will be applied")
-            tf.imwrite(tiff_path, data=array)
-        yield tiff_path
+        yield dv_to_tiff(
+            dv_path, tiff_path, squeeze=squeeze, xy_shape=xy_shape, crop=crop
+        )
     finally:
         if delete and tiff_path is not None:
             os.unlink(tiff_path)
+
+
+def dv_to_tiff(
+    dv_path: str | PathLike[str],
+    tiff_path: str | PathLike[str],
+    squeeze: bool = True,
+    xy_shape: tuple[int, int] | None = None,
+    crop: float = 0,
+) -> Path:
+    with read_dv(dv_path) as dv:
+        array: NDArray[Any] = dv.asarray(squeeze=squeeze)
+        if xy_shape is not None:
+            target_yx_shape = np.asarray(xy_shape[::-1], dtype=np.uint16)
+            current_yx_shape = np.asarray(array.shape[1:], dtype=np.uint16)
+            crop_amount = current_yx_shape - target_yx_shape
+            min_bounds = crop_amount // 2
+            max_bounds = current_yx_shape - crop_amount // 2
+            array = array[
+                :, min_bounds[0] : max_bounds[0], min_bounds[1] : max_bounds[1]
+            ]
+        elif crop > 0 and crop <= 1:
+            yx_shape = np.asarray(array.shape[1:], dtype=np.uint16)
+            min_bounds = np.round((yx_shape * crop) / 2).astype(np.uint16)
+            max_bounds = yx_shape - min_bounds
+            array = array[
+                :, min_bounds[0] : max_bounds[0], min_bounds[1] : max_bounds[1]
+            ]
+        if np.iscomplexobj(array):
+            array = array.view(np.float32)
+        write_tiff(tiff_path, array)
+    return Path(tiff_path)
 
 
 def read_tiff(filepath: str | PathLike[str]) -> NDArray[Any]:
