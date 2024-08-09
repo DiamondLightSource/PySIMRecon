@@ -34,9 +34,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-progress_wrapper = get_progress_wrapper()
-logging_redirect = get_logging_redirect()
-
 
 class ReconstructionException(Exception):
     pass
@@ -161,6 +158,9 @@ def run_reconstructions(
     **config_kwargs: Any,
 ) -> None:
     output_directory = Path(output_directory)
+
+    logging_redirect = get_logging_redirect()
+    progress_wrapper = get_progress_wrapper()
 
     # `maxtasksperchild=1` is necessary to ensure the child process is cleaned
     # up between tasks, as the cudasirecon process doesn't fully release memory
