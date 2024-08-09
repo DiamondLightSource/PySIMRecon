@@ -148,8 +148,7 @@ def create_processing_info(
         file_path,
         otf_path,
         config_path,
-        output_dir
-        / f"{file_path.stem}_{RECON_NAME_STUB}_{wavelength}{file_path.suffix}",
+        output_dir / f"{file_path.stem}_{RECON_NAME_STUB}{file_path.suffix}",
         kwargs,
     )
 
