@@ -127,19 +127,29 @@ def get_wavelength_settings(
 
 
 def create_wavelength_config(
-    output_path: str | PathLike[str],
+    config_path: str | PathLike[str],
+    file_path: str | PathLike[str],
     otf_path: str | PathLike[str],
     wavelength: int,
     **config_kwargs: Any,
 ) -> Path:
+    config_path = Path(config_path)
+    file_path = Path(file_path)
+    otf_path = Path(otf_path).absolute()  # Needs to be absolute for the config
+
     config_kwargs["wavelength"] = wavelength
     # Add otf_file that is expected by ReconParams
-    config_kwargs["otf_file"] = str(abspath(otf_path))
+    config_kwargs["otf_file"] = str(otf_path)
     # Convert to string so it can be written without a section, like sirecon expects
-    with open(output_path, "w") as f:
+    with open(config_path, "w") as f:
         for line in format_kwargs_as_config(config_kwargs):
             f.write(line + "\n")
-    return Path(output_path)
+        f.write(
+            "\n# To run from the directory containing these files, use the following command:\n"
+            f"# cudasirecon . {file_path.name} {otf_path.name} -c {config_path.name}\n"
+        )
+
+    return Path(config_path)
 
 
 def get_recon_kwargs(
