@@ -9,11 +9,10 @@ if TYPE_CHECKING:
         TypeVar,
         Any,
         Callable,
-        ContextManager,
-        Generic,
         Protocol,
     )
     from collections.abc import Iterable, Generator
+    from contextlib import _GeneratorContextManager  # type: ignore
 
     _T = TypeVar("_T")
 
@@ -22,9 +21,6 @@ if TYPE_CHECKING:
         def __call__(
             self, iterable: Iterable[_T], *args: Any, **kwargs: Any
         ) -> Iterable[_T]: ...
-
-    class _GeneratorContextManager(ContextManager[_T], Generic[_T]):
-        def __call__(self, func: Callable[..., _T]) -> Callable[..., _T]: ...
 
 
 __all__ = ("set_use_tqdm", "get_progress_wrapper", "get_logging_redirect")
@@ -67,10 +63,10 @@ class ProgressManager:
                 from tqdm import tqdm
                 from tqdm.contrib.logging import logging_redirect_tqdm
 
-                def progress_wrapper(
+                def tqdm_progress_wrapper(
                     iterable: Iterable[_T], *args: Any, **kwargs: Any
                 ) -> Iterable[_T]:
-                    return tqdm(
+                    return tqdm(  # type: ignore[call-overload]
                         iterable,
                         *args,
                         **kwargs,
@@ -78,7 +74,7 @@ class ProgressManager:
                         dynamic_ncols=True,
                     )
 
-                cls.progress_wrapper = progress_wrapper
+                cls.progress_wrapper = tqdm_progress_wrapper
                 cls.logging_redirect = logging_redirect_tqdm
                 return
 
@@ -94,8 +90,8 @@ def set_use_tqdm(v: bool) -> None:
 
 
 def get_progress_wrapper() -> _ProgressWrapperProtocol:
-    return getattr(ProgressManager, "progress_wrapper")
+    return ProgressManager.progress_wrapper
 
 
 def get_logging_redirect() -> Callable[[], _GeneratorContextManager[None]]:
-    return getattr(ProgressManager, "logging_redirect")
+    return ProgressManager.logging_redirect

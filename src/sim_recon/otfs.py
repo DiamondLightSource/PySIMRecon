@@ -20,9 +20,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-progress_wrapper = get_progress_wrapper()
-logging_redirect = get_logging_redirect()
-
 
 def _get_single_channel_wavelength(psf_path: str | PathLike[str]) -> int:
     with read_dv(psf_path) as f:
@@ -51,6 +48,10 @@ def convert_psfs_to_otfs(
     completed_otfs: list[Path] = []
     failed_psfs: list[str | PathLike[str]] = []
     logger.info("Checking for PSFs to be converted to OTFs...")
+
+    logging_redirect = get_logging_redirect()
+    progress_wrapper = get_progress_wrapper()
+
     with logging_redirect():
         for psf_path in progress_wrapper(psf_paths, desc="PSF to OTF conversions"):
             psf_path: str | PathLike[str]
