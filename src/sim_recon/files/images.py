@@ -229,7 +229,9 @@ def prepare_files(
                     write_tiff(
                         split_file_path,
                         array[*channel_slice],
-                        pixel_size_microns=float(config_kwargs["xyres"]),
+                        pixel_size_microns=float(
+                            config_kwargs["xyres"]  # Cast as stored as Decimal
+                        ),
                         emission_wavelength_nm=wavelength,
                     )
 
