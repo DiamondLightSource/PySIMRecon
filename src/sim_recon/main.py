@@ -64,6 +64,7 @@ def sim_reconstruct(
     *sim_data_paths: str | PathLike[str],
     stitch_channels: bool = True,
     cleanup: bool = False,
+    parallel_process: bool = False,
     **recon_kwargs: Any,
 ) -> None:
     settings = load_settings(config_path)
@@ -74,5 +75,6 @@ def sim_reconstruct(
         settings=settings,
         stitch_channels=stitch_channels,
         cleanup=cleanup,
+        parallel_process=parallel_process,
         **recon_kwargs,
     )

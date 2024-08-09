@@ -14,6 +14,7 @@ def sim_recon():
         *namespace.sim_data_paths,
         stitch_channels=namespace.stitch_channels,
         cleanup=namespace.cleanup,
+        parallel_process=namespace.parallel_process,
         **recon_kwargs,
     )
 

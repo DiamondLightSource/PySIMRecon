@@ -1,10 +1,10 @@
 from __future__ import annotations
 import logging
 import subprocess
+import multiprocessing
 import os
 from os.path import abspath
 from pathlib import Path
-from uuid import uuid4
 import numpy as np
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
@@ -26,6 +26,7 @@ from .progress import progress_wrapper, logging_redirect
 if TYPE_CHECKING:
     from typing import Any
     from os import PathLike
+    from multiprocessing.pool import AsyncResult
     from numpy.typing import NDArray
 
     from .files.images import ProcessingInfo
@@ -100,7 +101,8 @@ def reconstruct(
 
         return _recon_get_result(reconstructor, output_shape=(z, y, x))
         # return reconstructor.get_result()  # type: ignore[reportUnknownMemberType]
-    except:  # noqa: E722
+    except Exception:
+        # Unlikely to ever hit this as errors from the C++ just kill the process
         logger.error(
             "Exception raised during reconstruction with config %s",
             config_path,
@@ -152,10 +154,21 @@ def run_reconstructions(
     settings: SettingsManager,
     stitch_channels: bool = True,
     cleanup: bool = False,
+    parallel_process: bool = False,
     **config_kwargs: Any,
 ) -> None:
     output_directory = Path(output_directory)
-    with logging_redirect():
+
+    # `maxtasksperchild=1` is necessary to ensure the child process is cleaned
+    # up between tasks, as the cudasirecon process doesn't fully release memory
+    # afterwards
+    with (
+        multiprocessing.Pool(
+            processes=1 + int(parallel_process),  # 2 processes max
+            maxtasksperchild=1,
+        ) as pool,
+        logging_redirect(),
+    ):
         for sim_data_path in progress_wrapper(
             sim_data_paths, desc="SIM data files", unit="file"
         ):
@@ -186,20 +199,41 @@ def run_reconstructions(
                         **config_kwargs,
                     )
 
+                    async_results: list[AsyncResult] = []
+                    wavelengths: list[int] = []
+                    output_paths: list[Path] = []
                     zoom_factors: list[tuple[float, int]] = []
-                    for _, processing_info in progress_wrapper(
-                        processing_info_dict.items(), unit="wavelength", leave=False
-                    ):
-                        reconstruct_from_processing_info(processing_info)
+                    for wavelength, processing_info in processing_info_dict.items():
+                        async_results.append(
+                            pool.apply_async(
+                                reconstruct_from_processing_info,
+                                args=(processing_info,),
+                                error_callback=lambda e: logger.error(
+                                    "Error occurred during reconstruction",
+                                    exc_info=True,
+                                ),
+                            )
+                        )
 
-                        # Needed to check the pixel sizes will remain consistent between wavelengths
+                        # Collect values needed for stitching:
+                        wavelengths.append(wavelength)
                         zoom_factors.append(
                             (
                                 processing_info.kwargs["zoomfact"],
                                 processing_info.kwargs["zzoom"],
                             )
                         )
+                        output_paths.append(processing_info.output_path)
 
+                    # Wait for async processes to finish (otherwise there won't be files to stitch!)
+                    for r in progress_wrapper(
+                        async_results,
+                        unit="wavelengths",
+                        leave=False,
+                    ):
+                        r.wait()
+
+                    # Check if images can be stitched
                     if stitch_channels and zoom_factors.count(zoom_factors[0]) != len(
                         zoom_factors
                     ):
@@ -207,20 +241,15 @@ def run_reconstructions(
                             "Unable to stitch files due to mismatched zoom factors between wavelengths"
                         )
                         stitch_channels = False
+
                     if stitch_channels:
+                        # Stitch channels (if requested and possible)
                         filename = f"{sim_data_path.stem}_{RECON_NAME_STUB}{sim_data_path.suffix}"
                         write_dv(
                             sim_data_path,
                             output_directory / filename,
-                            combine_tiffs(
-                                *(
-                                    processing_info.output_path
-                                    for processing_info in processing_info_dict.values()
-                                )
-                            ),
-                            wavelengths=tuple(
-                                wavelength for wavelength in processing_info_dict.keys()
-                            ),
+                            combine_tiffs(*output_paths),
+                            wavelengths=wavelengths,
                             zoomfact=float(zoom_factors[0][0]),
                             zzoom=zoom_factors[0][1],
                         )
