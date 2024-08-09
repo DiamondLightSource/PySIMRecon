@@ -12,13 +12,16 @@ from .files.images import read_dv, dv_to_temporary_tiff
 from .files.utils import ensure_unique_filepath, ensure_valid_filename, OTF_NAME_STUB
 from .settings import SettingsManager
 from .files.config import format_kwargs_as_config
-from .progress import progress_wrapper, logging_redirect
+from .progress import get_progress_wrapper, get_logging_redirect
 
 if TYPE_CHECKING:
     from typing import Any, Literal
     from os import PathLike
 
 logger = logging.getLogger(__name__)
+
+progress_wrapper = get_progress_wrapper()
+logging_redirect = get_logging_redirect()
 
 
 def _get_single_channel_wavelength(psf_path: str | PathLike[str]) -> int:

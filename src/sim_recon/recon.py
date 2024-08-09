@@ -21,7 +21,7 @@ from .files.images import (
 )
 
 from .settings import SettingsManager
-from .progress import progress_wrapper, logging_redirect
+from .progress import get_progress_wrapper, get_logging_redirect
 
 if TYPE_CHECKING:
     from typing import Any
@@ -33,6 +33,9 @@ if TYPE_CHECKING:
 
 
 logger = logging.getLogger(__name__)
+
+progress_wrapper = get_progress_wrapper()
+logging_redirect = get_logging_redirect()
 
 
 class ReconstructionException(Exception):
