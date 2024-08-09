@@ -329,6 +329,7 @@ def write_tiff(
     pixel_size_microns: float | None = None,
     excitation_wavelength_nm: float | None = None,
     emission_wavelength_nm: float | None = None,
+    ome: bool = True,
 ) -> None:
     logger.debug("Writing array to %s", output_path)
     bigtiff = (
@@ -342,11 +343,6 @@ def write_tiff(
     }
 
     if pixel_size_microns is not None:
-        # OME PhysicalSize:
-        tiff_kwargs["metadata"]["PhysicalSizeX"] = pixel_size_microns
-        tiff_kwargs["metadata"]["PhysicalSizeY"] = pixel_size_microns
-        tiff_kwargs["metadata"]["PhysicalSizeXUnit"] = "µm"
-        tiff_kwargs["metadata"]["PhysicalSizeYUnit"] = "µm"
 
         # TIFF tags:
         tiff_kwargs["resolution"] = (1e4 / pixel_size_microns, 1e4 / pixel_size_microns)
@@ -354,16 +350,26 @@ def write_tiff(
             tf.RESUNIT.CENTIMETER
         )  # Use CENTIMETER for maximum compatibility
 
-    channel_dict: dict[str, Any] = {}
-    if excitation_wavelength_nm is not None:
-        channel_dict["ExcitationWavelength"] = excitation_wavelength_nm
-        channel_dict["ExcitationWavelengthUnits"] = "nm"
-    if emission_wavelength_nm is not None:
-        channel_dict["EmissionWavelength"] = emission_wavelength_nm
-        channel_dict["EmissionWavelengthUnits"] = "nm"
+    if ome:
+        if pixel_size_microns is not None:
+            # OME PhysicalSize:
+            tiff_kwargs["metadata"]["PhysicalSizeX"] = pixel_size_microns
+            tiff_kwargs["metadata"]["PhysicalSizeY"] = pixel_size_microns
+            tiff_kwargs["metadata"]["PhysicalSizeXUnit"] = "µm"
+            tiff_kwargs["metadata"]["PhysicalSizeYUnit"] = "µm"
 
-    if channel_dict:
-        tiff_kwargs["metadata"]["Channel"] = channel_dict
+        channel_dict: dict[str, Any] = {}
+        if excitation_wavelength_nm is not None:
+            channel_dict["ExcitationWavelength"] = excitation_wavelength_nm
+            channel_dict["ExcitationWavelengthUnits"] = "nm"
+        if emission_wavelength_nm is not None:
+            channel_dict["EmissionWavelength"] = emission_wavelength_nm
+            channel_dict["EmissionWavelengthUnits"] = "nm"
 
-    with tf.TiffWriter(output_path, mode="w", bigtiff=bigtiff, ome=True) as tiff:
+        if channel_dict:
+            tiff_kwargs["metadata"]["Channel"] = channel_dict
+
+    with tf.TiffWriter(
+        output_path, mode="w", bigtiff=bigtiff, ome=ome, shaped=not ome
+    ) as tiff:
         tiff.write(array, **tiff_kwargs)
