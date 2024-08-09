@@ -171,6 +171,7 @@ def create_processing_info(
     config_path = create_wavelength_config(
         # wavelength is already in the stem
         output_dir / f"config{wavelength}.txt",
+        file_path,
         otf_path,
         wavelength,
         **kwargs,
