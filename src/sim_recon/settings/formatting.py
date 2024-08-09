@@ -2,10 +2,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 from decimal import Decimal
+from configparser import RawConfigParser
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from typing import Callable
+
+
+# Using the logic from RawConfigParser for consistency
+__boolean_conv = RawConfigParser()._convert_to_boolean
 
 
 @dataclass
@@ -35,7 +40,7 @@ OTF_FORMATTERS: dict[str, SettingFormat] = {
         description="The k0 vector angle with which the PSF is taken, by default 0",
     ),
     "nocompen": SettingFormat(
-        bool,
+        __boolean_conv,
         description="Do not perform bead size compensation, default False (do perform)",
     ),
     "fixorigin": SettingFormat(
