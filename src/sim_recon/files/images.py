@@ -144,11 +144,13 @@ def create_processing_info(
     wavelength: int,
     settings: SettingsManager,
     **config_kwargs: Any,
-) -> ProcessingInfo | None:
+) -> ProcessingInfo:
     file_path = Path(file_path)
     output_dir = Path(output_dir)
     if not file_path.is_file():
-        return None
+        raise FileNotFoundError(
+            f"Cannot create processing info: file {file_path} does not exist"
+        )
     logger.debug("Creating processing files for %s in %s", file_path, output_dir)
     otf_path = settings.get_otf_path(wavelength)
 
@@ -230,37 +232,41 @@ def prepare_files(
                 continue
             processing_info = None
             if settings.get_wavelength(wavelength) is not None:
-                proc_output_path = processing_dir / f"data{wavelength}.tif"
-                # assumes channel is the 3rd to last dimension
-                # Equivalent of np.take(array, c, -3) but no copying
-                channel_slice: list[slice | int] = [slice(None)] * len(array.shape)
-                channel_slice[-3] = c
-                write_single_channel_tiff(
-                    proc_output_path,
-                    array[*channel_slice],
-                )
-                processing_info = create_processing_info(
-                    file_path=proc_output_path,
-                    output_dir=processing_dir,
-                    wavelength=wavelength,
-                    settings=settings,
-                    **config_kwargs,
-                )
+                try:
+                    split_file_path = processing_dir / f"data{wavelength}.tif"
+                    # assumes channel is the 3rd to last dimension
+                    # Equivalent of np.take(array, c, -3) but no copying
+                    channel_slice: list[slice | int] = [slice(None)] * len(array.shape)
+                    channel_slice[-3] = c
 
-                if processing_info is None:
-                    logger.warning(
-                        "No processing files found for '%s' at %i",
-                        file_path,
-                        wavelength,
+                    write_single_channel_tiff(
+                        split_file_path,
+                        array[*channel_slice],
                     )
-                else:
+
+                    processing_info = create_processing_info(
+                        file_path=split_file_path,
+                        output_dir=processing_dir,
+                        wavelength=wavelength,
+                        settings=settings,
+                        **config_kwargs,
+                    )
+
                     if wavelength in processing_info_dict:
                         raise KeyError(
                             "Wavelength %i found multiple times within %s",
                             wavelength,
                             file_path,
                         )
+
                     processing_info_dict[wavelength] = processing_info
+                except Exception:
+                    logger.error(
+                        "Failed to prepare files for wavelength %i of %s",
+                        wavelength,
+                        file_path,
+                        exc_info=True,
+                    )
     return processing_info_dict
 
 
