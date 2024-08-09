@@ -106,38 +106,6 @@ def write_dv(
     return Path(output_file)
 
 
-def combine_tiffs(
-    *file_paths: str | PathLike[str],
-) -> NDArray[Any]:
-    logger.debug(
-        "Combining tiffs from:\n%s",
-        "\n\t".join(str(fp) for fp in file_paths),
-    )
-    return np.stack(tuple(tf.memmap(fp).squeeze() for fp in file_paths), -3)
-
-
-def write_single_channel_tiff(
-    output_file_path: str | PathLike[str],
-    array: NDArray[Any],
-) -> None:
-    """Writes a new single-channel file from array data, copying information from hdr"""
-    logger.debug("Writing single channel to %s", output_file_path)
-
-    bigtiff = (
-        array.size * array.itemsize >= np.iinfo(np.uint32).max
-    )  # Check if data bigger than 4GB TIFF limit
-
-    with tf.TiffWriter(
-        output_file_path, mode="w", bigtiff=bigtiff, shaped=True
-    ) as tiff:
-        tiff.write(
-            array,
-            photometric="MINISBLACK",
-            metadata={"axes": "ZYX"},
-            software=f"{__package__} {__version__}",
-        )
-
-
 def create_processing_info(
     file_path: str | PathLike[str],
     output_dir: str | PathLike[str],
@@ -240,7 +208,7 @@ def prepare_files(
                     channel_slice: list[slice | int] = [slice(None)] * len(array.shape)
                     channel_slice[-3] = c
 
-                    write_single_channel_tiff(
+                    write_tiff(
                         split_file_path,
                         array[*channel_slice],
                     )
@@ -332,3 +300,28 @@ def dv_to_temporary_tiff(
 def read_tiff(filepath: str | PathLike[str]) -> NDArray[Any]:
     with tf.TiffFile(filepath) as tiff:
         return tiff.asarray()
+
+
+def get_combined_array_from_tiffs(
+    *file_paths: str | PathLike[str],
+) -> NDArray[Any]:
+    logger.debug(
+        "Combining tiffs from:\n%s",
+        "\n\t".join(str(fp) for fp in file_paths),
+    )
+    return np.stack(tuple(tf.memmap(fp).squeeze() for fp in file_paths), -3)  # type: ignore
+
+
+def write_tiff(output_path: str | PathLike[str], array: NDArray[Any]) -> None:
+    logger.debug("Writing array to %s", output_path)
+    bigtiff = (
+        array.size * array.itemsize >= np.iinfo(np.uint32).max
+    )  # Check if data bigger than 4GB TIFF limit
+
+    with tf.TiffWriter(output_path, mode="w", bigtiff=bigtiff, shaped=True) as tiff:
+        tiff.write(
+            array,
+            photometric="MINISBLACK",
+            metadata={"axes": "ZYX"},
+            software=f"{__package__} {__version__}",
+        )

@@ -15,8 +15,8 @@ from .files.utils import redirect_output_to, RECON_NAME_STUB
 from .files.images import (
     prepare_files,
     read_tiff,
-    write_single_channel_tiff,
-    combine_tiffs,
+    write_tiff,
+    get_combined_array_from_tiffs,
     write_dv,
 )
 
@@ -139,7 +139,7 @@ def reconstruct_from_processing_info(processing_info: ProcessingInfo) -> Path:
     #     processing_info.config_path,
     # )
     logger.info("Reconstructed %s", processing_info.image_path)
-    write_single_channel_tiff(processing_info.output_path, rec_array)
+    write_tiff(processing_info.output_path, rec_array)
     logger.debug(
         "Reconstruction of %s saved in %s",
         processing_info.image_path,
@@ -250,7 +250,7 @@ def run_reconstructions(
                         write_dv(
                             sim_data_path,
                             output_directory / filename,
-                            combine_tiffs(*output_paths),
+                            get_combined_array_from_tiffs(*output_paths),
                             wavelengths=wavelengths,
                             zoomfact=float(zoom_factors[0][0]),
                             zzoom=zoom_factors[0][1],
@@ -268,7 +268,9 @@ def run_reconstructions(
                             write_dv(
                                 sim_data_path,
                                 output_directory / processing_info.output_path.name,
-                                combine_tiffs(processing_info.output_path),
+                                get_combined_array_from_tiffs(
+                                    processing_info.output_path
+                                ),
                                 wavelengths=(wavelength,),
                                 zoomfact=float(processing_info.kwargs["zoomfact"]),
                                 zzoom=processing_info.kwargs["zzoom"],
