@@ -5,7 +5,7 @@ from .parsing import parse_otf_args
 from ..progress import set_use_tqdm
 
 
-def sim_otf():
+def main() -> None:
     namespace, otf_kwargs = parse_otf_args()
 
     set_use_tqdm(namespace.use_tqdm)
@@ -23,4 +23,4 @@ def sim_otf():
 
 
 if __name__ == "__main__":
-    sim_otf()
+    main()
