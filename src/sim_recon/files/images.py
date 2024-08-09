@@ -211,6 +211,7 @@ def prepare_files(
                         split_file_path,
                         array[*channel_slice],
                         pixel_size_microns=float(config_kwargs["xyres"]),
+                        emission_wavelength_nm=wavelength,
                     )
 
                     processing_info = create_processing_info(
