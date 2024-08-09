@@ -66,7 +66,7 @@ RECON_FORMATTERS: dict[str, SettingFormat] = {
     ),
     "nimm": SettingFormat(Decimal, description="refractive index of immersion medium"),
     "wiener": SettingFormat(
-        float,
+        Decimal,
         description="Wiener constant; lower value leads to higher resolution and noise;",
     ),
     # playing with it extensively is strongly encouraged
@@ -80,7 +80,7 @@ RECON_FORMATTERS: dict[str, SettingFormat] = {
         Path, description="use a flat-field correction file if provided"
     ),
     "k0angles": SettingFormat(
-        float, 3, description="user these pattern vector k0 angles for all"
+        Decimal, 3, description="user these pattern vector k0 angles for all"
     ),
     # directions (instead of inferring the rest agnles
     # from angle0)
@@ -114,7 +114,7 @@ RECON_FORMATTERS: dict[str, SettingFormat] = {
         description="not using kz=0 plane of the 0th order in the final assembly (mostly for debug)",
     ),
     "gammaApo": SettingFormat(
-        int, description="output apodization gamma; 1.0 means triangular"
+        Decimal, description="output apodization gamma; 1.0 means triangular"
     ),
     # apo; lower value means less dampening of
     # high-resolution info at the tradeoff of higher
@@ -125,7 +125,7 @@ RECON_FORMATTERS: dict[str, SettingFormat] = {
     # distance between orders by this factor (for debug)
     "nofilterovlps": SettingFormat(int),
     "deskew": SettingFormat(
-        float,
+        Decimal,
         description="Deskew angle; if not 0.0 then perform deskewing before processing",
     ),
     "deskewshift": SettingFormat(
@@ -160,9 +160,9 @@ RECON_FORMATTERS: dict[str, SettingFormat] = {
     "zres": SettingFormat(
         Decimal, description="z pixel size (only used for TIFF files)"
     ),
-    # "zresPSF": SettingFormat(
-    #     Decimal, description="z pixel size used in PSF TIFF files)"
-    # ),
+    "zresPSF": SettingFormat(
+        Decimal, description="z pixel size (used in PSF TIFF files)"
+    ),
     "wavelength": SettingFormat(
         int, description="emission wavelength in nanometers (only used for TIFF files)"
     ),
