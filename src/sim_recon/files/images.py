@@ -210,6 +210,7 @@ def prepare_files(
                     write_tiff(
                         split_file_path,
                         array[*channel_slice],
+                        pixel_size_microns=float(config_kwargs["xyres"]),
                     )
 
                     processing_info = create_processing_info(
@@ -302,16 +303,47 @@ def get_combined_array_from_tiffs(
     return np.stack(tuple(tf.memmap(fp).squeeze() for fp in file_paths), -3)  # type: ignore
 
 
-def write_tiff(output_path: str | PathLike[str], array: NDArray[Any]) -> None:
+def write_tiff(
+    output_path: str | PathLike[str],
+    array: NDArray[Any],
+    pixel_size_microns: float | None = None,
+    excitation_wavelength_nm: float | None = None,
+    emission_wavelength_nm: float | None = None,
+) -> None:
     logger.debug("Writing array to %s", output_path)
     bigtiff = (
         array.size * array.itemsize >= np.iinfo(np.uint32).max
     )  # Check if data bigger than 4GB TIFF limit
 
-    with tf.TiffWriter(output_path, mode="w", bigtiff=bigtiff, shaped=True) as tiff:
-        tiff.write(
-            array,
-            photometric="MINISBLACK",
-            metadata={"axes": "ZYX"},
-            software=f"{__package__} {__version__}",
-        )
+    tiff_kwargs: dict[str, Any] = {
+        "software": f"{__package__} {__version__}",
+        "photometric": "MINISBLACK",
+        "metadata": {"axes": "ZYX"},
+    }
+
+    if pixel_size_microns is not None:
+        # OME PhysicalSize:
+        tiff_kwargs["metadata"]["PhysicalSizeX"] = pixel_size_microns
+        tiff_kwargs["metadata"]["PhysicalSizeY"] = pixel_size_microns
+        tiff_kwargs["metadata"]["PhysicalSizeXUnit"] = "µm"
+        tiff_kwargs["metadata"]["PhysicalSizeYUnit"] = "µm"
+
+        # TIFF tags:
+        tiff_kwargs["resolution"] = (1e4 / pixel_size_microns, 1e4 / pixel_size_microns)
+        tiff_kwargs["resolutionunit"] = (
+            tf.RESUNIT.CENTIMETER
+        )  # Use CENTIMETER for maximum compatibility
+
+    channel_dict: dict[str, Any] = {}
+    if excitation_wavelength_nm is not None:
+        channel_dict["ExcitationWavelength"] = excitation_wavelength_nm
+        channel_dict["ExcitationWavelengthUnits"] = "nm"
+    if emission_wavelength_nm is not None:
+        channel_dict["EmissionWavelength"] = emission_wavelength_nm
+        channel_dict["EmissionWavelengthUnits"] = "nm"
+
+    if channel_dict:
+        tiff_kwargs["metadata"]["Channel"] = channel_dict
+
+    with tf.TiffWriter(output_path, mode="w", bigtiff=bigtiff, ome=True) as tiff:
+        tiff.write(array, **tiff_kwargs)
