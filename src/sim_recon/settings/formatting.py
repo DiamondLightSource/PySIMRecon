@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 
 # Using the logic from RawConfigParser for consistency
-__boolean_conv = RawConfigParser()._convert_to_boolean
+__boolean_conv = RawConfigParser()._convert_to_boolean  # type: ignore[attr-defined]
 
 
 @dataclass
