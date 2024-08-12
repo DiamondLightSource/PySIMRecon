@@ -375,3 +375,8 @@ def write_tiff(
         output_path, mode="w", bigtiff=bigtiff, ome=ome, shaped=not ome
     ) as tiff:
         tiff.write(array, **tiff_kwargs)
+
+def interleaved_float_to_complex(
+    array: NDArray[np.floating],
+) -> NDArray[np.complexfloating]:
+    return array[:, :, 0::2] + 1j * array[:, :, 1::2]
