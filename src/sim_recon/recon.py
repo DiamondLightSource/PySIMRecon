@@ -140,7 +140,12 @@ def reconstruct_from_processing_info(processing_info: ProcessingInfo) -> Path:
     #     processing_info.config_path,
     # )
     logger.info("Reconstructed %s", processing_info.image_path)
-    write_tiff(processing_info.output_path, rec_array)
+    write_tiff(
+        processing_info.output_path,
+        rec_array,
+        pixel_size_microns=float(processing_info.kwargs["xyres"]) / zoomfact,
+        emission_wavelength_nm=processing_info.kwargs["wavelength"],
+    )
     logger.debug(
         "Reconstruction of %s saved in %s",
         processing_info.image_path,

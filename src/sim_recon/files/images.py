@@ -106,6 +106,27 @@ def write_dv(
     return Path(output_file)
 
 
+def _prepare_config_kwargs(
+    settings: SettingsManager,
+    wavelength: int,
+    otf_path: str | PathLike[str],
+    **config_kwargs: Any,
+) -> dict[str, Any]:
+    # Use the configured per-wavelength settings
+    kwargs = settings.get_reconstruction_config(wavelength)
+
+    # config_kwargs override those any config defaults set
+    kwargs.update(config_kwargs)
+
+    # Set final variables:
+    kwargs["wavelength"] = wavelength
+    # Add otf_file that is expected by ReconParams
+    # Needs to be absolute because we don't know where this might be run from
+    kwargs["otf_file"] = str(Path(otf_path).absolute())
+
+    return kwargs
+
+
 def create_processing_info(
     file_path: str | PathLike[str],
     output_dir: str | PathLike[str],
@@ -132,16 +153,14 @@ def create_processing_info(
             output_dir / f"{OTF_NAME_STUB}{wavelength}.otf",
         )
     )
-    # Use the configured per-wavelength settings
-    kwargs = settings.get_reconstruction_config(wavelength)
-    # config_kwargs override those any config defaults set
-    kwargs.update(config_kwargs)
+
+    kwargs = _prepare_config_kwargs(
+        settings, wavelength=wavelength, otf_path=otf_path, **config_kwargs
+    )
+
     config_path = create_wavelength_config(
-        # wavelength is already in the stem
         output_dir / f"config{wavelength}.txt",
         file_path,
-        otf_path,
-        wavelength,
         **kwargs,
     )
     return ProcessingInfo(
@@ -201,7 +220,7 @@ def prepare_files(
             processing_info = None
             if settings.get_wavelength(wavelength) is not None:
                 try:
-                    split_file_path = processing_dir / f"data{wavelength}.tif"
+                    split_file_path = processing_dir / f"data{wavelength}.tiff"
                     # assumes channel is the 3rd to last dimension
                     # Equivalent of np.take(array, c, -3) but no copying
                     channel_slice: list[slice | int] = [slice(None)] * len(array.shape)
@@ -210,6 +229,10 @@ def prepare_files(
                     write_tiff(
                         split_file_path,
                         array[*channel_slice],
+                        pixel_size_microns=float(
+                            config_kwargs["xyres"]  # Cast as stored as Decimal
+                        ),
+                        emission_wavelength_nm=wavelength,
                     )
 
                     processing_info = create_processing_info(
@@ -302,16 +325,53 @@ def get_combined_array_from_tiffs(
     return np.stack(tuple(tf.memmap(fp).squeeze() for fp in file_paths), -3)  # type: ignore
 
 
-def write_tiff(output_path: str | PathLike[str], array: NDArray[Any]) -> None:
+def write_tiff(
+    output_path: str | PathLike[str],
+    array: NDArray[Any],
+    pixel_size_microns: float | None = None,
+    excitation_wavelength_nm: float | None = None,
+    emission_wavelength_nm: float | None = None,
+    ome: bool = True,
+) -> None:
     logger.debug("Writing array to %s", output_path)
     bigtiff = (
         array.size * array.itemsize >= np.iinfo(np.uint32).max
     )  # Check if data bigger than 4GB TIFF limit
 
-    with tf.TiffWriter(output_path, mode="w", bigtiff=bigtiff, shaped=True) as tiff:
-        tiff.write(
-            array,
-            photometric="MINISBLACK",
-            metadata={"axes": "ZYX"},
-            software=f"{__package__} {__version__}",
-        )
+    tiff_kwargs: dict[str, Any] = {
+        "software": f"PySIMRecon {__version__}",
+        "photometric": "MINISBLACK",
+        "metadata": {"axes": "ZYX"},
+    }
+
+    if pixel_size_microns is not None:
+
+        # TIFF tags:
+        tiff_kwargs["resolution"] = (1e4 / pixel_size_microns, 1e4 / pixel_size_microns)
+        tiff_kwargs["resolutionunit"] = (
+            tf.RESUNIT.CENTIMETER
+        )  # Use CENTIMETER for maximum compatibility
+
+    if ome:
+        if pixel_size_microns is not None:
+            # OME PhysicalSize:
+            tiff_kwargs["metadata"]["PhysicalSizeX"] = pixel_size_microns
+            tiff_kwargs["metadata"]["PhysicalSizeY"] = pixel_size_microns
+            tiff_kwargs["metadata"]["PhysicalSizeXUnit"] = "µm"
+            tiff_kwargs["metadata"]["PhysicalSizeYUnit"] = "µm"
+
+        channel_dict: dict[str, Any] = {}
+        if excitation_wavelength_nm is not None:
+            channel_dict["ExcitationWavelength"] = excitation_wavelength_nm
+            channel_dict["ExcitationWavelengthUnits"] = "nm"
+        if emission_wavelength_nm is not None:
+            channel_dict["EmissionWavelength"] = emission_wavelength_nm
+            channel_dict["EmissionWavelengthUnits"] = "nm"
+
+        if channel_dict:
+            tiff_kwargs["metadata"]["Channel"] = channel_dict
+
+    with tf.TiffWriter(
+        output_path, mode="w", bigtiff=bigtiff, ome=ome, shaped=not ome
+    ) as tiff:
+        tiff.write(array, **tiff_kwargs)
