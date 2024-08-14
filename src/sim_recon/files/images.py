@@ -305,7 +305,7 @@ def dv_to_tiff(
                 :, min_bounds[0] : max_bounds[0], min_bounds[1] : max_bounds[1]
             ]
         if np.iscomplexobj(array):
-            array = array.view(np.float32)
+            array = complex_to_interleaved_float(array)
         write_tiff(tiff_path, array)
     return Path(tiff_path)
 
@@ -375,3 +375,15 @@ def write_tiff(
         output_path, mode="w", bigtiff=bigtiff, ome=ome, shaped=not ome
     ) as tiff:
         tiff.write(array, **tiff_kwargs)
+
+
+def complex_to_interleaved_float(
+    array: NDArray[np.complexfloating],
+) -> NDArray[np.float32]:
+    return array.view(np.float32)
+
+
+def interleaved_float_to_complex(
+    array: NDArray[np.floating],
+) -> NDArray[np.complexfloating]:
+    return array[:, :, 0::2] + 1j * array[:, :, 1::2]

@@ -206,3 +206,36 @@ def parse_recon_args(
     }
 
     return namespace, recon_kwargs
+
+
+def parse_otf_view_args(
+    args: Sequence[str] | None = None,
+) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(prog="otf-view", add_help=True)
+    parser.add_argument(
+        dest="otf_paths",
+        nargs="+",
+        help="OTF file paths",
+    )
+    parser.add_argument(
+        "--show",
+        dest="show",
+        action="store_true",
+        help="Display the plots while running",
+    )
+    parser.add_argument(
+        "--show-only",
+        dest="show_only",
+        action="store_true",
+        help="Show plots without saving",
+    )
+    parser.add_argument(
+        "-o",
+        "--output-directory",
+        dest="output_directory",
+        help="Save to this directory if saving plots, otherwise each plot will be saved with its input file",
+    )
+
+    _add_general_args(parser)
+
+    return parser.parse_args(args)

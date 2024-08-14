@@ -24,6 +24,7 @@ build-backend = "hatchling.build"
 sim-recon = "sim_recon.cli.recon:main"
 sim-otf = "sim_recon.cli.otf:main"
 dv2tiff = "sim_recon.cli.dv_to_tiff:main"
+otf-view = "sim_recon.cli.otf_view:main"
 
 [project.optional-dependencies]
 progress = [
