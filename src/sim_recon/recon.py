@@ -157,7 +157,7 @@ def reconstruct_from_processing_info(processing_info: ProcessingInfo) -> Path:
 def run_reconstructions(
     output_directory: str | PathLike[str],
     *sim_data_paths: str | PathLike[str],
-    settings: ConfigManager,
+    conf: ConfigManager,
     stitch_channels: bool = True,
     cleanup: bool = False,
     parallel_process: bool = False,
@@ -203,7 +203,7 @@ def run_reconstructions(
                     processing_info_dict = prepare_files(
                         sim_data_path,
                         processing_directory,
-                        settings=settings,
+                        conf=conf,
                         **config_kwargs,
                     )
 

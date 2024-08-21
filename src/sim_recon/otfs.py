@@ -43,7 +43,7 @@ def _get_single_channel_wavelength(psf_path: str | PathLike[str]) -> int:
 
 
 def convert_psfs_to_otfs(
-    settings: ConfigManager,
+    conf: ConfigManager,
     *psf_paths: str | PathLike[str],
     output_directory: str | PathLike[str] | None = None,
     overwrite: bool = False,
@@ -68,7 +68,7 @@ def convert_psfs_to_otfs(
                     ensure_unique=not overwrite,
                     wavelength=wavelength,
                 )
-                otf_kwargs = settings.get_otf_config(wavelength)
+                otf_kwargs = conf.get_otf_config(wavelength)
                 otf_kwargs.update(kwargs)
                 otf_path = psf_to_otf(
                     psf_path=psf_path,

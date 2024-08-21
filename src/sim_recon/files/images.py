@@ -107,13 +107,13 @@ def write_dv(
 
 
 def _prepare_config_kwargs(
-    settings: ConfigManager,
+    conf: ConfigManager,
     emission_wavelength: int,
     otf_path: str | PathLike[str],
     **config_kwargs: Any,
 ) -> dict[str, Any]:
     # Use the configured per-wavelength settings
-    kwargs = settings.get_reconstruction_config(emission_wavelength)
+    kwargs = conf.get_reconstruction_config(emission_wavelength)
 
     # config_kwargs override those any config defaults set
     kwargs.update(config_kwargs)
@@ -131,7 +131,7 @@ def create_processing_info(
     file_path: str | PathLike[str],
     output_dir: str | PathLike[str],
     wavelength: int,
-    settings: ConfigManager,
+    conf: ConfigManager,
     **config_kwargs: Any,
 ) -> ProcessingInfo:
     file_path = Path(file_path)
@@ -141,7 +141,7 @@ def create_processing_info(
             f"Cannot create processing info: file {file_path} does not exist"
         )
     logger.debug("Creating processing files for %s in %s", file_path, output_dir)
-    otf_path = settings.get_otf_path(wavelength)
+    otf_path = conf.get_otf_path(wavelength)
 
     if otf_path is None:
         raise ValueError(f"No OTF file has been set for wavelength {wavelength}")
@@ -155,7 +155,7 @@ def create_processing_info(
     )
 
     kwargs = _prepare_config_kwargs(
-        settings, wavelength=wavelength, otf_path=otf_path, **config_kwargs
+        conf, wavelength=wavelength, otf_path=otf_path, **config_kwargs
     )
 
     config_path = create_wavelength_config(
@@ -175,7 +175,7 @@ def create_processing_info(
 def prepare_files(
     file_path: str | PathLike[str],
     processing_dir: str | PathLike[str],
-    settings: ConfigManager,
+    conf: ConfigManager,
     **config_kwargs: Any,
 ) -> dict[int, ProcessingInfo]:
     file_path = Path(file_path)
@@ -193,12 +193,12 @@ def prepare_files(
         # if it's a single channel file, we don't need to split
         wavelength = waves[0]
 
-        if settings.get_wavelength(wavelength) is not None:
+        if conf.get_wavelength(wavelength) is not None:
             processing_info = create_processing_info(
                 file_path=file_path,
                 output_dir=processing_dir,
                 wavelength=wavelength,
-                settings=settings,
+                conf=conf,
                 **config_kwargs,
             )
             if processing_info is None:
@@ -216,7 +216,7 @@ def prepare_files(
             if wavelength == 0:
                 continue
             processing_info = None
-            if settings.get_wavelength(wavelength) is not None:
+            if conf.get_wavelength(wavelength) is not None:
                 try:
                     split_file_path = processing_dir / f"data{wavelength}.tiff"
                     # assumes channel is the 3rd to last dimension
@@ -237,7 +237,7 @@ def prepare_files(
                         file_path=split_file_path,
                         output_dir=processing_dir,
                         wavelength=wavelength,
-                        settings=settings,
+                        conf=conf,
                         **config_kwargs,
                     )
 

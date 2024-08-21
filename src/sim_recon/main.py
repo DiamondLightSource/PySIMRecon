@@ -47,9 +47,9 @@ def sim_psf_to_otf(
     cleanup: bool = True,
     **otf_kwargs: Any,
 ) -> None:
-    settings = load_configs(config_path)
+    conf = load_configs(config_path)
     convert_psfs_to_otfs(
-        settings,
+        conf,
         *psf_paths,
         output_directory=output_directory,
         overwrite=overwrite,
@@ -67,12 +67,12 @@ def sim_reconstruct(
     parallel_process: bool = False,
     **recon_kwargs: Any,
 ) -> None:
-    settings = load_configs(config_path)
+    conf = load_configs(config_path)
     logger.info("Starting reconstructions")
     run_reconstructions(
         output_directory,
         *sim_data_paths,
-        settings=settings,
+        conf=conf,
         stitch_channels=stitch_channels,
         cleanup=cleanup,
         parallel_process=parallel_process,
