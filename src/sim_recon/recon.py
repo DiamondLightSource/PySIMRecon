@@ -21,7 +21,7 @@ from .files.images import (
     write_dv,
 )
 
-from .settings import SettingsManager
+from .settings import ConfigManager
 from .progress import get_progress_wrapper, get_logging_redirect
 
 if TYPE_CHECKING:
@@ -157,7 +157,7 @@ def reconstruct_from_processing_info(processing_info: ProcessingInfo) -> Path:
 def run_reconstructions(
     output_directory: str | PathLike[str],
     *sim_data_paths: str | PathLike[str],
-    settings: SettingsManager,
+    settings: ConfigManager,
     stitch_channels: bool = True,
     cleanup: bool = False,
     parallel_process: bool = False,

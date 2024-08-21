@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from collections.abc import Generator, Collection
     from os import PathLike
     from numpy.typing import NDArray
-    from ..settings import SettingsManager
+    from ..settings import ConfigManager
 
 
 logger = logging.getLogger(__name__)
@@ -107,19 +107,19 @@ def write_dv(
 
 
 def _prepare_config_kwargs(
-    settings: SettingsManager,
-    wavelength: int,
+    settings: ConfigManager,
+    emission_wavelength: int,
     otf_path: str | PathLike[str],
     **config_kwargs: Any,
 ) -> dict[str, Any]:
     # Use the configured per-wavelength settings
-    kwargs = settings.get_reconstruction_config(wavelength)
+    kwargs = settings.get_reconstruction_config(emission_wavelength)
 
     # config_kwargs override those any config defaults set
     kwargs.update(config_kwargs)
 
     # Set final variables:
-    kwargs["wavelength"] = wavelength
+    kwargs["wavelength"] = emission_wavelength
     # Add otf_file that is expected by ReconParams
     # Needs to be absolute because we don't know where this might be run from
     kwargs["otf_file"] = str(Path(otf_path).absolute())
@@ -131,7 +131,7 @@ def create_processing_info(
     file_path: str | PathLike[str],
     output_dir: str | PathLike[str],
     wavelength: int,
-    settings: SettingsManager,
+    settings: ConfigManager,
     **config_kwargs: Any,
 ) -> ProcessingInfo:
     file_path = Path(file_path)
@@ -175,11 +175,9 @@ def create_processing_info(
 def prepare_files(
     file_path: str | PathLike[str],
     processing_dir: str | PathLike[str],
-    settings: SettingsManager,
+    settings: ConfigManager,
     **config_kwargs: Any,
 ) -> dict[int, ProcessingInfo]:
-    waves: tuple[int, int, int, int, int]
-
     file_path = Path(file_path)
     processing_dir = Path(processing_dir)
     array = read_mrc_bound_array(file_path)
