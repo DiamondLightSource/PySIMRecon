@@ -10,7 +10,7 @@ import numpy as np
 import mrc
 import tifffile as tf
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, NamedTuple, cast
+from typing import TYPE_CHECKING, cast
 
 from .utils import OTF_NAME_STUB, RECON_NAME_STUB
 from .config import create_wavelength_config
@@ -27,7 +27,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class ProcessingInfo(NamedTuple):
+@dataclass(frozen=True)
+class ProcessingInfo:
     image_path: Path
     otf_path: Path
     config_path: Path
