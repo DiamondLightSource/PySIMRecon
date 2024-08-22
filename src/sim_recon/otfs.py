@@ -13,10 +13,10 @@ from .files.utils import (
     ensure_unique_filepath,
     ensure_valid_filename,
     get_temporary_path,
+    redirect_output_to,
     OTF_NAME_STUB,
 )
 from .settings import SettingsManager
-from .files.config import format_kwargs_as_config
 from .progress import get_progress_wrapper, get_logging_redirect
 
 if TYPE_CHECKING:
@@ -24,6 +24,28 @@ if TYPE_CHECKING:
     from os import PathLike
 
 logger = logging.getLogger(__name__)
+
+
+def _format_makeotf_call(
+    psf_path: str | PathLike[str],
+    otf_path: str | PathLike[str],
+    **kwargs: dict[str, Any],
+) -> str:
+    settings_list: list[str] = []
+    value: Any | list[Any] | tuple[Any, ...]
+    for key, value in kwargs.items():
+        if key in ("psf", "out_file"):
+            # These are passed in separately and are positional only
+            continue
+        if isinstance(value, bool):
+            if value:
+                settings_list.append(f"-{key.replace('_', '-')}")
+            continue
+        elif isinstance(value, (tuple, list)):
+            # Comma separated values
+            value = " ".join((str(v) for v in value))
+        settings_list.append(f"-{key.replace('_', '-')} {str(value)}")
+    return f"makeotf \"{psf_path}\" \"{otf_path}\" {' '.join(settings_list)}"
 
 
 def _get_single_channel_wavelength(psf_path: str | PathLike[str]) -> int:
@@ -112,7 +134,7 @@ def psf_to_otf(
 ) -> Path | None:
     otf_path = Path(otf_path)
     psf_path = Path(psf_path)
-    logger.info("Making OTF file %s from PSF file %s", otf_path, psf_path)
+    logger.info("Generating OTF from %s: %s", otf_path, psf_path)
     if otf_path.is_file():
         if overwrite:
             logger.warning("Overwriting file %s", otf_path)
@@ -138,16 +160,23 @@ def psf_to_otf(
         make_otf_kwargs["psf"] = str(tiff_path)
         make_otf_kwargs["out_file"] = str(otf_path)
 
-        logger.info(
-            "Calling make_otf with arguments:\n\t%s",
-            "\n\t".join(format_kwargs_as_config(make_otf_kwargs)),
-        )
-        make_otf(**make_otf_kwargs)
+        with redirect_output_to(otf_path.with_suffix(".log")):
+            print(
+                "%s\n%s"
+                % (
+                    _format_makeotf_call(tiff_path, otf_path, **make_otf_kwargs),
+                    "-" * 80,
+                )
+            )
+            make_otf(**make_otf_kwargs)
 
     if not os.path.isfile(otf_path):
-        logger.error("Failed to create OTF file %s", otf_path)
+        logger.error(
+            "Failed to create OTF file from %s - please check the config",
+            psf_path,
+        )
         return None
-    logger.info("Created OTF '%s'", otf_path)
+    logger.debug("Created OTF '%s'", otf_path)
     return Path(otf_path)
 
 
