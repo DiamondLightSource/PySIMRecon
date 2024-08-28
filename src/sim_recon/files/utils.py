@@ -82,13 +82,19 @@ def redirect_output_to(file_path: str | PathLike[str]) -> Generator[None, None, 
     stderr_fd = sys.stderr.fileno()
     saved_stdout_fd = os.dup(stdout_fd)
     saved_stderr_fd = os.dup(stderr_fd)
+    saved_stdout = sys.stdout
+    saved_sterr = sys.stderr
     try:
-        f = file_path.open("w+")
+        f = file_path.open("w+", buffering=1)
         f_fd = f.fileno()
         os.dup2(f_fd, stdout_fd)
         os.dup2(f_fd, stderr_fd)
+        sys.stdout = f
+        sys.stderr = f
         yield
     finally:
         # Reset stdout and stderr file descriptors
         os.dup2(saved_stdout_fd, stdout_fd)
         os.dup2(saved_stderr_fd, stderr_fd)
+        sys.stdout = saved_stdout
+        sys.stderr = saved_sterr

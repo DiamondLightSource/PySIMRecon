@@ -17,11 +17,12 @@ from .files.images import (
     prepare_files,
     read_tiff,
     write_tiff,
+    ImageChannel,
     get_combined_array_from_tiffs,
     write_dv,
 )
 
-from .settings import SettingsManager
+from .settings import ConfigManager
 from .progress import get_progress_wrapper, get_logging_redirect
 
 if TYPE_CHECKING:
@@ -142,9 +143,8 @@ def reconstruct_from_processing_info(processing_info: ProcessingInfo) -> Path:
     logger.info("Reconstructed %s", processing_info.image_path)
     write_tiff(
         processing_info.output_path,
-        rec_array,
+        ImageChannel(rec_array, wavelengths=processing_info.wavelengths),
         pixel_size_microns=float(processing_info.kwargs["xyres"]) / zoomfact,
-        emission_wavelength_nm=processing_info.kwargs["wavelength"],
     )
     logger.debug(
         "Reconstruction of %s saved in %s",
@@ -157,7 +157,7 @@ def reconstruct_from_processing_info(processing_info: ProcessingInfo) -> Path:
 def run_reconstructions(
     output_directory: str | PathLike[str],
     *sim_data_paths: str | PathLike[str],
-    settings: SettingsManager,
+    conf: ConfigManager,
     stitch_channels: bool = True,
     cleanup: bool = False,
     parallel_process: bool = False,
@@ -203,7 +203,7 @@ def run_reconstructions(
                     processing_info_dict = prepare_files(
                         sim_data_path,
                         processing_directory,
-                        settings=settings,
+                        conf=conf,
                         **config_kwargs,
                     )
 
@@ -218,7 +218,9 @@ def run_reconstructions(
                                 args=(processing_info,),
                                 error_callback=lambda e: logger.error(
                                     # exc_info doesn't work with this
-                                    "Error occurred during reconstruction: %s",
+                                    "Error occurred during reconstruction of %s channel %i: %s",
+                                    sim_data_path,
+                                    wavelength,
                                     "".join(traceback.format_exception(e)),
                                 ),
                             )
