@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+from dataclasses import dataclass, field
 from pathlib import Path
 from shutil import copyfile
 from copy import deepcopy
@@ -9,7 +10,7 @@ import numpy as np
 import mrc
 import tifffile as tf
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, NamedTuple, cast
+from typing import TYPE_CHECKING, cast
 
 from .utils import OTF_NAME_STUB, RECON_NAME_STUB
 from .config import create_wavelength_config
@@ -26,12 +27,45 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class ProcessingInfo(NamedTuple):
+@dataclass(frozen=True)
+class ProcessingInfo:
     image_path: Path
     otf_path: Path
     config_path: Path
     output_path: Path
+    wavelengths: Wavelengths
     kwargs: dict[str, Any]
+
+
+@dataclass(slots=True)
+class ImageData:
+    resolution: ImageResolution
+    channels: tuple[ImageChannel]
+
+
+@dataclass(slots=True)
+class ImageChannel:
+    array: NDArray[Any] | None = None
+    wavelengths: Wavelengths | None = None
+
+
+@dataclass(slots=True, frozen=True)
+class ImageResolution:
+    xy: float | None
+    z: float | None
+
+
+@dataclass(slots=True, frozen=True)
+class Wavelengths:
+    excitation_nm: float | None = None
+    emission_nm: float | None = None
+    emission_nm_int: int = field(init=False)
+
+    def __post_init__(self):
+        object.__setattr__(self, "emission_nm_int", int(round(self.emission_nm)))
+
+    def __str__(self):
+        return f"excitation: {self.excitation_nm}nm; emission: {self.emission_nm}nm"
 
 
 def read_dv(file_path: str | PathLike[str]) -> mrc.DVFile:
@@ -65,6 +99,44 @@ def get_mrc_header_array(
             header_array,
         )
     )
+
+
+def get_wavelengths_from_dv(dv: mrc.Mrc) -> Generator[Wavelengths, None, None]:
+    header = dv.header
+    ext_floats = dv.extFloats
+
+    sequence = header.ImgSequence  # (0,1,2 = (ZTW or WZT or ZWT)
+    num_waves = header.NumWaves
+    num_times = header.NumTimes
+    dz = header.Num[2] // (num_waves * num_times)
+
+    header_shape = {
+        0: (num_waves, num_times, dz),
+        1: (
+            num_times,
+            dz,
+            num_waves,
+        ),
+        2: (num_times, num_waves, dz),
+    }[sequence]
+
+    ext_header = ext_floats.reshape(*header_shape, -1)
+
+    for c in range(num_waves):
+        indexes = {
+            0: (0, 0, dz),
+            1: (
+                0,
+                0,
+                c,
+            ),
+            2: (0, c, 0),
+        }[sequence]
+        yield Wavelengths(
+            # indexed as [image frame index, float index]
+            excitation_nm=ext_header[*indexes, 10],  # exWavelen index is 10
+            emission_nm=ext_header[*indexes, 11],  # emWavelen index is 11
+        )
 
 
 def write_dv(
@@ -130,7 +202,7 @@ def _prepare_config_kwargs(
 def create_processing_info(
     file_path: str | PathLike[str],
     output_dir: str | PathLike[str],
-    wavelength: int,
+    wavelengths: Wavelengths,
     conf: ConfigManager,
     **config_kwargs: Any,
 ) -> ProcessingInfo:
@@ -141,34 +213,40 @@ def create_processing_info(
             f"Cannot create processing info: file {file_path} does not exist"
         )
     logger.debug("Creating processing files for %s in %s", file_path, output_dir)
-    otf_path = conf.get_otf_path(wavelength)
+
+    otf_path = conf.get_otf_path(wavelengths.emission_nm_int)
 
     if otf_path is None:
-        raise ValueError(f"No OTF file has been set for wavelength {wavelength}")
+        raise ValueError(f"No OTF file has been set for channel {wavelengths}")
 
     otf_path = Path(
         copyfile(
             otf_path,
-            # wavelength is already in the stem
-            output_dir / f"{OTF_NAME_STUB}{wavelength}.otf",
+            # emission wavelength is already in the stem
+            output_dir / f"{OTF_NAME_STUB}{wavelengths.emission_nm_int}.otf",
         )
     )
 
     kwargs = _prepare_config_kwargs(
-        conf, wavelength=wavelength, otf_path=otf_path, **config_kwargs
+        conf,
+        emission_wavelength=wavelengths.emission_nm_int,
+        otf_path=otf_path,
+        **config_kwargs,
     )
 
     config_path = create_wavelength_config(
-        output_dir / f"config{wavelength}.txt",
+        output_dir / f"config{wavelengths.emission_nm_int}.txt",
         file_path,
         **kwargs,
     )
     return ProcessingInfo(
         file_path,
-        otf_path,
-        config_path,
-        output_dir / f"{file_path.stem}_{RECON_NAME_STUB}{file_path.suffix}",
-        kwargs,
+        otf_path=otf_path,
+        config_path=config_path,
+        output_path=output_dir
+        / f"{file_path.stem}_{RECON_NAME_STUB}{file_path.suffix}",
+        wavelengths=wavelengths,
+        kwargs=kwargs,
     )
 
 
@@ -180,83 +258,105 @@ def prepare_files(
 ) -> dict[int, ProcessingInfo]:
     file_path = Path(file_path)
     processing_dir = Path(processing_dir)
-    array = read_mrc_bound_array(file_path)
-    header = array.Mrc.hdr  # type: ignore[attr-defined]
-    processing_info_dict: dict[int, ProcessingInfo] = dict()
-    waves = cast(tuple[int, int, int, int, int], header.wave)
-    # Get resolution values from DV file (they get applied to TIFFs later)
-    # Resolution defaults to metadata values but kwargs can override
-    config_kwargs["zres"] = config_kwargs.get("zres", header.d[2])
-    # Assumes square pixels:
-    config_kwargs["xyres"] = config_kwargs.get("xyres", header.d[0])
-    if np.count_nonzero(waves) == 1:
-        # if it's a single channel file, we don't need to split
-        wavelength = waves[0]
 
-        if conf.get_wavelength(wavelength) is not None:
+    image_data = _get_image_data(file_path)
+
+    # Resolution defaults to metadata values but kwargs can override
+    config_kwargs["zres"] = config_kwargs.get("zres", image_data.resolution.z)
+    config_kwargs["xyres"] = config_kwargs.get("xyres", image_data.resolution.xy)
+
+    processing_info_dict: dict[int, ProcessingInfo] = dict()
+
+    if len(image_data.channels) == 1:
+        # if it's a single channel file, we don't need to split
+        channel = image_data.channels[0]
+        if conf.get_channel_config(channel.wavelengths.emission_nm) is not None:
             processing_info = create_processing_info(
                 file_path=file_path,
                 output_dir=processing_dir,
-                wavelength=wavelength,
+                wavelengths=channel.wavelengths,
                 conf=conf,
                 **config_kwargs,
             )
             if processing_info is None:
                 logger.warning(
-                    "No processing files found for '%s' at %i",
+                    "No processing files found for '%s' channel %s",
                     file_path,
-                    wavelength,
+                    channel.wavelengths,
                 )
             else:
-                processing_info_dict[wavelength] = processing_info
+                processing_info_dict[channel.wavelengths.emission_nm_int] = (
+                    processing_info
+                )
 
     else:
         # otherwise break out individual wavelengths
-        for c, wavelength in enumerate(waves):
-            if wavelength == 0:
-                continue
+        for channel in image_data.channels:
             processing_info = None
-            if conf.get_wavelength(wavelength) is not None:
+            if conf.get_channel_config(channel.wavelengths.emission_nm_int) is not None:
                 try:
-                    split_file_path = processing_dir / f"data{wavelength}.tiff"
-                    # assumes channel is the 3rd to last dimension
-                    # Equivalent of np.take(array, c, -3) but no copying
-                    channel_slice: list[slice | int] = [slice(None)] * len(array.shape)
-                    channel_slice[-3] = c
-
+                    split_file_path = (
+                        processing_dir / f"data{channel.wavelengths.emission_nm}.tiff"
+                    )
                     write_tiff(
                         split_file_path,
-                        array[*channel_slice],
+                        channel,
                         pixel_size_microns=float(
                             config_kwargs["xyres"]  # Cast as stored as Decimal
                         ),
-                        emission_wavelength_nm=wavelength,
                     )
 
                     processing_info = create_processing_info(
                         file_path=split_file_path,
                         output_dir=processing_dir,
-                        wavelength=wavelength,
+                        wavelengths=channel.wavelengths,
                         conf=conf,
                         **config_kwargs,
                     )
 
-                    if wavelength in processing_info_dict:
+                    if channel.wavelengths.emission_nm_int in processing_info_dict:
                         raise KeyError(
-                            "Wavelength %i found multiple times within %s",
-                            wavelength,
-                            file_path,
+                            f"Emission wavelength {channel.wavelengths.emission_nm_int} found multiple times within {file_path}"
                         )
 
-                    processing_info_dict[wavelength] = processing_info
+                    processing_info_dict[channel.wavelengths.emission_nm_int] = (
+                        processing_info
+                    )
                 except Exception:
                     logger.error(
-                        "Failed to prepare files for wavelength %i of %s",
-                        wavelength,
+                        "Failed to prepare files for channel %s of %s",
+                        channel.wavelengths,
                         file_path,
                         exc_info=True,
                     )
     return processing_info_dict
+
+
+def get_image_data(
+    file_path: str | PathLike[str],
+) -> ImageData:
+    file_path = Path(file_path)
+
+    array = read_mrc_bound_array(file_path)
+    xyz_resolutions = array.Mrc.header.d
+    sequence_order = array.Mrc.header.ImgSequence
+    channels: list[ImageChannel] = []
+    for c, wavelengths in enumerate(get_wavelengths_from_dv(array.Mrc)):
+        channel_slice: list[slice | int] = [slice(None)] * len(array.shape)
+        channel_slice[sequence_order] = c
+        channels.append(
+            ImageChannel(
+                array[*channel_slice],
+                wavelengths,
+            )
+        )
+    return ImageData(
+        channels=tuple(channels),
+        # Get resolution values from DV file (they get applied to TIFFs later)
+        resolution=ImageResolution(
+            xy=xyz_resolutions[0], z=xyz_resolutions[2]  # Assumes square pixels
+        ),
+    )
 
 
 @contextmanager
@@ -277,34 +377,42 @@ def dv_to_temporary_tiff(
             os.unlink(tiff_path)
 
 
+def _apply_crop(
+    array: NDArray[Any],
+    xy_shape: tuple[int, int] | None = None,
+    crop: float = 0,
+) -> NDArray[Any]:
+    if xy_shape is not None:
+        target_yx_shape = np.asarray(xy_shape[::-1], dtype=np.uint16)
+        current_yx_shape = np.asarray(array.shape[1:], dtype=np.uint16)
+        crop_amount = current_yx_shape - target_yx_shape
+        min_bounds = crop_amount // 2
+        max_bounds = current_yx_shape - crop_amount // 2
+        array = array[:, min_bounds[0] : max_bounds[0], min_bounds[1] : max_bounds[1]]
+    elif crop > 0 and crop <= 1:
+        yx_shape = np.asarray(array.shape[1:], dtype=np.uint16)
+        min_bounds = np.round((yx_shape * crop) / 2).astype(np.uint16)
+        max_bounds = yx_shape - min_bounds
+        array = array[:, min_bounds[0] : max_bounds[0], min_bounds[1] : max_bounds[1]]
+    return array
+
+
 def dv_to_tiff(
     dv_path: str | PathLike[str],
     tiff_path: str | PathLike[str],
-    squeeze: bool = True,
     xy_shape: tuple[int, int] | None = None,
     crop: float = 0,
 ) -> Path:
-    with read_dv(dv_path) as dv:
-        array: NDArray[Any] = dv.asarray(squeeze=squeeze)
-        if xy_shape is not None:
-            target_yx_shape = np.asarray(xy_shape[::-1], dtype=np.uint16)
-            current_yx_shape = np.asarray(array.shape[1:], dtype=np.uint16)
-            crop_amount = current_yx_shape - target_yx_shape
-            min_bounds = crop_amount // 2
-            max_bounds = current_yx_shape - crop_amount // 2
-            array = array[
-                :, min_bounds[0] : max_bounds[0], min_bounds[1] : max_bounds[1]
-            ]
-        elif crop > 0 and crop <= 1:
-            yx_shape = np.asarray(array.shape[1:], dtype=np.uint16)
-            min_bounds = np.round((yx_shape * crop) / 2).astype(np.uint16)
-            max_bounds = yx_shape - min_bounds
-            array = array[
-                :, min_bounds[0] : max_bounds[0], min_bounds[1] : max_bounds[1]
-            ]
-        if np.iscomplexobj(array):
-            array = complex_to_interleaved_float(array)
-        write_tiff(tiff_path, array)
+    image_data = get_image_data(dv_path)
+    for channel in image_data.channels:
+        channel.array = _apply_crop(channel.array, xy_shape=xy_shape, crop=crop)
+
+        # TIFFs cannot handle complex values
+        if np.iscomplexobj(channel.array):
+            channel.array = complex_to_interleaved_float(channel.array)
+    write_tiff(
+        tiff_path, image_data.channels, pixel_size_microns=image_data.resolution.xy
+    )
     return Path(tiff_path)
 
 
@@ -325,16 +433,21 @@ def get_combined_array_from_tiffs(
 
 def write_tiff(
     output_path: str | PathLike[str],
-    array: NDArray[Any],
+    *channels: ImageChannel,
     pixel_size_microns: float | None = None,
-    excitation_wavelength_nm: float | None = None,
-    emission_wavelength_nm: float | None = None,
     ome: bool = True,
 ) -> None:
+    def get_channel_dict(channel: ImageChannel) -> None:
+        channel_dict: dict[str, Any] = {}
+        if channel.wavelengths.excitation_nm is not None:
+            channel_dict["ExcitationWavelength"] = channel.wavelengths.excitation_nm
+            channel_dict["ExcitationWavelengthUnits"] = "nm"
+        if channel.wavelengths.emission_nm is not None:
+            channel_dict["EmissionWavelength"] = channel.wavelengths.emission_nm
+            channel_dict["EmissionWavelengthUnits"] = "nm"
+        return channel_dict
+
     logger.debug("Writing array to %s", output_path)
-    bigtiff = (
-        array.size * array.itemsize >= np.iinfo(np.uint32).max
-    )  # Check if data bigger than 4GB TIFF limit
 
     tiff_kwargs: dict[str, Any] = {
         "software": f"PySIMRecon {__version__}",
@@ -358,21 +471,14 @@ def write_tiff(
             tiff_kwargs["metadata"]["PhysicalSizeXUnit"] = "µm"
             tiff_kwargs["metadata"]["PhysicalSizeYUnit"] = "µm"
 
-        channel_dict: dict[str, Any] = {}
-        if excitation_wavelength_nm is not None:
-            channel_dict["ExcitationWavelength"] = excitation_wavelength_nm
-            channel_dict["ExcitationWavelengthUnits"] = "nm"
-        if emission_wavelength_nm is not None:
-            channel_dict["EmissionWavelength"] = emission_wavelength_nm
-            channel_dict["EmissionWavelengthUnits"] = "nm"
-
-        if channel_dict:
-            tiff_kwargs["metadata"]["Channel"] = channel_dict
-
     with tf.TiffWriter(
-        output_path, mode="w", bigtiff=bigtiff, ome=ome, shaped=not ome
+        output_path, mode="w", bigtiff=True, ome=ome, shaped=not ome
     ) as tiff:
-        tiff.write(array, **tiff_kwargs)
+        for channel in channels:
+            channel_kwargs = tiff_kwargs.copy()
+            if ome:
+                channel_kwargs["metadata"]["Channel"] = get_channel_dict(channel)
+            tiff.write(channel.array, **channel_kwargs)
 
 
 def complex_to_interleaved_float(
