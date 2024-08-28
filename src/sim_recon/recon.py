@@ -218,7 +218,9 @@ def run_reconstructions(
                                 args=(processing_info,),
                                 error_callback=lambda e: logger.error(
                                     # exc_info doesn't work with this
-                                    "Error occurred during reconstruction: %s",
+                                    "Error occurred during reconstruction of %s channel %i: %s",
+                                    sim_data_path,
+                                    wavelength,
                                     "".join(traceback.format_exception(e)),
                                 ),
                             )
