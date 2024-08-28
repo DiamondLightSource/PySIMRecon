@@ -4,7 +4,7 @@ from pathlib import Path
 from configparser import RawConfigParser
 from typing import TYPE_CHECKING
 
-from ..settings import WavelengthSettings
+from ..settings import ChannelConfig
 from ..settings.formatting import OTF_FORMATTERS, RECON_FORMATTERS
 
 if TYPE_CHECKING:
@@ -89,9 +89,9 @@ def get_defaults_config_path(main_config: RawConfigParser) -> Path:
     return _handle_paths_from_config(__DEFAULTS_KEY, path_str, directory)[1]
 
 
-def get_wavelength_settings(
+def get_channel_configs(
     main_config: RawConfigParser,
-) -> Generator[WavelengthSettings, None, None]:
+) -> Generator[ChannelConfig, None, None]:
     configs_dict = _get_paths_from_section(
         __CONFIGS_SECTION,
         main_config,
@@ -117,7 +117,7 @@ def get_wavelength_settings(
 
         otf_path = otfs_dict.get(wavelength, None)
 
-        yield WavelengthSettings(
+        yield ChannelConfig(
             wavelength,
             otf=otf_path,
             reconstruction_config=recon_kwargs,

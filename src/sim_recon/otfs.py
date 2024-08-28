@@ -15,7 +15,7 @@ from .files.utils import (
     get_temporary_path,
     OTF_NAME_STUB,
 )
-from .settings import SettingsManager
+from .settings import ConfigManager
 from .files.config import format_kwargs_as_config
 from .progress import get_progress_wrapper, get_logging_redirect
 
@@ -43,7 +43,7 @@ def _get_single_channel_wavelength(psf_path: str | PathLike[str]) -> int:
 
 
 def convert_psfs_to_otfs(
-    settings: SettingsManager,
+    conf: ConfigManager,
     *psf_paths: str | PathLike[str],
     output_directory: str | PathLike[str] | None = None,
     overwrite: bool = False,
@@ -68,7 +68,7 @@ def convert_psfs_to_otfs(
                     ensure_unique=not overwrite,
                     wavelength=wavelength,
                 )
-                otf_kwargs = settings.get_otf_config(wavelength)
+                otf_kwargs = conf.get_otf_config(wavelength)
                 otf_kwargs.update(kwargs)
                 otf_path = psf_to_otf(
                     psf_path=psf_path,

@@ -1,3 +1,3 @@
-from .dataclasses import WavelengthSettings, SettingsManager
+from .dataclasses import ConfigManager, ChannelConfig
 
-__all__ = ("SettingsManager", "WavelengthSettings")
+__all__ = ("ConfigManager", "ChannelConfig")
