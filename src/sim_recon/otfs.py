@@ -8,7 +8,11 @@ from typing import TYPE_CHECKING
 
 from pycudasirecon import make_otf  # type: ignore[import-untyped]
 
-from .files.images import read_dv, dv_to_temporary_tiff
+from .files.images import (
+    read_mrc_bound_array,
+    get_wavelengths_from_dv,
+    dv_to_temporary_tiff,
+)
 from .files.utils import (
     ensure_unique_filepath,
     ensure_valid_filename,
@@ -16,12 +20,13 @@ from .files.utils import (
     redirect_output_to,
     OTF_NAME_STUB,
 )
-from .settings import SettingsManager
+from .settings import ConfigManager
 from .progress import get_progress_wrapper, get_logging_redirect
 
 if TYPE_CHECKING:
     from typing import Any, Literal
     from os import PathLike
+    from .files.images import Wavelengths
 
 logger = logging.getLogger(__name__)
 
@@ -47,25 +52,18 @@ def _format_makeotf_call(
         settings_list.append(f"-{key.replace('_', '-')} {str(value)}")
     return f"makeotf \"{psf_path}\" \"{otf_path}\" {' '.join(settings_list)}"
 
-
-def _get_single_channel_wavelength(psf_path: str | PathLike[str]) -> int:
-    with read_dv(psf_path) as f:
-        waves: tuple[int, ...] = (
-            f.hdr.wave1,
-            f.hdr.wave2,
-            f.hdr.wave3,
-            f.hdr.wave4,
-            f.hdr.wave5,
-        )
-    waves = tuple(w for w in waves if w)  # Trim 0s
+  
+def _get_psf_wavelengths(psf_path: str | PathLike[str]) -> Wavelengths:
+    with read_mrc_bound_array(psf_path) as array:
+        wavelengths = tuple(get_wavelengths_from_dv(array.Mrc))
     assert (
-        len(set(waves)) == 1
-    ), f"PSFs must be single channel but {psf_path} has wavelengths: {', '.join(str(w) for w in waves)}"
-    return int(waves[0])
+        len(wavelengths) == 1
+    ), f"PSFs must be single channel but {psf_path} contains: {'; '.join(str(w) for w in wavelengths)}"
+    return wavelengths[0]
 
 
 def convert_psfs_to_otfs(
-    settings: SettingsManager,
+    conf: ConfigManager,
     *psf_paths: str | PathLike[str],
     output_directory: str | PathLike[str] | None = None,
     overwrite: bool = False,
@@ -83,19 +81,19 @@ def convert_psfs_to_otfs(
         for psf_path in progress_wrapper(psf_paths, desc="PSF to OTF conversions"):
             otf_path: Path | None = None
             try:
-                wavelength = _get_single_channel_wavelength(psf_path)
+                wavelengths = _get_psf_wavelengths(psf_path)
                 otf_path = psf_path_to_otf_path(
                     psf_path=psf_path,
                     output_directory=output_directory,
                     ensure_unique=not overwrite,
-                    wavelength=wavelength,
+                    wavelength=wavelengths.emission_nm_int,
                 )
-                otf_kwargs = settings.get_otf_config(wavelength)
+                otf_kwargs = conf.get_otf_config(wavelengths.emission_nm_int)
                 otf_kwargs.update(kwargs)
                 otf_path = psf_to_otf(
                     psf_path=psf_path,
                     otf_path=otf_path,
-                    wavelength=wavelength,
+                    wavelength=wavelengths.emission_nm_int,
                     overwrite=overwrite,
                     cleanup=cleanup,
                     **otf_kwargs,

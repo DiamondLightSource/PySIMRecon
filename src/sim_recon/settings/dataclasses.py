@@ -18,59 +18,61 @@ _REQUIRED_DEFAULTS = {
 
 
 @dataclass(slots=True)
-class WavelengthSettings:
-    wavelength: int  # Emission wavelength
+class ChannelConfig:
+    emission_wavelength_nm: int  # Emission wavelength
+    # cudasirecon only accepts nanometre integer wavelengths, so channels
+    # settings are limited in line with this.
     otf: Path | None
     reconstruction_config: dict[str, Any] = field(default_factory=dict)
     otf_config: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(slots=True)
-class SettingsManager:
+class ConfigManager:
     defaults_config_path: str | PathLike[str]
     default_reconstruction_config: dict[str, Any] = field(default_factory=dict)
     default_otf_config: dict[str, Any] = field(default_factory=dict)
-    wavelength_settings: InitVar[Iterable[WavelengthSettings]] = tuple()
-    wavelengths: dict[int, WavelengthSettings] = field(init=False)
+    channel_configs: InitVar[Iterable[ChannelConfig]] = tuple()
+    channels: dict[int, ChannelConfig] = field(init=False)
 
-    def __post_init__(self, wavelength_settings: Iterable[WavelengthSettings]) -> None:
-        self.wavelengths = {}
-        for settings in wavelength_settings:
-            self.set_wavelength(settings)
+    def __post_init__(self, channel_configs: Iterable[ChannelConfig]) -> None:
+        self.channels = {}
+        for channel_config in channel_configs:
+            self.set_channel_config(channel_config)
 
-    def set_wavelength(self, wavelength_settings: WavelengthSettings) -> None:
-        self.wavelengths[wavelength_settings.wavelength] = wavelength_settings
+    def set_channel_config(self, wavelength_settings: ChannelConfig) -> None:
+        self.channels[wavelength_settings.emission_wavelength_nm] = wavelength_settings
 
-    def get_wavelength(self, wavelength: int) -> WavelengthSettings | None:
-        return self.wavelengths.get(wavelength, None)
+    def get_channel_config(self, emission_wavelength_nm: int) -> ChannelConfig | None:
+        return self.channels.get(emission_wavelength_nm, None)
 
     def get_reconstruction_config(
-        self, wavelength: int, include_defaults: bool = True
+        self, emission_wavelength_nm: int, include_defaults: bool = True
     ) -> dict[str, Any]:
         if include_defaults:
             config = _REQUIRED_DEFAULTS.copy()
             config.update(self.default_reconstruction_config)
         else:
             config = {}
-        ws = self.get_wavelength(wavelength)
+        ws = self.get_channel_config(emission_wavelength_nm)
         if ws is not None:
             config.update(ws.reconstruction_config)
         return config
 
     def get_otf_config(
-        self, wavelength: int, include_defaults: bool = True
+        self, emission_wavelength_nm: int, include_defaults: bool = True
     ) -> dict[str, Any]:
         if include_defaults:
             config = self.default_otf_config.copy()
         else:
             config = {}
-        ws = self.get_wavelength(wavelength)
+        ws = self.get_channel_config(emission_wavelength_nm)
         if ws is not None:
             config.update(ws.otf_config)
         return config
 
-    def get_otf_path(self, wavelength: int) -> Path | None:
-        ws = self.get_wavelength(wavelength)
+    def get_otf_path(self, emission_wavelength_nm: int) -> Path | None:
+        ws = self.get_channel_config(emission_wavelength_nm)
         if ws is None:
-            raise ValueError(f"No settings for wavelength {wavelength}")
+            raise ValueError(f"Channel '{emission_wavelength_nm}' is not configured")
         return ws.otf
