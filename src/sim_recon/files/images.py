@@ -408,7 +408,7 @@ def dv_to_tiff(
         if np.iscomplexobj(channel.array):
             channel.array = complex_to_interleaved_float(channel.array)
     write_tiff(
-        tiff_path, image_data.channels, pixel_size_microns=image_data.resolution.xy
+        tiff_path, *image_data.channels, pixel_size_microns=image_data.resolution.xy
     )
     return Path(tiff_path)
 
