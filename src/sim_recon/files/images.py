@@ -363,15 +363,12 @@ def get_image_data(
 def dv_to_temporary_tiff(
     dv_path: str | PathLike[str],
     tiff_path: str | PathLike[str],
-    squeeze: bool = True,
     delete: bool = False,
     xy_shape: tuple[int, int] | None = None,
     crop: float = 0,
 ) -> Generator[Path, None, None]:
     try:
-        yield dv_to_tiff(
-            dv_path, tiff_path, squeeze=squeeze, xy_shape=xy_shape, crop=crop
-        )
+        yield dv_to_tiff(dv_path, tiff_path, xy_shape=xy_shape, crop=crop)
     finally:
         if delete and tiff_path is not None:
             os.unlink(tiff_path)
