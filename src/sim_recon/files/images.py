@@ -449,7 +449,7 @@ def write_tiff(
     tiff_kwargs: dict[str, Any] = {
         "software": f"PySIMRecon {__version__}",
         "photometric": "MINISBLACK",
-        "metadata": {"axes": "ZYX"},
+        "metadata": {},
     }
 
     if pixel_size_microns is not None:
@@ -473,6 +473,9 @@ def write_tiff(
     ) as tiff:
         for channel in channels:
             channel_kwargs = tiff_kwargs.copy()
+            channel_kwargs["metadata"]["axes"] = (
+                "YX" if channel.array.ndim == 2 else "ZYX"
+            )
             if ome:
                 channel_kwargs["metadata"]["Channel"] = get_channel_dict(channel)
             tiff.write(channel.array, **channel_kwargs)
