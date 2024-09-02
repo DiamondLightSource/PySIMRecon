@@ -259,7 +259,7 @@ def prepare_files(
     file_path = Path(file_path)
     processing_dir = Path(processing_dir)
 
-    image_data = _get_image_data(file_path)
+    image_data = get_image_data(file_path)
 
     # Resolution defaults to metadata values but kwargs can override
     config_kwargs["zres"] = config_kwargs.get("zres", image_data.resolution.z)
