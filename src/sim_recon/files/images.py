@@ -411,8 +411,12 @@ def _apply_crop(
         target_yx_shape = np.asarray(xy_shape[::-1], dtype=np.uint16)
         current_yx_shape = np.asarray(array.shape[1:], dtype=np.uint16)
         crop_amount = current_yx_shape - target_yx_shape
-        min_bounds = crop_amount // 2
-        max_bounds = current_yx_shape - crop_amount // 2
+
+        # Crops more off the max than the min if not divisible by 2:
+        edge_crop_amount = crop_amount / 2
+        min_bounds = np.floor(edge_crop_amount).astype(np.uint16)
+        max_bounds = current_yx_shape - np.ceil(edge_crop_amount).astype(np.uint16)
+
         array_slices[-2] = slice(min_bounds[0], max_bounds[0])  # x
         array_slices[-1] = slice(min_bounds[1], max_bounds[1])  # y
     elif crop > 0 and crop <= 1:
