@@ -45,6 +45,7 @@ def sim_psf_to_otf(
     output_directory: str | PathLike[str] | None = None,
     overwrite: bool = False,
     cleanup: bool = True,
+    xy_shape: tuple[int, int] | None = None,
     **otf_kwargs: Any,
 ) -> None:
     conf = load_configs(config_path)
@@ -54,6 +55,7 @@ def sim_psf_to_otf(
         output_directory=output_directory,
         overwrite=overwrite,
         cleanup=cleanup,
+        xy_shape=xy_shape,
         **otf_kwargs,
     )
 

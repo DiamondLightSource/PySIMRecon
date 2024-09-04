@@ -18,6 +18,7 @@ def main() -> None:
         output_directory=namespace.output_directory,
         overwrite=namespace.overwrite,
         cleanup=namespace.cleanup,
+        xy_shape=namespace.xy_shape,
         **otf_kwargs,
     )
 

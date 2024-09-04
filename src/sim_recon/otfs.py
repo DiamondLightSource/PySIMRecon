@@ -69,6 +69,7 @@ def convert_psfs_to_otfs(
     output_directory: str | PathLike[str] | None = None,
     overwrite: bool = False,
     cleanup: bool = True,
+    xy_shape: tuple[int, int] | None = None,
     **kwargs: Any,
 ) -> list[Path]:
     completed_otfs: list[Path] = []
@@ -97,6 +98,7 @@ def convert_psfs_to_otfs(
                     wavelength=wavelengths.emission_nm_int,
                     overwrite=overwrite,
                     cleanup=cleanup,
+                    xy_shape=xy_shape,
                     **otf_kwargs,
                 )
             except Exception:
@@ -129,6 +131,7 @@ def psf_to_otf(
     otf_path: str | PathLike[str],
     overwrite: bool = False,
     cleanup: bool = True,
+    xy_shape: tuple[int, int] | None = None,
     **kwargs: Any,
 ) -> Path | None:
     otf_path = Path(otf_path)
@@ -154,7 +157,7 @@ def psf_to_otf(
         psf_path,
         get_temporary_path(otf_path.parent, f".{psf_path.stem}", suffix=".tiff"),
         delete=cleanup,
-        xy_shape=(256, 256),
+        xy_shape=xy_shape,
     ) as tiff_path:
         make_otf_kwargs["psf"] = str(tiff_path)
         make_otf_kwargs["out_file"] = str(otf_path)
