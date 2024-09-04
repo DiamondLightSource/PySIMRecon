@@ -339,17 +339,42 @@ def get_image_data(
 
     array = read_mrc_bound_array(file_path)
     xyz_resolutions = array.Mrc.header.d
-    sequence_order = array.Mrc.header.ImgSequence
+    # ImgSequence: 0=wtzyx, 1=tzwyx, 2=twzyx (numpy axis order)
+    channel_index = {0: -5, 1: -3, 2: -4}[array.Mrc.header.ImgSequence]
+
     channels: list[ImageChannel] = []
-    for c, wavelengths in enumerate(get_wavelengths_from_dv(array.Mrc)):
-        channel_slice: list[slice | int] = [slice(None)] * len(array.shape)
-        channel_slice[sequence_order] = c
-        channels.append(
-            ImageChannel(
-                array[*channel_slice],
-                wavelengths,
+    wavelengths_tuple = tuple(get_wavelengths_from_dv(array.Mrc))
+    num_channels = len(wavelengths_tuple)
+
+    if array.ndim == 3 and num_channels == 1:
+        # I suspect Cockpit may not be writing the metadata correctly for a
+        # Z-stack experiment, as I think ImgSequence` should be 0 or 2 when
+        # there are axes present for wavelength or time).
+        #
+        # By separately checking the number of channels via the extended
+        # header, we can be confident that this array shouldn't be split into
+        # multiple channels, so this shouldn't break anything.
+        channels = (ImageChannel(array, wavelengths=wavelengths_tuple[0]),)
+    else:
+        channel_dim_size = array.shape[channel_index]
+        channel_index += channel_dim_size  # Make it a positive index
+
+        if channel_dim_size != num_channels:
+            raise IndexError(
+                "The number of channels defined in the extended header "
+                f"({num_channels}) don't match the size ({channel_dim_size}) of "
+                f"the expected dimension ({channel_index})"
             )
-        )
+
+        for c, wavelengths in enumerate(wavelengths_tuple):
+            channel_slice: list[slice | int] = [slice(None)] * len(array.shape)
+            channel_slice[channel_index] = c
+            channels.append(
+                ImageChannel(
+                    array[*channel_slice],
+                    wavelengths,
+                )
+            )
     return ImageData(
         channels=tuple(channels),
         # Get resolution values from DV file (they get applied to TIFFs later)
