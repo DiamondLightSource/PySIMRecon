@@ -87,11 +87,11 @@ def read_mrc_bound_array(file_path: str | PathLike[str]) -> NDArray[Any]:
 def get_mrc_header_array(
     file_path: str | PathLike[str],
 ) -> np.recarray[float | int | bytes, np.dtype[np.float_ | np.int_ | np.bytes_]]:
-    dv = read_mrc_bound_array(file_path)
+    array = read_mrc_bound_array(file_path)
     # This black magic is from the commented out bits of `makeHdrArray`.
     # Setting the memmap as a recarray, then `deepcopy`ing it allows the header
     # to be returned without requiring the large overall memmap to be kept open
-    header_array = dv.Mrc.hdr._array.view()  # type: ignore[attr-defined]
+    header_array = array.Mrc.hdr._array.view()  # type: ignore[attr-defined]
     header_array.__class__ = np.recarray
     return deepcopy(
         cast(
@@ -259,7 +259,7 @@ def prepare_files(
     file_path = Path(file_path)
     processing_dir = Path(processing_dir)
 
-    image_data = _get_image_data(file_path)
+    image_data = get_image_data(file_path)
 
     # Resolution defaults to metadata values but kwargs can override
     config_kwargs["zres"] = config_kwargs.get("zres", image_data.resolution.z)
@@ -363,15 +363,12 @@ def get_image_data(
 def dv_to_temporary_tiff(
     dv_path: str | PathLike[str],
     tiff_path: str | PathLike[str],
-    squeeze: bool = True,
     delete: bool = False,
     xy_shape: tuple[int, int] | None = None,
     crop: float = 0,
 ) -> Generator[Path, None, None]:
     try:
-        yield dv_to_tiff(
-            dv_path, tiff_path, squeeze=squeeze, xy_shape=xy_shape, crop=crop
-        )
+        yield dv_to_tiff(dv_path, tiff_path, xy_shape=xy_shape, crop=crop)
     finally:
         if delete and tiff_path is not None:
             os.unlink(tiff_path)
@@ -411,7 +408,7 @@ def dv_to_tiff(
         if np.iscomplexobj(channel.array):
             channel.array = complex_to_interleaved_float(channel.array)
     write_tiff(
-        tiff_path, image_data.channels, pixel_size_microns=image_data.resolution.xy
+        tiff_path, *image_data.channels, pixel_size_microns=image_data.resolution.xy
     )
     return Path(tiff_path)
 
@@ -452,7 +449,7 @@ def write_tiff(
     tiff_kwargs: dict[str, Any] = {
         "software": f"PySIMRecon {__version__}",
         "photometric": "MINISBLACK",
-        "metadata": {"axes": "ZYX"},
+        "metadata": {},
     }
 
     if pixel_size_microns is not None:
@@ -476,6 +473,9 @@ def write_tiff(
     ) as tiff:
         for channel in channels:
             channel_kwargs = tiff_kwargs.copy()
+            channel_kwargs["metadata"]["axes"] = (
+                "YX" if channel.array.ndim == 2 else "ZYX"
+            )
             if ome:
                 channel_kwargs["metadata"]["Channel"] = get_channel_dict(channel)
             tiff.write(channel.array, **channel_kwargs)

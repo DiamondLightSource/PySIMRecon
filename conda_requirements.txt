@@ -1,7 +1,7 @@
 python >= 3.11
 pip
-pycudasirecon ~= 0.1.0
-mrc ~= 0.3.1
-numpy ~= 1.26.4
+pycudasirecon >= 0.1.0
+mrc >= 0.3.1
+numpy < 2
 tifffile >= 2024.2.12
 tqdm

@@ -52,10 +52,11 @@ def _format_makeotf_call(
         settings_list.append(f"-{key.replace('_', '-')} {str(value)}")
     return f"makeotf \"{psf_path}\" \"{otf_path}\" {' '.join(settings_list)}"
 
-  
+
 def _get_psf_wavelengths(psf_path: str | PathLike[str]) -> Wavelengths:
-    with read_mrc_bound_array(psf_path) as array:
-        wavelengths = tuple(get_wavelengths_from_dv(array.Mrc))
+    array = read_mrc_bound_array(psf_path)
+    wavelengths = tuple(get_wavelengths_from_dv(array.Mrc))
+    del array
     assert (
         len(wavelengths) == 1
     ), f"PSFs must be single channel but {psf_path} contains: {'; '.join(str(w) for w in wavelengths)}"
