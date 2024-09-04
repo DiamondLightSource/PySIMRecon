@@ -145,6 +145,7 @@ def reconstruct_from_processing_info(processing_info: ProcessingInfo) -> Path:
         processing_info.output_path,
         ImageChannel(rec_array, wavelengths=processing_info.wavelengths),
         pixel_size_microns=float(processing_info.kwargs["xyres"]) / zoomfact,
+        overwrite=True,
     )
     logger.debug(
         "Reconstruction of %s saved in %s",

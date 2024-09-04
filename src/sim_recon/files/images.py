@@ -391,9 +391,16 @@ def dv_to_temporary_tiff(
     delete: bool = False,
     xy_shape: tuple[int, int] | None = None,
     crop: float = 0,
+    overwrite: bool = False,
 ) -> Generator[Path, None, None]:
     try:
-        yield dv_to_tiff(dv_path, tiff_path, xy_shape=xy_shape, crop=crop)
+        yield dv_to_tiff(
+            dv_path,
+            tiff_path,
+            xy_shape=xy_shape,
+            crop=crop,
+            overwrite=overwrite,
+        )
     finally:
         if delete and tiff_path is not None:
             os.unlink(tiff_path)
@@ -424,6 +431,7 @@ def dv_to_tiff(
     tiff_path: str | PathLike[str],
     xy_shape: tuple[int, int] | None = None,
     crop: float = 0,
+    overwrite: bool = False,
 ) -> Path:
     image_data = get_image_data(dv_path)
     for channel in image_data.channels:
@@ -433,7 +441,10 @@ def dv_to_tiff(
         if np.iscomplexobj(channel.array):
             channel.array = complex_to_interleaved_float(channel.array)
     write_tiff(
-        tiff_path, *image_data.channels, pixel_size_microns=image_data.resolution.xy
+        tiff_path,
+        *image_data.channels,
+        pixel_size_microns=image_data.resolution.xy,
+        overwrite=overwrite,
     )
     return Path(tiff_path)
 
@@ -458,6 +469,7 @@ def write_tiff(
     *channels: ImageChannel,
     pixel_size_microns: float | None = None,
     ome: bool = True,
+    overwrite: bool = False,
 ) -> None:
     def get_channel_dict(channel: ImageChannel) -> None:
         channel_dict: dict[str, Any] = {}
@@ -470,6 +482,13 @@ def write_tiff(
         return channel_dict
 
     logger.debug("Writing array to %s", output_path)
+
+    if output_path.is_file():
+        if overwrite:
+            logger.warning("Overwriting file %s", output_path)
+            output_path.unlink()
+        else:
+            raise FileExistsError(f"File {output_path} already exists")
 
     tiff_kwargs: dict[str, Any] = {
         "software": f"PySIMRecon {__version__}",
@@ -494,7 +513,11 @@ def write_tiff(
             tiff_kwargs["metadata"]["PhysicalSizeYUnit"] = "µm"
 
     with tf.TiffWriter(
-        output_path, mode="w", bigtiff=True, ome=ome, shaped=not ome
+        output_path,
+        mode="x",  # New files only
+        bigtiff=True,
+        ome=ome,
+        shaped=not ome,
     ) as tiff:
         for channel in channels:
             channel_kwargs = tiff_kwargs.copy()
