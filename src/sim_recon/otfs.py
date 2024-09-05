@@ -7,11 +7,8 @@ from typing import TYPE_CHECKING
 
 from pycudasirecon import make_otf  # type: ignore[import-untyped]
 
-from .files.images import (
-    read_mrc_bound_array,
-    get_wavelengths_from_dv,
-    dv_to_temporary_tiff,
-)
+from .images import dv_to_temporary_tiff
+from .images.dv import read_mrc_bound_array, get_wavelengths_from_dv
 from .files.utils import (
     create_output_path,
     get_temporary_path,
@@ -23,7 +20,7 @@ from .progress import get_progress_wrapper, get_logging_redirect
 if TYPE_CHECKING:
     from typing import Any
     from os import PathLike
-    from .files.images import Wavelengths
+    from .images.dataclasses import Wavelengths
 
 logger = logging.getLogger(__name__)
 
