@@ -134,12 +134,6 @@ def psf_to_otf(
     otf_path = Path(otf_path)
     psf_path = Path(psf_path)
     logger.info("Generating OTF from %s: %s", otf_path, psf_path)
-    if otf_path.is_file():
-        if overwrite:
-            logger.warning("Overwriting file %s", otf_path)
-            otf_path.unlink()
-        else:
-            raise FileExistsError(f"File {otf_path} already exists")
 
     make_otf_kwargs: dict[str, Any] = dict(
         inspect.signature(make_otf).parameters.items()
@@ -154,7 +148,7 @@ def psf_to_otf(
         psf_path,
         get_temporary_path(otf_path.parent, f".{psf_path.stem}", suffix=".tiff"),
         delete=cleanup,
-        xy_shape=(256, 256),
+        overwrite=overwrite,
     ) as tiff_path:
         make_otf_kwargs["psf"] = str(tiff_path)
         make_otf_kwargs["out_file"] = str(otf_path)
