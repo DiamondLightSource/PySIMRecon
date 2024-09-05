@@ -20,11 +20,11 @@ logger = logging.getLogger(__name__)
 OTF_NAME_STUB = "OTF"
 RECON_NAME_STUB = "recon"
 
-OUTPUT_TYPE_STUBS = {"otf": OTF_NAME_STUB, "recon": RECON_NAME_STUB}
+_OUTPUT_TYPE_STUBS = {"otf": OTF_NAME_STUB, "recon": RECON_NAME_STUB}
 
-WINDOWS_FN_SUB = re.compile('[<>:"/\\|?*]')
-LINUX_FN_SUB = re.compile("/")
-DARWIN_FN_SUB = re.compile("[/:]")
+_WINDOWS_FN_SUB = re.compile('[<>:"/\\|?*]')
+_LINUX_FN_SUB = re.compile("/")
+_DARWIN_FN_SUB = re.compile("[/:]")
 
 
 def get_temporary_path(directory: Path, stem: str, suffix: str) -> Path:
@@ -55,12 +55,12 @@ def ensure_valid_filename(filename: str) -> str:
     rstrip = " "
     system = platform.system()
     if system == "Windows":
-        invalid_chars = WINDOWS_FN_SUB
+        invalid_chars = _WINDOWS_FN_SUB
         rstrip = " ."
     elif system == "Linux":
-        invalid_chars = LINUX_FN_SUB
+        invalid_chars = _LINUX_FN_SUB
     elif system == "Darwin":
-        invalid_chars = DARWIN_FN_SUB
+        invalid_chars = _DARWIN_FN_SUB
     else:
         raise OSError(f"{system} is not a supported system")
 
@@ -89,7 +89,7 @@ def create_output_path(
 ) -> Path:
     file_path = Path(file_path)
 
-    output_fp_parts = [file_path.stem, OUTPUT_TYPE_STUBS[output_type]]
+    output_fp_parts = [file_path.stem, _OUTPUT_TYPE_STUBS[output_type]]
 
     if wavelength is not None:
         output_fp_parts.append(str(wavelength))
