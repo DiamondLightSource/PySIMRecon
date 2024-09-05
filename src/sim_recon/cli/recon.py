@@ -14,10 +14,11 @@ def main() -> None:
 
     sim_reconstruct(
         namespace.config_path,
-        namespace.output_directory,
         *namespace.sim_data_paths,
-        stitch_channels=namespace.stitch_channels,
+        output_directory=namespace.output_directory,
+        overwrite=namespace.overwrite,
         cleanup=namespace.cleanup,
+        stitch_channels=namespace.stitch_channels,
         parallel_process=namespace.parallel_process,
         **recon_kwargs,
     )

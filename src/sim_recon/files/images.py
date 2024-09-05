@@ -152,12 +152,23 @@ def write_dv(
     wavelengths: Collection[int],
     zoomfact: float,
     zzoom: int,
+    overwrite: bool = False,
 ) -> Path:
+    output_file = Path(output_file)
+
     logger.info(
         "Writing array to %s with wavelengths %s",
         output_file,
         ", ".join((str(w) for w in wavelengths)),
     )
+
+    if output_file.is_file():
+        if overwrite:
+            logger.warning("Overwriting file %s", output_file)
+            output_file.unlink()
+        else:
+            raise FileExistsError(f"File {output_file} already exists")
+
     if len(wavelengths) != array.shape[-3]:
         raise ValueError(
             "Length of wavelengths list must be equal to the number of channels in the array"
@@ -493,6 +504,8 @@ def write_tiff(
             channel_dict["EmissionWavelength"] = channel.wavelengths.emission_nm
             channel_dict["EmissionWavelengthUnits"] = "nm"
         return channel_dict
+
+    output_path = Path(output_path)
 
     logger.debug("Writing array to %s", output_path)
 

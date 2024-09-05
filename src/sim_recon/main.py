@@ -64,21 +64,23 @@ def sim_psf_to_otf(
 
 def sim_reconstruct(
     config_path: str | PathLike[str],
-    output_directory: str | PathLike[str],
     *sim_data_paths: str | PathLike[str],
+    output_directory: str | PathLike[str] | None = None,
+    overwrite: bool = False,
+    cleanup: bool = True,
     stitch_channels: bool = True,
-    cleanup: bool = False,
     parallel_process: bool = False,
     **recon_kwargs: Any,
 ) -> None:
     conf = load_configs(config_path)
     logger.info("Starting reconstructions...")
     run_reconstructions(
-        output_directory,
+        conf,
         *sim_data_paths,
-        conf=conf,
-        stitch_channels=stitch_channels,
+        output_directory=output_directory,
+        overwrite=overwrite,
         cleanup=cleanup,
+        stitch_channels=stitch_channels,
         parallel_process=parallel_process,
         **recon_kwargs,
     )

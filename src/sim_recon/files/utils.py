@@ -4,12 +4,14 @@ import platform
 import os
 import sys
 import re
+from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
 from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from typing import Literal
     from os import PathLike
     from collections.abc import Generator
 
@@ -18,9 +20,11 @@ logger = logging.getLogger(__name__)
 OTF_NAME_STUB = "OTF"
 RECON_NAME_STUB = "recon"
 
-WINDOWS_FN_SUB = re.compile('[<>:"/\\|?*]')
-LINUX_FN_SUB = re.compile("/")
-DARWIN_FN_SUB = re.compile("[/:]")
+_OUTPUT_TYPE_STUBS = {"otf": OTF_NAME_STUB, "recon": RECON_NAME_STUB}
+
+_WINDOWS_FN_SUB = re.compile('[<>:"/\\|?*]')
+_LINUX_FN_SUB = re.compile("/")
+_DARWIN_FN_SUB = re.compile("[/:]")
 
 
 def get_temporary_path(directory: Path, stem: str, suffix: str) -> Path:
@@ -51,12 +55,12 @@ def ensure_valid_filename(filename: str) -> str:
     rstrip = " "
     system = platform.system()
     if system == "Windows":
-        invalid_chars = WINDOWS_FN_SUB
+        invalid_chars = _WINDOWS_FN_SUB
         rstrip = " ."
     elif system == "Linux":
-        invalid_chars = LINUX_FN_SUB
+        invalid_chars = _LINUX_FN_SUB
     elif system == "Darwin":
-        invalid_chars = DARWIN_FN_SUB
+        invalid_chars = _DARWIN_FN_SUB
     else:
         raise OSError(f"{system} is not a supported system")
 
@@ -71,6 +75,42 @@ def ensure_valid_filename(filename: str) -> str:
         )
 
     return new_filename
+
+
+def create_output_path(
+    file_path: str | PathLike[str],
+    output_type: Literal["otf", "recon"],
+    suffix: str,
+    output_directory: str | PathLike[str] | None = None,
+    wavelength: int | None = None,
+    mod_timestamp: bool = False,
+    ensure_unique: bool = False,
+    max_path_iter: int = 99,
+) -> Path:
+    file_path = Path(file_path)
+
+    output_fp_parts = [file_path.stem, _OUTPUT_TYPE_STUBS[output_type]]
+
+    if wavelength is not None:
+        output_fp_parts.append(str(wavelength))
+
+    if mod_timestamp:
+        # datetime.isoformat fails on Windows due to colons being invalid in paths
+        output_fp_parts.append(
+            datetime.fromtimestamp(file_path.stat().st_mtime).strftime("%Y%m%d_%H%M%S")
+        )
+
+    if output_directory is None:
+        output_directory = file_path.parent
+    else:
+        output_directory = Path(output_directory)
+
+    file_stem = "_".join(output_fp_parts)
+    output_path = output_directory / ensure_valid_filename(f"{file_stem}{suffix}")
+
+    if ensure_unique:
+        output_path = ensure_unique_filepath(output_path, max_iter=max_path_iter)
+    return output_path
 
 
 @contextmanager

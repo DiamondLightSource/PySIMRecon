@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 
 from pycudasirecon.sim_reconstructor import SIMReconstructor, lib  # type: ignore[import-untyped]
 
-from .files.utils import redirect_output_to, RECON_NAME_STUB
+from .files.utils import redirect_output_to, create_output_path
 from .files.images import (
     prepare_files,
     read_tiff,
@@ -156,15 +156,15 @@ def reconstruct_from_processing_info(processing_info: ProcessingInfo) -> Path:
 
 
 def run_reconstructions(
-    output_directory: str | PathLike[str],
-    *sim_data_paths: str | PathLike[str],
     conf: ConfigManager,
-    stitch_channels: bool = True,
+    *sim_data_paths: str | PathLike[str],
+    output_directory: str | PathLike[str],
+    overwrite: bool = False,
     cleanup: bool = False,
+    stitch_channels: bool = True,
     parallel_process: bool = False,
     **config_kwargs: Any,
 ) -> None:
-    output_directory = Path(output_directory)
 
     logging_redirect = get_logging_redirect()
     progress_wrapper = get_progress_wrapper()
@@ -184,6 +184,11 @@ def run_reconstructions(
         ):
             try:
                 sim_data_path = Path(sim_data_path)
+                file_output_directory = (
+                    sim_data_path.parent
+                    if output_directory is None
+                    else Path(output_directory)
+                )
                 if not sim_data_path.is_file():
                     raise FileNotFoundError(
                         f"Image file {sim_data_path} does not exist"
@@ -193,7 +198,7 @@ def run_reconstructions(
                 with TemporaryDirectory(
                     prefix="proc_",
                     suffix=f"_{sim_data_path.stem}",
-                    dir=output_directory,
+                    dir=file_output_directory,
                     delete=cleanup,
                 ) as processing_directory:
                     processing_directory = Path(processing_directory)
@@ -256,28 +261,38 @@ def run_reconstructions(
 
                     if stitch_channels:
                         # Stitch channels (if requested and possible)
-                        filename = f"{sim_data_path.stem}_{RECON_NAME_STUB}{sim_data_path.suffix}"
+                        dv_path = create_output_path(
+                            sim_data_path,
+                            output_type="recon",
+                            suffix=".dv",
+                            output_directory=file_output_directory,
+                            ensure_unique=not overwrite,
+                        )
                         write_dv(
                             sim_data_path,
-                            output_directory / filename,
+                            dv_path,
                             get_combined_array_from_tiffs(*output_paths),
                             wavelengths=wavelengths,
                             zoomfact=float(zoom_factors[0][0]),
                             zzoom=zoom_factors[0][1],
+                            overwrite=overwrite,
                         )
                     else:
-                        # If not stitching, then these are the result and should be in the output directory
-                        logger.info(
-                            "Moving reconstructed files to output directory for %s",
-                            sim_data_path,
-                        )
                         for (
                             wavelength,
                             processing_info,
                         ) in processing_info_dict.items():
+                            dv_path = create_output_path(
+                                sim_data_path,
+                                output_type="recon",
+                                suffix=".dv",
+                                output_directory=file_output_directory,
+                                wavelength=wavelength,
+                                ensure_unique=not overwrite,
+                            )
                             write_dv(
                                 sim_data_path,
-                                output_directory / processing_info.output_path.name,
+                                dv_path,
                                 get_combined_array_from_tiffs(
                                     processing_info.output_path
                                 ),
