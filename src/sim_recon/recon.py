@@ -355,7 +355,9 @@ def create_processing_info(
     otf_path = conf.get_otf_path(wavelengths.emission_nm_int)
 
     if otf_path is None:
-        raise ValueError(f"No OTF file has been set for channel {wavelengths}")
+        raise ValueError(
+            f"No OTF file has been set for channel {wavelengths.emission_nm_int} ({wavelengths})"
+        )
 
     otf_path = Path(
         copyfile(
@@ -467,7 +469,8 @@ def _prepare_files(
                     )
                 except Exception:
                     logger.error(
-                        "Failed to prepare files for channel %s of %s",
+                        "Failed to prepare files for channel %i (%s) of %s",
+                        channel.wavelengths.emission_nm_int,
                         channel.wavelengths,
                         file_path,
                         exc_info=True,
