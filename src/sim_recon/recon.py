@@ -165,7 +165,6 @@ def run_reconstructions(
     parallel_process: bool = False,
     **config_kwargs: Any,
 ) -> None:
-    output_directory = Path(output_directory)
 
     logging_redirect = get_logging_redirect()
     progress_wrapper = get_progress_wrapper()
@@ -185,6 +184,11 @@ def run_reconstructions(
         ):
             try:
                 sim_data_path = Path(sim_data_path)
+                file_output_directory = (
+                    sim_data_path.parent
+                    if output_directory is None
+                    else Path(output_directory)
+                )
                 if not sim_data_path.is_file():
                     raise FileNotFoundError(
                         f"Image file {sim_data_path} does not exist"
@@ -194,7 +198,7 @@ def run_reconstructions(
                 with TemporaryDirectory(
                     prefix="proc_",
                     suffix=f"_{sim_data_path.stem}",
-                    dir=output_directory,
+                    dir=file_output_directory,
                     delete=cleanup,
                 ) as processing_directory:
                     processing_directory = Path(processing_directory)
@@ -260,7 +264,7 @@ def run_reconstructions(
                         filename = f"{sim_data_path.stem}_{RECON_NAME_STUB}{sim_data_path.suffix}"
                         write_dv(
                             sim_data_path,
-                            output_directory / filename,
+                            file_output_directory / filename,
                             get_combined_array_from_tiffs(*output_paths),
                             wavelengths=wavelengths,
                             zoomfact=float(zoom_factors[0][0]),
@@ -279,7 +283,8 @@ def run_reconstructions(
                         ) in processing_info_dict.items():
                             write_dv(
                                 sim_data_path,
-                                output_directory / processing_info.output_path.name,
+                                file_output_directory
+                                / processing_info.output_path.name,
                                 get_combined_array_from_tiffs(
                                     processing_info.output_path
                                 ),

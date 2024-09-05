@@ -65,7 +65,7 @@ def sim_psf_to_otf(
 def sim_reconstruct(
     config_path: str | PathLike[str],
     *sim_data_paths: str | PathLike[str],
-    output_directory: str | PathLike[str],
+    output_directory: str | PathLike[str] | None = None,
     overwrite: bool = False,
     cleanup: bool = True,
     stitch_channels: bool = True,
