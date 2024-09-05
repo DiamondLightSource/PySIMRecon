@@ -156,11 +156,12 @@ def reconstruct_from_processing_info(processing_info: ProcessingInfo) -> Path:
 
 
 def run_reconstructions(
-    output_directory: str | PathLike[str],
-    *sim_data_paths: str | PathLike[str],
     conf: ConfigManager,
-    stitch_channels: bool = True,
+    *sim_data_paths: str | PathLike[str],
+    output_directory: str | PathLike[str],
+    overwrite: bool = False,
     cleanup: bool = False,
+    stitch_channels: bool = True,
     parallel_process: bool = False,
     **config_kwargs: Any,
 ) -> None:
@@ -264,6 +265,7 @@ def run_reconstructions(
                             wavelengths=wavelengths,
                             zoomfact=float(zoom_factors[0][0]),
                             zzoom=zoom_factors[0][1],
+                            overwrite=overwrite,
                         )
                     else:
                         # If not stitching, then these are the result and should be in the output directory

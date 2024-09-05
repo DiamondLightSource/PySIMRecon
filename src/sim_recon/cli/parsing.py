@@ -170,16 +170,21 @@ def parse_recon_args(
         help="The output directory to save reconstructed files in",
     )
     parser.add_argument(
-        "--keep-split",
-        dest="stitch_channels",
-        action="store_false",
-        help="If specified, channels will not be stitched back together after reconstruction",
+        "--overwrite",
+        action="store_true",
+        help="If specified, files will be overwritten if they already exist (unique filenames will be used otherwise)",
     )
     parser.add_argument(
         "--no-cleanup",
         dest="cleanup",
         action="store_false",
         help="If specified, files created during the reconstruction process will not be cleaned up",
+    )
+    parser.add_argument(
+        "--keep-split",
+        dest="stitch_channels",
+        action="store_false",
+        help="If specified, channels will not be stitched back together after reconstruction",
     )
     parser.add_argument(
         "--parallel",
