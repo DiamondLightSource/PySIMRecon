@@ -111,6 +111,15 @@ def parse_otf_args(
         help="If specified, files created during the reconstruction process will not be cleaned up",
     )
 
+    parser.add_argument(
+        "--shape",
+        dest="xy_shape",
+        default=None,
+        nargs=2,
+        type=int,
+        help="Takes 2 integers (X Y), specifying the shape to crop PSFs to before converting",
+    )
+
     _add_general_args(parser)
 
     namespace, unknown = parser.parse_known_args(args)
