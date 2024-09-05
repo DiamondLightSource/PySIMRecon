@@ -2,7 +2,7 @@ import logging
 import sys
 from pathlib import Path
 
-from ..files.images import dv_to_tiff
+from ..images import dv_to_tiff
 
 _logger = logging.getLogger(__name__)
 

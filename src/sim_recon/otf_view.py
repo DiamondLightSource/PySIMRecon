@@ -1,12 +1,13 @@
 from __future__ import annotations
 import logging
 from pathlib import Path
-import numpy as np
 import matplotlib.pyplot as plt
 from typing import TYPE_CHECKING
 
 from .progress import get_progress_wrapper, get_logging_redirect
-from .files.images import read_dv, read_tiff, interleaved_float_to_complex
+from .images.dv import read_dv
+from .images.tiff import read_tiff
+from .images.utils import interleaved_float_to_complex
 
 if TYPE_CHECKING:
     from typing import Any

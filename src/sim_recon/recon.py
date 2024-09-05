@@ -5,6 +5,7 @@ import multiprocessing
 import os
 import traceback
 from os.path import abspath
+from shutil import copyfile
 from pathlib import Path
 import numpy as np
 from tempfile import TemporaryDirectory
@@ -13,15 +14,11 @@ from typing import TYPE_CHECKING
 from pycudasirecon.sim_reconstructor import SIMReconstructor, lib  # type: ignore[import-untyped]
 
 from .files.utils import redirect_output_to, create_output_path
-from .files.images import (
-    prepare_files,
-    read_tiff,
-    write_tiff,
-    ImageChannel,
-    get_combined_array_from_tiffs,
-    write_dv,
-)
-
+from .files.config import create_wavelength_config
+from .images import get_image_data
+from .images.dv import write_dv
+from .images.tiff import read_tiff, write_tiff, get_combined_array_from_tiffs
+from .images.dataclasses import ImageChannel, Wavelengths
 from .settings import ConfigManager
 from .progress import get_progress_wrapper, get_logging_redirect
 
@@ -30,8 +27,7 @@ if TYPE_CHECKING:
     from os import PathLike
     from multiprocessing.pool import AsyncResult
     from numpy.typing import NDArray
-
-    from .files.images import ProcessingInfo
+    from .images.dataclasses import ProcessingInfo
 
 
 logger = logging.getLogger(__name__)
@@ -206,7 +202,7 @@ def run_reconstructions(
                     # These processing files are cleaned up by TemporaryDirectory
                     # As single-wavelength files will be used directly and we don't
                     # want to delete real input files!
-                    processing_info_dict = prepare_files(
+                    processing_info_dict = _prepare_files(
                         sim_data_path,
                         processing_directory,
                         conf=conf,
@@ -318,3 +314,162 @@ def run_reconstructions(
 
             except Exception:
                 logger.error("Error occurred for %s", sim_data_path, exc_info=True)
+
+
+def _prepare_config_kwargs(
+    conf: ConfigManager,
+    emission_wavelength: int,
+    otf_path: str | PathLike[str],
+    **config_kwargs: Any,
+) -> dict[str, Any]:
+    # Use the configured per-wavelength settings
+    kwargs = conf.get_reconstruction_config(emission_wavelength)
+
+    # config_kwargs override those any config defaults set
+    kwargs.update(config_kwargs)
+
+    # Set final variables:
+    kwargs["wavelength"] = emission_wavelength
+    # Add otf_file that is expected by ReconParams
+    # Needs to be absolute because we don't know where this might be run from
+    kwargs["otf_file"] = str(Path(otf_path).absolute())
+
+    return kwargs
+
+
+def create_processing_info(
+    file_path: str | PathLike[str],
+    output_dir: str | PathLike[str],
+    wavelengths: Wavelengths,
+    conf: ConfigManager,
+    **config_kwargs: Any,
+) -> ProcessingInfo:
+    file_path = Path(file_path)
+    output_dir = Path(output_dir)
+    if not file_path.is_file():
+        raise FileNotFoundError(
+            f"Cannot create processing info: file {file_path} does not exist"
+        )
+    logger.debug("Creating processing files for %s in %s", file_path, output_dir)
+
+    otf_path = conf.get_otf_path(wavelengths.emission_nm_int)
+
+    if otf_path is None:
+        raise ValueError(f"No OTF file has been set for channel {wavelengths}")
+
+    otf_path = Path(
+        copyfile(
+            otf_path,
+            output_dir / otf_path.name,
+        )
+    )
+
+    kwargs = _prepare_config_kwargs(
+        conf,
+        emission_wavelength=wavelengths.emission_nm_int,
+        otf_path=otf_path,
+        **config_kwargs,
+    )
+
+    config_path = create_wavelength_config(
+        output_dir / f"config{wavelengths.emission_nm_int}.txt",
+        file_path,
+        **kwargs,
+    )
+    return ProcessingInfo(
+        file_path,
+        otf_path=otf_path,
+        config_path=config_path,
+        output_path=create_output_path(
+            file_path,
+            output_type="recon",
+            suffix=".tiff",
+            output_directory=output_dir,
+            wavelength=wavelengths.emission_nm_int,
+            ensure_unique=True,
+        ),
+        wavelengths=wavelengths,
+        kwargs=kwargs,
+    )
+
+
+def _prepare_files(
+    file_path: str | PathLike[str],
+    processing_dir: str | PathLike[str],
+    conf: ConfigManager,
+    **config_kwargs: Any,
+) -> dict[int, ProcessingInfo]:
+    file_path = Path(file_path)
+    processing_dir = Path(processing_dir)
+
+    image_data = get_image_data(file_path)
+
+    # Resolution defaults to metadata values but kwargs can override
+    config_kwargs["zres"] = config_kwargs.get("zres", image_data.resolution.z)
+    config_kwargs["xyres"] = config_kwargs.get("xyres", image_data.resolution.xy)
+
+    processing_info_dict: dict[int, ProcessingInfo] = dict()
+
+    if len(image_data.channels) == 1:
+        # if it's a single channel file, we don't need to split
+        channel = image_data.channels[0]
+        if conf.get_channel_config(channel.wavelengths.emission_nm) is not None:
+            processing_info = create_processing_info(
+                file_path=file_path,
+                output_dir=processing_dir,
+                wavelengths=channel.wavelengths,
+                conf=conf,
+                **config_kwargs,
+            )
+            if processing_info is None:
+                logger.warning(
+                    "No processing files found for '%s' channel %s",
+                    file_path,
+                    channel.wavelengths,
+                )
+            else:
+                processing_info_dict[channel.wavelengths.emission_nm_int] = (
+                    processing_info
+                )
+
+    else:
+        # otherwise break out individual wavelengths
+        for channel in image_data.channels:
+            processing_info = None
+            if conf.get_channel_config(channel.wavelengths.emission_nm_int) is not None:
+                try:
+                    split_file_path = (
+                        processing_dir / f"data{channel.wavelengths.emission_nm}.tiff"
+                    )
+                    write_tiff(
+                        split_file_path,
+                        channel,
+                        pixel_size_microns=float(
+                            config_kwargs["xyres"]  # Cast as stored as Decimal
+                        ),
+                    )
+
+                    processing_info = create_processing_info(
+                        file_path=split_file_path,
+                        output_dir=processing_dir,
+                        wavelengths=channel.wavelengths,
+                        conf=conf,
+                        **config_kwargs,
+                    )
+
+                    if channel.wavelengths.emission_nm_int in processing_info_dict:
+                        raise KeyError(
+                            f"Emission wavelength {channel.wavelengths.emission_nm_int} found multiple times within {file_path}"
+                        )
+
+                    processing_info_dict[channel.wavelengths.emission_nm_int] = (
+                        processing_info
+                    )
+                except Exception:
+                    logger.error(
+                        "Failed to prepare files for channel %s of %s",
+                        channel.wavelengths,
+                        file_path,
+                        exc_info=True,
+                    )
+    return processing_info_dict
