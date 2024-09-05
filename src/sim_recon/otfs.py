@@ -3,7 +3,6 @@ import logging
 import os
 import inspect
 from pathlib import Path
-from datetime import datetime
 from typing import TYPE_CHECKING
 
 from pycudasirecon import make_otf  # type: ignore[import-untyped]
@@ -14,17 +13,15 @@ from .files.images import (
     dv_to_temporary_tiff,
 )
 from .files.utils import (
-    ensure_unique_filepath,
-    ensure_valid_filename,
+    create_output_path,
     get_temporary_path,
     redirect_output_to,
-    OTF_NAME_STUB,
 )
 from .settings import ConfigManager
 from .progress import get_progress_wrapper, get_logging_redirect
 
 if TYPE_CHECKING:
-    from typing import Any, Literal
+    from typing import Any
     from os import PathLike
     from .files.images import Wavelengths
 
@@ -84,11 +81,14 @@ def convert_psfs_to_otfs(
             otf_path: Path | None = None
             try:
                 wavelengths = _get_psf_wavelengths(psf_path)
-                otf_path = psf_path_to_otf_path(
-                    psf_path=psf_path,
+                otf_path = create_output_path(
+                    psf_path,
+                    output_type="otf",
+                    suffix=".tiff",
                     output_directory=output_directory,
-                    ensure_unique=not overwrite,
                     wavelength=wavelengths.emission_nm_int,
+                    mod_timestamp=True,
+                    ensure_unique=not overwrite,
                 )
                 otf_kwargs = conf.get_otf_config(wavelengths.emission_nm_int)
                 otf_kwargs.update(kwargs)
@@ -175,30 +175,3 @@ def psf_to_otf(
         return None
     logger.debug("Created OTF '%s'", otf_path)
     return Path(otf_path)
-
-
-def psf_path_to_otf_path(
-    psf_path: str | PathLike[str],
-    output_directory: str | PathLike[str] | None = None,
-    suffix: Literal[".tiff"] = ".tiff",
-    wavelength: int | None = None,
-    ensure_unique: bool = False,
-    max_path_iter: int = 99,
-) -> Path:
-    psf_path = Path(psf_path)
-    # datetime.isoformat fails on Windows due to colons being invalid in paths
-    timestamp = datetime.fromtimestamp(psf_path.stat().st_mtime).strftime(
-        "%Y%m%d_%H%M%S"
-    )
-
-    if output_directory is None:
-        output_directory = psf_path.parent
-    else:
-        output_directory = Path(output_directory)
-
-    file_stem = f"{psf_path.stem}_{wavelength}_{OTF_NAME_STUB}_{timestamp}"
-    output_path = output_directory / ensure_valid_filename(f"{file_stem}{suffix}")
-
-    if ensure_unique:
-        output_path = ensure_unique_filepath(output_path, max_iter=max_path_iter)
-    return output_path

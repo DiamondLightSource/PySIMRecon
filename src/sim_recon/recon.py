@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 
 from pycudasirecon.sim_reconstructor import SIMReconstructor, lib  # type: ignore[import-untyped]
 
-from .files.utils import redirect_output_to, RECON_NAME_STUB
+from .files.utils import redirect_output_to, create_output_path
 from .files.images import (
     prepare_files,
     read_tiff,
@@ -261,10 +261,16 @@ def run_reconstructions(
 
                     if stitch_channels:
                         # Stitch channels (if requested and possible)
-                        filename = f"{sim_data_path.stem}_{RECON_NAME_STUB}{sim_data_path.suffix}"
+                        dv_path = create_output_path(
+                            sim_data_path,
+                            output_type="recon",
+                            suffix=".dv",
+                            output_directory=file_output_directory,
+                            ensure_unique=not overwrite,
+                        )
                         write_dv(
                             sim_data_path,
-                            file_output_directory / filename,
+                            dv_path,
                             get_combined_array_from_tiffs(*output_paths),
                             wavelengths=wavelengths,
                             zoomfact=float(zoom_factors[0][0]),
@@ -272,19 +278,21 @@ def run_reconstructions(
                             overwrite=overwrite,
                         )
                     else:
-                        # If not stitching, then these are the result and should be in the output directory
-                        logger.info(
-                            "Moving reconstructed files to output directory for %s",
-                            sim_data_path,
-                        )
                         for (
                             wavelength,
                             processing_info,
                         ) in processing_info_dict.items():
+                            dv_path = create_output_path(
+                                sim_data_path,
+                                output_type="recon",
+                                suffix=".dv",
+                                output_directory=file_output_directory,
+                                wavelength=wavelength,
+                                ensure_unique=not overwrite,
+                            )
                             write_dv(
                                 sim_data_path,
-                                file_output_directory
-                                / processing_info.output_path.name,
+                                dv_path,
                                 get_combined_array_from_tiffs(
                                     processing_info.output_path
                                 ),
