@@ -101,37 +101,43 @@ def get_mrc_header_array(
     )
 
 
-def get_wavelengths_from_dv(dv: mrc.Mrc) -> Generator[Wavelengths, None, None]:
+def get_dv_axis_order_from_header(dv: mrc.Mrc) -> str:
+    sequence = dv.header.ImgSequence
+    if sequence == 0:
+        return "wtzyx"
+    elif sequence == 1:
+        return "tzwyx"
+    elif sequence == 2:
+        return "twzyx"
+    raise ValueError("DV header is invalid, ImgSequence must be 0, 1, or 2")
+
+
+def get_dv_axis_sizes(dv: mrc.Mrc) -> dict[str, int]:
     header = dv.header
+    return {
+        "w": header.NumWaves,
+        "t": header.NumTimes,
+        "z": header.Num[2] // (header.NumWaves * header.NumTimes),
+        "y": header.Num[1],
+        "x": header.Num[0],
+    }
+
+
+def get_wavelengths_from_dv(dv: mrc.Mrc) -> Generator[Wavelengths, None, None]:
     ext_floats = dv.extFloats
 
-    sequence = header.ImgSequence  # (0,1,2 = (ZTW or WZT or ZWT)
-    num_waves = header.NumWaves
-    num_times = header.NumTimes
-    dz = header.Num[2] // (num_waves * num_times)
+    axis_order = get_dv_axis_order_from_header(dv)
+    axis_sizes = get_dv_axis_sizes(dv)
 
-    header_shape = {
-        0: (num_waves, num_times, dz),
-        1: (
-            num_times,
-            dz,
-            num_waves,
-        ),
-        2: (num_times, num_waves, dz),
-    }[sequence]
-
+    # Extended header is per frame, so don't include yx
+    header_shape = tuple(axis_sizes[ax] for ax in axis_order[:3])
     ext_header = ext_floats.reshape(*header_shape, -1)
 
-    for c in range(num_waves):
-        indexes = {
-            0: (0, 0, dz),
-            1: (
-                0,
-                0,
-                c,
-            ),
-            2: (0, c, 0),
-        }[sequence]
+    wavelength_index = axis_order.index("w")
+
+    for c in range(axis_sizes["w"]):
+        indexes = [0, 0, 0]
+        indexes[wavelength_index] = c
         yield Wavelengths(
             # indexed as [image frame index, float index]
             excitation_nm=ext_header[*indexes, 10],  # exWavelen index is 10
@@ -339,42 +345,39 @@ def get_image_data(
 
     array = read_mrc_bound_array(file_path)
     xyz_resolutions = array.Mrc.header.d
-    # ImgSequence: 0=wtzyx, 1=tzwyx, 2=twzyx (numpy axis order)
-    channel_index = {0: -5, 1: -3, 2: -4}[array.Mrc.header.ImgSequence]
+    if xyz_resolutions[0] != xyz_resolutions[1]:
+        raise ValueError("DV file pixels are not square")
+
+    axis_order = get_dv_axis_order_from_header(array.Mrc)
+    axis_sizes = get_dv_axis_sizes(array.Mrc)
+    channel_index = axis_order.index("w")
+    dv_shape = tuple(axis_sizes[ax] for ax in axis_order)
+
+    # Essentially unsqueeze the axes to ensure the indexing is correct
+    array = array.reshape(dv_shape)
 
     channels: list[ImageChannel] = []
     wavelengths_tuple = tuple(get_wavelengths_from_dv(array.Mrc))
     num_channels = len(wavelengths_tuple)
 
-    if array.ndim == 3 and num_channels == 1:
-        # I suspect Cockpit may not be writing the metadata correctly for a
-        # Z-stack experiment, as I think ImgSequence` should be 0 or 2 when
-        # there are axes present for wavelength or time).
-        #
-        # By separately checking the number of channels via the extended
-        # header, we can be confident that this array shouldn't be split into
-        # multiple channels, so this shouldn't break anything.
-        channels = (ImageChannel(array, wavelengths=wavelengths_tuple[0]),)
-    else:
-        channel_dim_size = array.shape[channel_index]
-        channel_index += channel_dim_size  # Make it a positive index
+    channel_dim_size = array.shape[channel_index]
 
-        if channel_dim_size != num_channels:
-            raise IndexError(
-                "The number of channels defined in the extended header "
-                f"({num_channels}) don't match the size ({channel_dim_size}) of "
-                f"the expected dimension ({channel_index})"
-            )
+    if channel_dim_size != num_channels:
+        raise IndexError(
+            "The number of channels defined in the extended header "
+            f"({num_channels}) don't match the size ({channel_dim_size}) of "
+            f"the expected dimension ({channel_index})"
+        )
 
-        for c, wavelengths in enumerate(wavelengths_tuple):
-            channel_slice: list[slice | int] = [slice(None)] * len(array.shape)
-            channel_slice[channel_index] = c
-            channels.append(
-                ImageChannel(
-                    array[*channel_slice],
-                    wavelengths,
-                )
+    for c, wavelengths in enumerate(wavelengths_tuple):
+        channel_slice: list[slice | int] = [slice(None)] * len(array.shape)
+        channel_slice[channel_index] = c
+        channels.append(
+            ImageChannel(
+                array[*channel_slice].squeeze(),
+                wavelengths,
             )
+        )
     return ImageData(
         channels=tuple(channels),
         # Get resolution values from DV file (they get applied to TIFFs later)
@@ -391,9 +394,16 @@ def dv_to_temporary_tiff(
     delete: bool = False,
     xy_shape: tuple[int, int] | None = None,
     crop: float = 0,
+    overwrite: bool = False,
 ) -> Generator[Path, None, None]:
     try:
-        yield dv_to_tiff(dv_path, tiff_path, xy_shape=xy_shape, crop=crop)
+        yield dv_to_tiff(
+            dv_path,
+            tiff_path,
+            xy_shape=xy_shape,
+            crop=crop,
+            overwrite=overwrite,
+        )
     finally:
         if delete and tiff_path is not None:
             os.unlink(tiff_path)
@@ -434,6 +444,7 @@ def dv_to_tiff(
     tiff_path: str | PathLike[str],
     xy_shape: tuple[int, int] | None = None,
     crop: float = 0,
+    overwrite: bool = False,
 ) -> Path:
     image_data = get_image_data(dv_path)
     for channel in image_data.channels:
@@ -443,7 +454,10 @@ def dv_to_tiff(
         if np.iscomplexobj(channel.array):
             channel.array = complex_to_interleaved_float(channel.array)
     write_tiff(
-        tiff_path, *image_data.channels, pixel_size_microns=image_data.resolution.xy
+        tiff_path,
+        *image_data.channels,
+        pixel_size_microns=image_data.resolution.xy,
+        overwrite=overwrite,
     )
     return Path(tiff_path)
 
@@ -468,6 +482,7 @@ def write_tiff(
     *channels: ImageChannel,
     pixel_size_microns: float | None = None,
     ome: bool = True,
+    overwrite: bool = False,
 ) -> None:
     def get_channel_dict(channel: ImageChannel) -> None:
         channel_dict: dict[str, Any] = {}
@@ -480,6 +495,13 @@ def write_tiff(
         return channel_dict
 
     logger.debug("Writing array to %s", output_path)
+
+    if output_path.is_file():
+        if overwrite:
+            logger.warning("Overwriting file %s", output_path)
+            output_path.unlink()
+        else:
+            raise FileExistsError(f"File {output_path} already exists")
 
     tiff_kwargs: dict[str, Any] = {
         "software": f"PySIMRecon {__version__}",
@@ -504,7 +526,11 @@ def write_tiff(
             tiff_kwargs["metadata"]["PhysicalSizeYUnit"] = "µm"
 
     with tf.TiffWriter(
-        output_path, mode="w", bigtiff=True, ome=ome, shaped=not ome
+        output_path,
+        mode="x",  # New files only
+        bigtiff=True,
+        ome=ome,
+        shaped=not ome,
     ) as tiff:
         for channel in channels:
             channel_kwargs = tiff_kwargs.copy()

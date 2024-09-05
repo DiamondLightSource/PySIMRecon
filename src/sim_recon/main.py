@@ -23,6 +23,8 @@ logger = logging.getLogger(__name__)
 
 
 def load_configs(config_path: str | PathLike[str]) -> ConfigManager:
+    logger.info("Loading configurations from %s...", config_path)
+
     main_config = read_config(config_path)
 
     defaults_config_path = get_defaults_config_path(main_config)
@@ -70,7 +72,7 @@ def sim_reconstruct(
     **recon_kwargs: Any,
 ) -> None:
     conf = load_configs(config_path)
-    logger.info("Starting reconstructions")
+    logger.info("Starting reconstructions...")
     run_reconstructions(
         output_directory,
         *sim_data_paths,

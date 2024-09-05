@@ -101,6 +101,11 @@ def get_channel_configs(
         main_config,
     )
 
+    logger.info(
+        "Configured OTFs found:\n\t%s",
+        "\n\t".join(f"{k}: {v}" for k, v in otfs_dict.items()),
+    )
+
     wavelengths = set(configs_dict.keys())
     wavelengths.update(otfs_dict.keys())
 
