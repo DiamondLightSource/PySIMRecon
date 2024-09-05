@@ -18,7 +18,7 @@ from .files.config import create_wavelength_config
 from .images import get_image_data
 from .images.dv import write_dv
 from .images.tiff import read_tiff, write_tiff, get_combined_array_from_tiffs
-from .images.dataclasses import ImageChannel, Wavelengths
+from .images.dataclasses import ImageChannel, Wavelengths, ProcessingInfo
 from .settings import ConfigManager
 from .progress import get_progress_wrapper, get_logging_redirect
 
@@ -27,7 +27,6 @@ if TYPE_CHECKING:
     from os import PathLike
     from multiprocessing.pool import AsyncResult
     from numpy.typing import NDArray
-    from .images.dataclasses import ProcessingInfo
 
 
 logger = logging.getLogger(__name__)
