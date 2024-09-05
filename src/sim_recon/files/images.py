@@ -505,6 +505,8 @@ def write_tiff(
             channel_dict["EmissionWavelengthUnits"] = "nm"
         return channel_dict
 
+    output_path = Path(output_path)
+
     logger.debug("Writing array to %s", output_path)
 
     if output_path.is_file():
