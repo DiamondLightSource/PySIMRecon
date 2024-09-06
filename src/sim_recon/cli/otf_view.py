@@ -1,12 +1,12 @@
 import logging
 
 from ..otf_view import plot_otfs
-from .parsing import parse_otf_view_args
+from .parsing.otf_view import parse_args
 from ..progress import set_use_tqdm
 
 
 def main():
-    namespace = parse_otf_view_args()
+    namespace = parse_args()
 
     set_use_tqdm(namespace.use_tqdm)
 
