@@ -108,16 +108,15 @@ def parse_otf_args(
         "--no-cleanup",
         dest="cleanup",
         action="store_false",
-        help="If specified, files created during the reconstruction process will not be cleaned up",
+        help="If specified, files created during the OTF creation process will not be cleaned up",
     )
-
     parser.add_argument(
         "--shape",
         dest="xy_shape",
         default=None,
         nargs=2,
         type=int,
-        help="Takes 2 integers (X Y), specifying the shape to crop PSFs to before converting",
+        help="Takes 2 integers (X Y), specifying the shape to crop PSFs to before converting (powers of 2 are fastest)",
     )
 
     _add_general_args(parser)
