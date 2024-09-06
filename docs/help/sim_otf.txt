@@ -1,0 +1,55 @@
+usage: sim-otf [-c CONFIG_PATH] [-p PSF_PATHS [PSF_PATHS ...]]
+               [-o OUTPUT_DIRECTORY] [--overwrite] [--no-cleanup]
+               [--shape XY_SHAPE XY_SHAPE] [-v] [--no-progress]
+               [--nphases NPHASES] [--ls LS] [--na NA] [--nimm NIMM]
+               [--background BACKGROUND] [--beaddiam BEADDIAM] [--angle ANGLE]
+               [--nocompen NOCOMPEN] [--fixorigin FIXORIGIN FIXORIGIN]
+               [--leavekz LEAVEKZ LEAVEKZ LEAVEKZ] [-h]
+
+SIM PSFs to OTFs
+
+options:
+  -c CONFIG_PATH, --config-path CONFIG_PATH
+                        Path to the root config that specifies the paths to
+                        the OTFs and the other configs
+  -p PSF_PATHS [PSF_PATHS ...], --psf PSF_PATHS [PSF_PATHS ...]
+                        Paths to PSF files to be reconstructed (multiple paths
+                        can be given)
+  -o OUTPUT_DIRECTORY, --output-directory OUTPUT_DIRECTORY
+                        If specified, the output directory that the OTFs will
+                        be saved in, otherwise each OTF will be saved in the
+                        same directory as its PSF
+  --overwrite           If specified, files will be overwritten if they
+                        already exist (unique filenames will be used
+                        otherwise)
+  --no-cleanup          If specified, files created during the OTF creation
+                        process will not be cleaned up
+  --shape XY_SHAPE XY_SHAPE
+                        Takes 2 integers (X Y), specifying the shape to crop
+                        PSFs to before converting (powers of 2 are fastest)
+  -v, --verbose         Show more logging
+  --no-progress         turn off progress bars (only has an effect if tqdm is
+                        installed)
+  -h, --help            show this help message and exit
+
+Overrides:
+  Arguments that override configured values. Defaults stated are only used
+  if no value is given or configured.
+
+  --nphases NPHASES     Number of pattern phases per SIM direction
+  --ls LS               Line spacing of SIM pattern in microns
+  --na NA               Detection objective's numerical aperture
+  --nimm NIMM           Refractive index of immersion medium
+  --background BACKGROUND
+                        Camera readout background
+  --beaddiam BEADDIAM   The diameter of the bead in microns, by default 0.12
+  --angle ANGLE         The k0 vector angle with which the PSF is taken, by
+                        default 0
+  --nocompen NOCOMPEN   Do not perform bead size compensation, default False
+                        (do perform)
+  --fixorigin FIXORIGIN FIXORIGIN
+                        The starting and end pixel for interpolation along kr
+                        axis, by default (2, 9)
+  --leavekz LEAVEKZ LEAVEKZ LEAVEKZ
+                        Pixels to be retained on kz axis, by default (0, 0, 0)
+sad

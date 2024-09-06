@@ -1,0 +1,50 @@
+name: Generate README
+
+on:
+  pull_request:
+    paths:
+      - "src/sim_recon/cli/parsing/*"
+      - "src/sim_recon/settings/formatting.py"
+
+jobs:
+  generate-help-docs:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v3
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Copy template
+        run: cp -f docs/template.md README.md
+      - name: Install (without dependencies)
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install . --no-deps
+      - name: Ensure README exists
+        run: |
+          if [ ! -f "README.md" ]; then
+            touch README.md
+          fi
+      - name: Getting help strings from package
+        run: |
+          python -m sim_recon.cli.parsing.otf '--help' >docs/help/sim_otf.txt
+          python -m sim_recon.cli.parsing.recon '--help' >docs/help/sim_recon.txt
+          python -m sim_recon.cli.parsing.otf_view '--help' >docs/help/otf_view.txt
+      - name: Setup git
+        run: |
+          git config --local user.name "github-actions[bot]"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin https://${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
+      - name: Push
+        run: |
+          if git update-index --refresh && git diff-index --quiet HEAD --; then
+            git add docs/help/*
+            git commit -m "Automated update of help docs"
+
+            branch_name="${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}"
+            git push origin HEAD:$branch_name
+          fi

@@ -1,0 +1,51 @@
+name: Generate README
+
+on:
+  pull_request:
+    paths:
+      - "docs/**/*"
+  workflow_run:
+    workflows:
+      - "generate_help_docs"
+
+jobs:
+  make-README:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fill template
+        working-directory: "docs/"
+        timeout-minutes: 0.1
+        run: |
+          sub_doc_parts_from() {
+            template="$1"
+            directory="$2"
+
+            for file in "$directory"/*; do
+                if [ -f "$file" ]; then
+                    placeholder="{{ $(echo "${file^^}" | tr ./ _) }}"
+                    echo "Saving $file to $placeholder with expanded environment variables" >&2
+                    # Export file contents to text following a pattern in template.md, e.g.:
+                    # section/test_file.md would replace "{{ SECTION_TEST_FILE_MD }}""
+                    template="${template//"$placeholder"/"$(<"$file")"}"
+                fi
+            done
+            echo "$template"
+          }
+          sub_doc_parts_from "$(sub_doc_parts_from "$(<template.md)" "sections")" "help">../README.md
+      - name: Setup git
+        run: |
+          git config --local user.name "github-actions[bot]"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin https://${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
+      - name: Push
+        run: |
+          if git update-index --refresh && git diff-index --quiet HEAD --; then
+            git add README.md
+            git commit -m "Automated update of README.md from docs"
+
+            branch_name="${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}"
+            git push origin HEAD:$branch_name
+          fi
