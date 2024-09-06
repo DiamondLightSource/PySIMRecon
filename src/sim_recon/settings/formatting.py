@@ -23,14 +23,14 @@ class SettingFormat:
 OTF_FORMATTERS: dict[str, SettingFormat] = {
     # Shared arguments:
     "nphases": SettingFormat(
-        int, description="number of pattern phases per SIM direction"
+        int, description="Number of pattern phases per SIM direction"
     ),
-    "ls": SettingFormat(Decimal, description="line spacing of SIM pattern in microns"),
+    "ls": SettingFormat(Decimal, description="Line spacing of SIM pattern in microns"),
     "na": SettingFormat(
-        Decimal, description="detection objective's numerical aperture"
+        Decimal, description="Detection objective's numerical aperture"
     ),
-    "nimm": SettingFormat(Decimal, description="refractive index of immersion medium"),
-    "background": SettingFormat(int, description="camera readout background"),
+    "nimm": SettingFormat(Decimal, description="Refractive index of immersion medium"),
+    "background": SettingFormat(int, description="Camera readout background"),
     # OTF specific args:
     "beaddiam": SettingFormat(
         Decimal, description="The diameter of the bead in microns, by default 0.12"
@@ -54,80 +54,76 @@ OTF_FORMATTERS: dict[str, SettingFormat] = {
 }
 
 RECON_FORMATTERS: dict[str, SettingFormat] = {
-    "ndirs": SettingFormat(int, description="number of SIM  directions"),
+    "ndirs": SettingFormat(int, description="Number of SIM  directions"),
     "nphases": SettingFormat(
-        int, description="number of pattern phases per SIM direction"
+        int, description="Number of pattern phases per SIM direction"
     ),
     "nordersout": SettingFormat(
         int,
-        description="number of output SIM orders (must be <= nphases//2; safe to ignore usually)",
+        description="Number of output SIM orders (must be <= nphases//2; safe to ignore usually)",
     ),
     "angle0": SettingFormat(
-        Decimal, description="angle of the first SIM angle in radians"
+        Decimal, description="Angle of the first SIM angle in radians"
     ),
-    "ls": SettingFormat(Decimal, description="line spacing of SIM pattern in microns"),
+    "ls": SettingFormat(Decimal, description="Line spacing of SIM pattern in microns"),
     "na": SettingFormat(
-        Decimal, description="detection objective's numerical aperture"
+        Decimal, description="Detection objective's numerical aperture"
     ),
-    "nimm": SettingFormat(Decimal, description="refractive index of immersion medium"),
+    "nimm": SettingFormat(Decimal, description="Refractive index of immersion medium"),
     "wiener": SettingFormat(
         Decimal,
-        description="Wiener constant; lower value leads to higher resolution and noise;",
+        description="Wiener constant; lower value leads to higher resolution and noise; playing with it extensively is strongly encouraged",
     ),
-    # playing with it extensively is strongly encouraged
     "zoomfact": SettingFormat(
-        Decimal, description="lateral zoom factor in the output over the input images;"
+        Decimal,
+        description="Lateral zoom factor in the output over the input images; leaving it at 2 should be fine in most cases",
     ),
-    # leaving it at 2 should be fine in most cases
-    "zzoom": SettingFormat(int, description="axial zoom factor; almost never needed"),
-    "background": SettingFormat(int, description="camera readout background"),
+    "zzoom": SettingFormat(int, description="Axial zoom factor; almost never needed"),
+    "background": SettingFormat(int, description="Camera readout background"),
     "usecorr": SettingFormat(
-        Path, description="use a flat-field correction file if provided"
+        Path, description="Use a flat-field correction file if provided"
     ),
     "k0angles": SettingFormat(
-        Decimal, 3, description="user these pattern vector k0 angles for all"
+        Decimal,
+        3,
+        description="Use these pattern vector k0 angles for all directions (instead of inferring the rest angles from angle0)",
     ),
-    # directions (instead of inferring the rest agnles
-    # from angle0)
     "otfRA": SettingFormat(
-        int, description="using rotationally averaged OTF; otherwise using"
+        int,
+        description="Use rotationally averaged OTF; otherwise uses 3/2D OTF for 3/2D raw data",
     ),
-    # 3/2D OTF for 3/2D raw data
     "otfPerAngle": SettingFormat(
-        int, description="using one OTF per SIM angle; otherwise one OTF is"
+        int,
+        description="Use one OTF per SIM angle; otherwise one OTF is used for all angles, which is how it's been done traditionally",
     ),
-    # used for all angles, which is how it's been done
-    # traditionally
     "fastSI": SettingFormat(
-        int, description="SIM image is organized in Z->Angle->Phase order;"
+        int,
+        description="SIM image is organized in Z->Angle->Phase order; otherwise assuming Angle->Z->Phase image order",
     ),
-    # otherwise assuming Angle->Z->Phase image order
-    "k0searchAll": SettingFormat(int, description="search for k0 at all time points"),
-    "norescale": SettingFormat(int, description="no bleach correction"),
-    "equalizez": SettingFormat(int, description="bleach correction for z"),
-    "equalizet": SettingFormat(int, description="bleach correction for time"),
+    "k0searchAll": SettingFormat(int, description="Search for k0 at all time points"),
+    "norescale": SettingFormat(int, description="No bleach correction"),
+    "equalizez": SettingFormat(int, description="Bleach correction for z"),
+    "equalizet": SettingFormat(int, description="Bleach correction for time"),
     "dampenOrder0": SettingFormat(
         int,
-        description="dampen order-0 in final assembly; do not use for 2D SIM; good choice for high-background images",
+        description="Dampen order-0 in final assembly; do not use for 2D SIM; good choice for high-background images",
     ),
     "nosuppress": SettingFormat(
         int,
-        description="do not suppress DC singularity in the result (good choice for 2D/TIRF data)",
+        description="Do not suppress DC singularity in the result (good choice for 2D/TIRF data)",
     ),
     "nokz0": SettingFormat(
         int,
-        description="not using kz=0 plane of the 0th order in the final assembly (mostly for debug)",
+        description="Do not use kz=0 plane of the 0th order in the final assembly (mostly for debug)",
     ),
     "gammaApo": SettingFormat(
-        Decimal, description="output apodization gamma; 1.0 means triangular"
+        Decimal,
+        description="Output apodization gamma; 1.0 means triangular apo; lower value means less dampening of high-resolution info at the trade-off of higher noise",
     ),
-    # apo; lower value means less dampening of
-    # high-resolution info at the tradeoff of higher
-    # noise
     "explodefact": SettingFormat(
-        int, description="artificially exploding the reciprocal-space"
+        int,
+        description="Artificially exploding the reciprocal-space distance between orders by this factor (for debug)",
     ),
-    # distance between orders by this factor (for debug)
     "nofilterovlps": SettingFormat(int),
     "deskew": SettingFormat(
         Decimal,
@@ -160,15 +156,15 @@ RECON_FORMATTERS: dict[str, SettingFormat] = {
     #
     # These args are taken from the MRC file so will be ignored:
     "xyres": SettingFormat(
-        Decimal, description="x-y pixel size (only used for TIFF files)"
+        Decimal, description="X-Y pixel size (only used for TIFF files)"
     ),
     "zres": SettingFormat(
-        Decimal, description="z pixel size (only used for TIFF files)"
+        Decimal, description="Z pixel size (only used for TIFF files)"
     ),
     "zresPSF": SettingFormat(
-        Decimal, description="z pixel size (used in PSF TIFF files)"
+        Decimal, description="Z pixel size (used in PSF TIFF files)"
     ),
     "wavelength": SettingFormat(
-        int, description="emission wavelength in nanometers (only used for TIFF files)"
+        int, description="Emission wavelength in nm (only used for TIFF files)"
     ),
 }
