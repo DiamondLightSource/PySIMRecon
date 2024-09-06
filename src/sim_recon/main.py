@@ -50,6 +50,24 @@ def sim_psf_to_otf(
     xy_shape: tuple[int, int] | None = None,
     **otf_kwargs: Any,
 ) -> None:
+    """
+    Top level function for converting PSFs to OTFs
+
+    Parameters
+    ----------
+    config_path : str | PathLike[str]
+        Path of the top level config file
+    *psf_paths : str | PathLike[str],
+        Paths to PSF files (DV expected)
+    output_directory : str | PathLike[str] | None, optional
+        Directory to save OTFs in (OTFs will be saved with the PSF files if not specified), by default None
+    overwrite : bool, optional
+        Overwrite files if they already exist, by default False
+    cleanup : bool, optional
+        Clean up temporary files after OTF conversion, by default True
+    xy_shape : tuple[int, int] | None, optional
+        Shape to crop PSFs to before conversion (powers of 2 will make for faster processing), by default None
+    """
     conf = load_configs(config_path)
     convert_psfs_to_otfs(
         conf,
@@ -72,6 +90,26 @@ def sim_reconstruct(
     parallel_process: bool = False,
     **recon_kwargs: Any,
 ) -> None:
+    """
+    Top level function for reconstructing SIM data
+
+    Parameters
+    ----------
+    config_path : str | PathLike[str]
+        Path of the top level config file
+    *sim_data_paths : str | PathLike[str]
+        Paths to SIM data files (DV expected)
+    output_directory : str | PathLike[str]
+        Directory to save reconstructions in (reconstructions will be saved with the data files if not specified), by default None
+    overwrite : bool, optional
+        Overwrite files if they already exist, by default False
+    cleanup : bool, optional
+        Clean up temporary directory and files after reconstruction, by default True
+    stitch_channels : bool, optional
+        Stitch channels back together after processing (otherwise output will be a separate DV per channel), by default True
+    parallel_process : bool, optional
+        Run reconstructions in 2 processes concurrently, by default False
+    """
     conf = load_configs(config_path)
     logger.info("Starting reconstructions...")
     run_reconstructions(
