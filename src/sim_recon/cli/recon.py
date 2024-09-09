@@ -1,12 +1,12 @@
 import logging
 
 from ..main import sim_reconstruct
-from .parsing import parse_recon_args
+from .parsing.recon import parse_args
 from ..progress import set_use_tqdm
 
 
 def main() -> None:
-    namespace, recon_kwargs = parse_recon_args()
+    namespace, recon_kwargs = parse_args()
 
     set_use_tqdm(namespace.use_tqdm)
 
