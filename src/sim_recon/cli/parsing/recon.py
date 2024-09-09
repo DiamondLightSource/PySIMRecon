@@ -84,7 +84,6 @@ def parse_args(
         namespace,
         ("-c/--config-path", "config_path"),
         ("-d/--data", "sim_data_paths"),
-        ("-o/--output-directory", "output_directory"),
     )
 
     non_override_dests = vars(namespace).keys()
