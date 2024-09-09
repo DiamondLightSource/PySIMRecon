@@ -409,6 +409,9 @@ def _prepare_files(
     config_kwargs["zres"] = config_kwargs.get("zres", image_data.resolution.z)
     config_kwargs["xyres"] = config_kwargs.get("xyres", image_data.resolution.xy)
 
+    # Safer to assume they match (if not given) than use cudasirecon's default value of 0.15:
+    config_kwargs["zresPSF"] = config_kwargs.get("zresPSF", config_kwargs["zres"])
+
     processing_info_dict: dict[int, ProcessingInfo] = dict()
 
     if len(image_data.channels) == 1:
