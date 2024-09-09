@@ -70,9 +70,9 @@ def _add_override_args_from_formatters(
             arg_group.add_argument(
                 f"--{arg_name}",
                 type=formatter.conv,
-                nargs=formatter.count,
+                nargs=formatter.nargs,
                 required=False,
-                help=formatter.description,
+                help=formatter.help_string,
             )
 
 

@@ -190,14 +190,24 @@ def _config_section_to_dict(
         if setting_format is None:
             logger.warning("Invalid setting %s=%s will be ignored", key, value)
             continue
-        if setting_format.count > 1:
-            kwargs[key] = tuple(
+
+        if setting_format.nargs == "+":
+            maxsplit = -1
+        elif setting_format.nargs > 1:
+            maxsplit = setting_format.nargs - 1
+        else:
+            maxsplit = None
+
+        if maxsplit is not None:
+            formatted_value = tuple(
                 setting_format.conv(s.strip())
-                for s in value.split(",", maxsplit=setting_format.count - 1)
+                for s in value.split(",", maxsplit=maxsplit)
                 if s.strip()
             )
         else:
-            kwargs[key] = setting_format.conv(value.strip())
+            formatted_value = setting_format.conv(value.strip())
+
+        kwargs[key] = formatted_value
     return kwargs
 
 
