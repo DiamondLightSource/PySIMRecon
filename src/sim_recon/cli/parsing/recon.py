@@ -41,6 +41,7 @@ def parse_args(
     parser.add_argument(
         "-o",
         "--output-directory",
+        default=None,
         help="The output directory to save reconstructed files in",
     )
     parser.add_argument(
