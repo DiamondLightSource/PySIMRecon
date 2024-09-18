@@ -17,6 +17,8 @@ To reconstruct the SIM data and create OTFs from PSFs from the cryoSIM at B24, D
 
 Under development
 
+{{ SECTIONS_INSTALLATION_MD }}
+
 {{ SECTIONS_CONFIGURATION_MD }}
 
 {{ SECTIONS_COMMAND_LINE_MD }}
