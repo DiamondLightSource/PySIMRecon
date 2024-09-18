@@ -1,0 +1,35 @@
+name: Generate help docs
+on: workflow_call
+
+jobs:
+  generate-help-docs:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Display Python version
+        run: python -c "import sys; print(sys.version)"
+      - name: Copy template
+        run: cp -f docs/template.md README.md
+      - name: Install (without dependencies)
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install . --no-deps
+      - name: Ensure README exists
+        run: |
+          if [ ! -f "README.md" ]; then
+            touch README.md
+          fi
+      - name: Generate help docs from package
+        run: ./releng/generate_help_docs.sh
+      - uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          file_pattern: docs/**/*
+          commit_message: Automated update of help docs

@@ -1,12 +1,12 @@
 import logging
 
 from ..main import sim_psf_to_otf
-from .parsing import parse_otf_args
+from .parsing.otf import parse_args
 from ..progress import set_use_tqdm
 
 
 def main() -> None:
-    namespace, otf_kwargs = parse_otf_args()
+    namespace, otf_kwargs = parse_args()
 
     set_use_tqdm(namespace.use_tqdm)
 
