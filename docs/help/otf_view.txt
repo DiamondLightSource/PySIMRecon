@@ -1,0 +1,19 @@
+usage: otf-view [-h] [--show] [--show-only] [-o OUTPUT_DIRECTORY] [-v]
+                [--no-progress]
+                otf_paths [otf_paths ...]
+
+Create OTF views
+
+positional arguments:
+  otf_paths             OTF file paths
+
+options:
+  -h, --help            show this help message and exit
+  --show                Display the plots while running
+  --show-only           Show plots without saving
+  -o OUTPUT_DIRECTORY, --output-directory OUTPUT_DIRECTORY
+                        Save to this directory if saving plots, otherwise each
+                        plot will be saved with its input file
+  -v, --verbose         Show more logging
+  --no-progress         turn off progress bars (only has an effect if tqdm is
+                        installed)
