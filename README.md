@@ -1,6 +1,6 @@
 # PySIMRecon
 
-Easy to use wrapper for pyCUDAsirecon, allowing the use of DV (DeltaVision) files without IVE/Priism (UCSF library with MRC/DV support).
+Easy to use wrapper for [pycudasirecon](https://github.com/tlambert03/pycudasirecon)/[cudasirecon](https://github.com/scopetools/cudasirecon), allowing the use of DV (DeltaVision) files without IVE/Priism (UCSF library with MRC/DV support).
 
 This is built for easy use from the command line or as part of an auto-processing pipeline, allowing parameters to be pre-configured or defined at runtime.
 
