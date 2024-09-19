@@ -155,7 +155,7 @@ def reconstruct_from_processing_info(processing_info: ProcessingInfo) -> Path:
 def run_reconstructions(
     conf: ConfigManager,
     *sim_data_paths: str | PathLike[str],
-    output_directory: str | PathLike[str],
+    output_directory: str | PathLike[str] | None,
     overwrite: bool = False,
     cleanup: bool = False,
     stitch_channels: bool = True,

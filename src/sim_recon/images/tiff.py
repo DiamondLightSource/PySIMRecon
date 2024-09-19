@@ -30,7 +30,7 @@ def get_combined_array_from_tiffs(
         "Combining tiffs from:\n%s",
         "\n\t".join(str(fp) for fp in file_paths),
     )
-    return np.stack(tuple(tf.memmap(fp).squeeze() for fp in file_paths), -3)  # type: ignore
+    return np.stack(tuple(tf.memmap(fp).squeeze() for fp in file_paths), -3)
 
 
 def write_tiff(
@@ -40,7 +40,7 @@ def write_tiff(
     ome: bool = True,
     overwrite: bool = False,
 ) -> None:
-    def get_channel_dict(channel: ImageChannel) -> None:
+    def get_channel_dict(channel: ImageChannel) -> dict[str, Any] | None:
         channel_dict: dict[str, Any] = {}
         if channel.wavelengths.excitation_nm is not None:
             channel_dict["ExcitationWavelength"] = channel.wavelengths.excitation_nm
