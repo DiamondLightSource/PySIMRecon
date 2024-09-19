@@ -39,5 +39,5 @@ jobs:
               - 'docs/**/*'
   generate-README:
     needs: check-docs-paths
-    if: needs.check-docs-paths.outputs.changed == 'true'
+    if: always() && !cancelled() && needs.check-docs-paths.outputs.changed == 'true'
     uses: ./.github/workflows/generate_README.yaml
