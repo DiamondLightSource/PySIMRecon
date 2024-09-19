@@ -15,6 +15,7 @@ from .files.utils import (
     redirect_output_to,
 )
 from .settings import ConfigManager
+from .settings.formatting import formatters_to_default_value_kwargs, OTF_FORMATTERS
 from .progress import get_progress_wrapper, get_logging_redirect
 
 if TYPE_CHECKING:
@@ -135,16 +136,7 @@ def psf_to_otf(
     psf_path = Path(psf_path)
     logger.info("Generating OTF from %s: %s", otf_path, psf_path)
 
-    make_otf_kwargs: dict[str, Any] = {
-        param.name: param.default
-        for param in inspect.signature(make_otf).parameters.values()
-        if param.default != param.empty  # Check if default is set
-        and param.kind
-        not in (
-            param.POSITIONAL_ONLY,
-            param.VAR_POSITIONAL,
-        )  # Don't include positional-only options
-    }
+    make_otf_kwargs = formatters_to_default_value_kwargs(OTF_FORMATTERS)
 
     for k, v in kwargs.items():
         # Only use kwargs that are accepted by make_otf
