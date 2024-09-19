@@ -263,3 +263,13 @@ RECON_FORMATTERS: dict[str, SettingFormat] = {
     #     description="Write command line to MRC/DV header (may cause issues with bioformats)",
     # ),
 }
+
+
+def formatters_to_default_value_kwargs(
+    formatters: dict[str, SettingFormat]
+) -> dict[str, Any]:
+    return {
+        setting_name: setting_format.default_value
+        for setting_name, setting_format in formatters.items()
+        if setting_format.default_value is not None
+    }
