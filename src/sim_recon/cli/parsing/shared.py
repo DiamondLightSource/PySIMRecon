@@ -4,17 +4,9 @@ from typing import TYPE_CHECKING
 
 
 if TYPE_CHECKING:
+    from typing import Any
+    from collections.abc import Container
     from ...settings.formatting import SettingFormat
-
-
-def add_help(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument(
-        "-h",
-        "--help",
-        action="help",
-        default=argparse.SUPPRESS,
-        help="show this help message and exit",
-    )
 
 
 def add_general_args(parser: argparse.ArgumentParser) -> None:
@@ -30,21 +22,6 @@ def add_general_args(parser: argparse.ArgumentParser) -> None:
         dest="use_tqdm",
         help="turn off progress bars (only has an effect if tqdm is installed)",
     )
-
-
-def handle_required(
-    parser: argparse.ArgumentParser,
-    namespace: argparse.Namespace,
-    *required: tuple[str, str],
-):
-    missing_arguments: list[str] = []
-    for print_name, dest in required:
-        if getattr(namespace, dest, None) is None:
-            missing_arguments.append(print_name)
-    if missing_arguments:
-        parser.error(
-            "the following arguments are required: %s" % ", ".join(missing_arguments)
-        )
 
 
 def add_override_args_from_formatters(
@@ -71,3 +48,12 @@ def add_override_args_from_formatters(
                 required=False,
                 help=formatter.help_string,
             )
+
+
+def namespace_extract_to_dict(
+    namespace: argparse.Namespace, args: Container[str], allow_none: bool = True
+) -> dict[str, Any]:
+    key_value_generator = ((k, v) for k, v in vars(namespace).items() if k in args)
+    if allow_none:
+        return dict(key_value_generator)
+    return {k: v for k, v in key_value_generator if v is not None}

@@ -6,8 +6,7 @@ from ...settings.formatting import OTF_FORMATTERS
 from .shared import (
     add_general_args,
     add_override_args_from_formatters,
-    add_help,
-    handle_required,
+    namespace_extract_to_dict,
 )
 
 if TYPE_CHECKING:
@@ -23,25 +22,26 @@ def parse_args(
     parser = argparse.ArgumentParser(
         prog="sim-otf",
         description="SIM PSFs to OTFs",
-        add_help=False,
+        add_help=True,
     )
     parser.add_argument(
         "-c",
         "--config-path",
         dest="config_path",
+        required=True,
         help="Path to the root config that specifies the paths to the OTFs and the other configs",
     )
     parser.add_argument(
         "-p",
         "--psf",
         dest="psf_paths",
+        required=True,
         nargs="+",
         help="Paths to PSF files to be reconstructed (multiple paths can be given)",
     )
     parser.add_argument(
         "-o",
         "--output-directory",
-        default=None,
         help="If specified, the output directory that the OTFs will be saved in, otherwise each OTF will be saved in the same directory as its PSF",
     )
     parser.add_argument(
@@ -66,27 +66,13 @@ def parse_args(
 
     add_general_args(parser)
 
-    namespace, unknown = parser.parse_known_args(args)
-
+    # Add arguments that override configured OTF settings
     add_override_args_from_formatters(parser, OTF_FORMATTERS)
 
-    add_help(parser)
+    namespace, _ = parser.parse_known_args(args)
 
-    override_namespace = parser.parse_args(unknown)
-
-    handle_required(
-        parser,
-        namespace,
-        ("-c/--config-path", "config_path"),
-        ("-p/--psf", "psf_paths"),
-    )
-
-    non_override_dests = vars(namespace).keys()
-    otf_kwargs = {
-        k: v
-        for k, v in vars(override_namespace).items()
-        if v is not None and k not in non_override_dests
-    }
+    # Split out kwargs to be used in makeotf
+    otf_kwargs = namespace_extract_to_dict(namespace, OTF_FORMATTERS, allow_none=False)
 
     return namespace, otf_kwargs
 
