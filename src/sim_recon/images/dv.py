@@ -195,12 +195,12 @@ def get_image_data(
     file_path = Path(file_path)
 
     array = read_mrc_bound_array(file_path)
-    xyz_resolutions = array.Mrc.header.d
+    xyz_resolutions = array.Mrc.header.d  # type: ignore[attr-defined]
     if xyz_resolutions[0] != xyz_resolutions[1]:
         logger.warning("Pixels are not square in %s", file_path)
 
-    axis_order = get_dv_axis_order_from_header(array.Mrc)
-    axis_sizes = get_dv_axis_sizes(array.Mrc)
+    axis_order = get_dv_axis_order_from_header(array.Mrc)  # type: ignore[attr-defined]
+    axis_sizes = get_dv_axis_sizes(array.Mrc)  # type: ignore[attr-defined]
     channel_index = axis_order.index("w")
     dv_shape = tuple(axis_sizes[ax] for ax in axis_order)
 
@@ -208,7 +208,7 @@ def get_image_data(
     array = array.reshape(dv_shape)
 
     channels: list[ImageChannel] = []
-    wavelengths_tuple = tuple(get_wavelengths_from_dv(array.Mrc))
+    wavelengths_tuple = tuple(get_wavelengths_from_dv(array.Mrc))  # type: ignore[attr-defined]
     num_channels = len(wavelengths_tuple)
 
     channel_dim_size = array.shape[channel_index]
