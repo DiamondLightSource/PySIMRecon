@@ -422,68 +422,44 @@ def _prepare_files(
 
     processing_info_dict: dict[int, ProcessingInfo] = dict()
 
-    if len(image_data.channels) == 1:
-        # if it's a single channel file, we don't need to split
-        channel = image_data.channels[0]
+    # Create TIFFs split by wavelength
+    for channel in image_data.channels:
         if conf.get_channel_config(channel.wavelengths.emission_nm_int) is not None:
-            processing_info = create_processing_info(
-                file_path=file_path,
-                output_dir=processing_dir,
-                wavelengths=channel.wavelengths,
-                conf=conf,
-                **config_kwargs,
-            )
-            if processing_info is None:
-                logger.warning(
-                    "No processing files found for '%s' channel %s",
-                    file_path,
-                    channel.wavelengths,
+            try:
+                split_file_path = (
+                    processing_dir / f"data{channel.wavelengths.emission_nm}.tiff"
                 )
-            else:
+                write_tiff(
+                    split_file_path,
+                    channel,
+                    xy_pixel_size_microns=(
+                        image_data.resolution.x,
+                        image_data.resolution.y,
+                    ),
+                )
+
+                processing_info = create_processing_info(
+                    file_path=split_file_path,
+                    output_dir=processing_dir,
+                    wavelengths=channel.wavelengths,
+                    conf=conf,
+                    **config_kwargs,
+                )
+
+                if channel.wavelengths.emission_nm_int in processing_info_dict:
+                    raise KeyError(
+                        f"Emission wavelength {channel.wavelengths.emission_nm_int} found multiple times within {file_path}"
+                    )
+
                 processing_info_dict[channel.wavelengths.emission_nm_int] = (
                     processing_info
                 )
-
-    else:
-        # otherwise break out individual wavelengths
-        for channel in image_data.channels:
-            processing_info = None
-            if conf.get_channel_config(channel.wavelengths.emission_nm_int) is not None:
-                try:
-                    split_file_path = (
-                        processing_dir / f"data{channel.wavelengths.emission_nm}.tiff"
-                    )
-                    write_tiff(
-                        split_file_path,
-                        channel,
-                        xy_pixel_size_microns=(
-                            image_data.resolution.x,
-                            image_data.resolution.y,
-                        ),
-                    )
-
-                    processing_info = create_processing_info(
-                        file_path=split_file_path,
-                        output_dir=processing_dir,
-                        wavelengths=channel.wavelengths,
-                        conf=conf,
-                        **config_kwargs,
-                    )
-
-                    if channel.wavelengths.emission_nm_int in processing_info_dict:
-                        raise KeyError(
-                            f"Emission wavelength {channel.wavelengths.emission_nm_int} found multiple times within {file_path}"
-                        )
-
-                    processing_info_dict[channel.wavelengths.emission_nm_int] = (
-                        processing_info
-                    )
-                except Exception:
-                    logger.error(
-                        "Failed to prepare files for channel %i (%s) of %s",
-                        channel.wavelengths.emission_nm_int,
-                        channel.wavelengths,
-                        file_path,
-                        exc_info=True,
-                    )
+            except Exception:
+                logger.error(
+                    "Failed to prepare files for channel %i (%s) of %s",
+                    channel.wavelengths.emission_nm_int,
+                    channel.wavelengths,
+                    file_path,
+                    exc_info=True,
+                )
     return processing_info_dict
