@@ -225,8 +225,8 @@ def get_image_data(
         channel_slice[channel_index] = c
         channels.append(
             ImageChannel(
-                array[*channel_slice].squeeze(),
                 wavelengths,
+                array[*channel_slice].squeeze(),
             )
         )
     return ImageData(

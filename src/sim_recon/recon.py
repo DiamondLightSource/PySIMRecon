@@ -140,7 +140,7 @@ def reconstruct_from_processing_info(processing_info: ProcessingInfo) -> Path:
     recon_pixel_size = float(processing_info.kwargs["xyres"]) / zoomfact
     write_tiff(
         processing_info.output_path,
-        ImageChannel(rec_array, wavelengths=processing_info.wavelengths),
+        ImageChannel(processing_info.wavelengths, rec_array),
         xy_pixel_size_microns=(recon_pixel_size, recon_pixel_size),
         overwrite=True,
     )

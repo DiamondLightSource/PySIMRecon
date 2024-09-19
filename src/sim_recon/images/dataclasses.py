@@ -3,12 +3,13 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeVar, Generic
 
 if TYPE_CHECKING:
     from typing import Any
     from numpy.typing import NDArray
 
+OptionalWavelengths = TypeVar("OptionalWavelengths", "Wavelengths", None)
 
 logger = logging.getLogger(__name__)
 
@@ -30,9 +31,9 @@ class ImageData:
 
 
 @dataclass(slots=True)
-class ImageChannel:
+class ImageChannel(Generic[OptionalWavelengths]):
+    wavelengths: OptionalWavelengths
     array: NDArray[Any] | None = None
-    wavelengths: Wavelengths | None = None
 
 
 @dataclass(slots=True, frozen=True)
