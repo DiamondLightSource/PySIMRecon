@@ -6,8 +6,7 @@ from ...settings.formatting import RECON_FORMATTERS
 from .shared import (
     add_general_args,
     add_override_args_from_formatters,
-    add_help,
-    handle_required,
+    namespace_extract_to_dict,
 )
 
 if TYPE_CHECKING:
@@ -23,25 +22,26 @@ def parse_args(
     parser = argparse.ArgumentParser(
         prog="sim-recon",
         description="Reconstruct SIM data",
-        add_help=False,
+        add_help=True,
     )
     parser.add_argument(
         "-c",
         "--config-path",
         dest="config_path",
+        required=True,
         help="Path to the root config that specifies the paths to the OTFs and the other configs",
     )
     parser.add_argument(
         "-d",
         "--data",
         dest="sim_data_paths",
+        required=True,
         nargs="+",
         help="Paths to SIM data files to be reconstructed (multiple paths can be given)",
     )
     parser.add_argument(
         "-o",
         "--output-directory",
-        default=None,
         help="The output directory to save reconstructed files in",
     )
     parser.add_argument(
@@ -70,28 +70,15 @@ def parse_args(
 
     add_general_args(parser)
 
-    namespace, unknown = parser.parse_known_args(args)
-
-    # Now add override arguments so they show up in --help
+    # Add arguments that override configured recon settings
     add_override_args_from_formatters(parser, RECON_FORMATTERS)
 
-    add_help(parser)
+    namespace, _ = parser.parse_known_args(args)
 
-    override_namespace = parser.parse_args(unknown)
-
-    handle_required(
-        parser,
-        namespace,
-        ("-c/--config-path", "config_path"),
-        ("-d/--data", "sim_data_paths"),
+    # Split out kwargs to be used in recon config(s)
+    recon_kwargs = namespace_extract_to_dict(
+        namespace, RECON_FORMATTERS, allow_none=False
     )
-
-    non_override_dests = vars(namespace).keys()
-    recon_kwargs = {
-        k: v
-        for k, v in vars(override_namespace).items()
-        if v is not None and k not in non_override_dests
-    }
 
     return namespace, recon_kwargs
 

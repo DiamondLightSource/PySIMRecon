@@ -44,7 +44,7 @@ def parse_args(
 
     add_general_args(parser)
 
-    return parser.parse_args(args)
+    return parser.parse_known_args(args)[0]  # throw away unknown args
 
 
 if __name__ == "__main__":
