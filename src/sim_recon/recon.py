@@ -20,6 +20,7 @@ from .images.dv import write_dv
 from .images.tiff import read_tiff, write_tiff, get_combined_array_from_tiffs
 from .images.dataclasses import ImageChannel, Wavelengths, ProcessingInfo
 from .settings import ConfigManager
+from .settings.formatting import formatters_to_default_value_kwargs, RECON_FORMATTERS
 from .progress import get_progress_wrapper, get_logging_redirect
 
 if TYPE_CHECKING:
@@ -321,8 +322,11 @@ def _prepare_config_kwargs(
     otf_path: str | PathLike[str],
     **config_kwargs: Any,
 ) -> dict[str, Any]:
+    # Get the default values (for settings with default values)
+    kwargs = formatters_to_default_value_kwargs(RECON_FORMATTERS)
+
     # Use the configured per-wavelength settings
-    kwargs = conf.get_reconstruction_config(emission_wavelength)
+    kwargs.update(conf.get_reconstruction_config(emission_wavelength))
 
     # config_kwargs override those any config defaults set
     kwargs.update(config_kwargs)
