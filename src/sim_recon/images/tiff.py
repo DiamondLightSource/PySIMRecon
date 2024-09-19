@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 import numpy as np
 import tifffile as tf
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from ..info import __version__
 
@@ -36,7 +36,7 @@ def get_combined_array_from_tiffs(
 def write_tiff(
     output_path: str | PathLike[str],
     *channels: ImageChannel,
-    pixel_size_microns: float | None = None,
+    xy_pixel_size_microns: tuple[float | None, float | None] | None = None,
     ome: bool = True,
     overwrite: bool = False,
 ) -> None:
@@ -67,21 +67,26 @@ def write_tiff(
         "metadata": {},
     }
 
-    if pixel_size_microns is not None:
-
+    if xy_pixel_size_microns is not None and None not in xy_pixel_size_microns:
+        xy_pixel_size_microns = cast(tuple[float, float], xy_pixel_size_microns)
         # TIFF tags:
-        tiff_kwargs["resolution"] = (1e4 / pixel_size_microns, 1e4 / pixel_size_microns)
+        tiff_kwargs["resolution"] = (
+            1e4 / xy_pixel_size_microns[0],
+            1e4 / xy_pixel_size_microns[1],
+        )
         tiff_kwargs["resolutionunit"] = (
             tf.RESUNIT.CENTIMETER
         )  # Use CENTIMETER for maximum compatibility
 
     if ome:
-        if pixel_size_microns is not None:
+        if xy_pixel_size_microns is not None:
             # OME PhysicalSize:
-            tiff_kwargs["metadata"]["PhysicalSizeX"] = pixel_size_microns
-            tiff_kwargs["metadata"]["PhysicalSizeY"] = pixel_size_microns
-            tiff_kwargs["metadata"]["PhysicalSizeXUnit"] = "µm"
-            tiff_kwargs["metadata"]["PhysicalSizeYUnit"] = "µm"
+            if xy_pixel_size_microns[0] is not None:
+                tiff_kwargs["metadata"]["PhysicalSizeX"] = xy_pixel_size_microns[0]
+                tiff_kwargs["metadata"]["PhysicalSizeXUnit"] = "µm"
+            if xy_pixel_size_microns[1] is not None:
+                tiff_kwargs["metadata"]["PhysicalSizeY"] = xy_pixel_size_microns[1]
+                tiff_kwargs["metadata"]["PhysicalSizeYUnit"] = "µm"
 
     with tf.TiffWriter(
         output_path,
