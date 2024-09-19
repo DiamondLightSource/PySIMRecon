@@ -356,6 +356,8 @@ def create_processing_info(
         )
     logger.debug("Creating processing files for %s in %s", file_path, output_dir)
 
+    if wavelengths.emission_nm_int is None:
+        raise AttributeError("emission_nm_int", wavelengths)
     otf_path = conf.get_otf_path(wavelengths.emission_nm_int)
 
     if otf_path is None:

@@ -41,14 +41,16 @@ def ensure_unique_filepath(path: Path, max_iter: int = 99) -> Path:
         return path
     if max_iter <= 1:
         raise ValueError("max_iter must be >1")
+    output_path = None
     for i in range(1, max_iter + 1):
         output_path = path.with_name(f"{path.stem}_{i}{path.suffix}")
         if not output_path.exists():
             logger.debug("'%s' was not unique, so '%s' will be used", path, output_path)
             return output_path
-    raise IOError(
-        f"Failed to create unique file path after {max_iter} attempts. Final attempt was '{output_path}'."
-    )
+    error_str = f"Failed to create unique file path after {max_iter} attempts."
+    if output_path is not None:
+        error_str += f" Final attempt was '{output_path}'."
+    raise IOError(error_str)
 
 
 def ensure_valid_filename(filename: str) -> str:

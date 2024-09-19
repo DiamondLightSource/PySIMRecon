@@ -50,11 +50,12 @@ def dv_to_tiff(
 ) -> Path:
     image_data = get_image_data(dv_path)
     for channel in image_data.channels:
-        channel.array = apply_crop(channel.array, xy_shape=xy_shape, crop=crop)
+        if channel.array is not None:
+            channel.array = apply_crop(channel.array, xy_shape=xy_shape, crop=crop)
 
-        # TIFFs cannot handle complex values
-        if np.iscomplexobj(channel.array):
-            channel.array = complex_to_interleaved_float(channel.array)
+            # TIFFs cannot handle complex values
+            if np.iscomplexobj(channel.array):
+                channel.array = complex_to_interleaved_float(channel.array)
     write_tiff(
         tiff_path,
         *image_data.channels,

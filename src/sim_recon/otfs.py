@@ -79,6 +79,12 @@ def convert_psfs_to_otfs(
             otf_path: Path | None = None
             try:
                 wavelengths = _get_psf_wavelengths(psf_path)
+                if wavelengths.emission_nm_int is None:
+                    logger.warning(
+                        "Skipping PSF to OTF conversion due to lack of channel information for %s",
+                        psf_path,
+                    )
+                    continue
                 otf_path = create_output_path(
                     psf_path,
                     output_type="otf",
