@@ -37,7 +37,8 @@ class ImageChannel:
 
 @dataclass(slots=True, frozen=True)
 class ImageResolution:
-    xy: float | None
+    x: float | None
+    y: float | None
     z: float | None
 
 

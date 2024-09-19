@@ -154,7 +154,7 @@ def get_image_data(
     array = read_mrc_bound_array(file_path)
     xyz_resolutions = array.Mrc.header.d
     if xyz_resolutions[0] != xyz_resolutions[1]:
-        raise ValueError("DV file pixels are not square")
+        logger.warning("Pixels are not square in %s", file_path)
 
     axis_order = get_dv_axis_order_from_header(array.Mrc)
     axis_sizes = get_dv_axis_sizes(array.Mrc)
@@ -190,6 +190,8 @@ def get_image_data(
         channels=tuple(channels),
         # Get resolution values from DV file (they get applied to TIFFs later)
         resolution=ImageResolution(
-            xy=xyz_resolutions[0], z=xyz_resolutions[2]  # Assumes square pixels
+            x=xyz_resolutions[0],
+            y=xyz_resolutions[1],
+            z=xyz_resolutions[2],  # Assumes square pixels
         ),
     )
