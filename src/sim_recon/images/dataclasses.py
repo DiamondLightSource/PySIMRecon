@@ -46,10 +46,14 @@ class ImageResolution:
 class Wavelengths:
     excitation_nm: float | None = None
     emission_nm: float | None = None
-    emission_nm_int: int = field(init=False)
+    emission_nm_int: int | None = field(init=False)
 
     def __post_init__(self):
-        object.__setattr__(self, "emission_nm_int", int(round(self.emission_nm)))
+        if self.emission_nm is None:
+            emission_nm_int = None
+        else:
+            emission_nm_int = int(round(self.emission_nm))
+        object.__setattr__(self, "emission_nm_int", emission_nm_int)
 
     def __str__(self):
         return f"excitation: {self.excitation_nm}nm; emission: {self.emission_nm}nm"

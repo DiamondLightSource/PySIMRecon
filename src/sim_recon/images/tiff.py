@@ -42,6 +42,8 @@ def write_tiff(
 ) -> None:
     def get_channel_dict(channel: ImageChannel) -> dict[str, Any] | None:
         channel_dict: dict[str, Any] = {}
+        if channel.wavelengths is None:
+            return None
         if channel.wavelengths.excitation_nm is not None:
             channel_dict["ExcitationWavelength"] = channel.wavelengths.excitation_nm
             channel_dict["ExcitationWavelengthUnits"] = "nm"
@@ -96,10 +98,15 @@ def write_tiff(
         shaped=not ome,
     ) as tiff:
         for channel in channels:
+            if channel.array is None:
+                logger.warning("Channel %s has no array to write", channel.wavelengths)
+                continue
             channel_kwargs = tiff_kwargs.copy()
             channel_kwargs["metadata"]["axes"] = (
                 "YX" if channel.array.ndim == 2 else "ZYX"
             )
             if ome:
-                channel_kwargs["metadata"]["Channel"] = get_channel_dict(channel)
+                channel_dict = get_channel_dict(channel)
+                if channel_dict is not None:
+                    channel_kwargs["metadata"]["Channel"] = channel_dict
             tiff.write(channel.array, **channel_kwargs)
