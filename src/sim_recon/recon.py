@@ -417,7 +417,7 @@ def _prepare_files(
     if len(image_data.channels) == 1:
         # if it's a single channel file, we don't need to split
         channel = image_data.channels[0]
-        if conf.get_channel_config(channel.wavelengths.emission_nm) is not None:
+        if conf.get_channel_config(channel.wavelengths.emission_nm_int) is not None:
             processing_info = create_processing_info(
                 file_path=file_path,
                 output_dir=processing_dir,
