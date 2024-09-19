@@ -411,7 +411,10 @@ def _prepare_files(
 
     # Resolution defaults to metadata values but kwargs can override
     config_kwargs["zres"] = config_kwargs.get("zres", image_data.resolution.z)
-    config_kwargs["xyres"] = config_kwargs.get("xyres", image_data.resolution.xy)
+
+    # Assume xyres is the y pixel size (matches the assumption used in cudasirecon, allows for deskew)
+    # see https://github.com/scopetools/cudasirecon/blob/main/src/cudaSirecon/mrc.h
+    config_kwargs["xyres"] = config_kwargs.get("xyres", image_data.resolution.y)
 
     # Safer to assume they match (if not given) than use cudasirecon's default value of 0.15:
     config_kwargs["zresPSF"] = config_kwargs.get("zresPSF", config_kwargs["zres"])
