@@ -75,6 +75,43 @@ def get_dv_axis_sizes(dv: mrc.Mrc) -> dict[str, int]:
 
 
 def get_wavelengths_from_dv(dv: mrc.Mrc) -> Generator[Wavelengths, None, None]:
+
+    def handle_rec_array(
+        ext_floats: np.ndarray[Any, np.dtype[np.record]],
+        wavelength_index: int,
+        header_shape: tuple[int, ...],
+    ) -> Generator[Wavelengths, None, None]:
+        # Reshape header array to match the image ordering so we only have to
+        # check each defined wavelength
+        ext_floats = ext_floats.reshape(*header_shape)
+
+        for c in range(header_shape[wavelength_index]):
+            indexes = [0, 0, 0]
+            indexes[wavelength_index] = c
+            yield Wavelengths(
+                # stored as a recarray of records, so getting the records need
+                # to be indexed separately
+                ext_floats[*indexes]["exWavelen"],
+                ext_floats[*indexes]["emWavelen"],
+            )
+
+    def handle_float_array(
+        ext_floats: NDArray[np.float32],
+        wavelength_index: int,
+        header_shape: tuple[int, ...],
+    ) -> Generator[Wavelengths, None, None]:
+        # If this is not a recarray, then it'll just be a big float32 array, so
+        # an additional axis will be required for the metadata per plane
+        ext_floats = ext_floats.reshape(*header_shape, -1)
+
+        for c in range(header_shape[wavelength_index]):
+            indexes = [0, 0, 0]
+            indexes[wavelength_index] = c
+            yield Wavelengths(  # indexed as [image frame index, float index]
+                ext_floats[*indexes, 10],  # exWavelen index is 10
+                ext_floats[*indexes, 11],  # emWavelen index is 11
+            )
+
     ext_floats = dv.extFloats
 
     axis_order = get_dv_axis_order_from_header(dv)
@@ -82,18 +119,24 @@ def get_wavelengths_from_dv(dv: mrc.Mrc) -> Generator[Wavelengths, None, None]:
 
     # Extended header is per frame, so don't include yx
     header_shape = tuple(axis_sizes[ax] for ax in axis_order[:3])
-    ext_header = ext_floats.reshape(*header_shape, -1)
 
     wavelength_index = axis_order.index("w")
 
-    for c in range(axis_sizes["w"]):
-        indexes = [0, 0, 0]
-        indexes[wavelength_index] = c
-        yield Wavelengths(
-            # indexed as [image frame index, float index]
-            excitation_nm=ext_header[*indexes, 10],  # exWavelen index is 10
-            emission_nm=ext_header[*indexes, 11],  # emWavelen index is 11
+    if isinstance(ext_floats, np.recarray):
+        return handle_rec_array(
+            ext_floats,
+            wavelength_index=wavelength_index,
+            header_shape=header_shape,
         )
+    elif isinstance(ext_floats, np.ndarray):
+        return handle_float_array(
+            ext_floats,
+            wavelength_index=wavelength_index,
+            header_shape=header_shape,
+        )
+    raise TypeError(
+        f"Extended header floats have an unexpected type {type(ext_floats)}"
+    )
 
 
 def write_dv(
