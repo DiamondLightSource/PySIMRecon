@@ -137,10 +137,11 @@ def reconstruct_from_processing_info(processing_info: ProcessingInfo) -> Path:
     #     processing_info.config_path,
     # )
     logger.info("Reconstructed %s", processing_info.image_path)
+    recon_pixel_size = float(processing_info.kwargs["xyres"]) / zoomfact
     write_tiff(
         processing_info.output_path,
         ImageChannel(rec_array, wavelengths=processing_info.wavelengths),
-        pixel_size_microns=float(processing_info.kwargs["xyres"]) / zoomfact,
+        xy_pixel_size_microns=(recon_pixel_size, recon_pixel_size),
         overwrite=True,
     )
     logger.debug(
@@ -455,8 +456,9 @@ def _prepare_files(
                     write_tiff(
                         split_file_path,
                         channel,
-                        pixel_size_microns=float(
-                            config_kwargs["xyres"]  # Cast as stored as Decimal
+                        xy_pixel_size_microns=(
+                            image_data.resolution.x,
+                            image_data.resolution.y,
                         ),
                     )
 
