@@ -13,8 +13,8 @@ def main() -> None:
     logging.basicConfig(level=logging.DEBUG if namespace.verbose else logging.INFO)
 
     sim_psf_to_otf(
-        namespace.config_path,
         *namespace.psf_paths,
+        config_path=namespace.config_path,
         output_directory=namespace.output_directory,
         overwrite=namespace.overwrite,
         cleanup=namespace.cleanup,
