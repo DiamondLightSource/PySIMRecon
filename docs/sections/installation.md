@@ -19,4 +19,12 @@ This is not yet published on conda-forge, so the installation process is fairly 
 4. Install the requirements from the conda_requirements.txt file `conda install --file conda_requirements.txt`. If there are any issues with this step, please refer to the [requirements](#requirements) section.
 5. Install the package with pip, now that the requirements have been met `python -m pip install .` The argument `-e` can be added if you want it install it in editable mode.
 
+
+##### Optional packages
+
+It is recommened that you also install the tqdm package. Although not
+required, this allows the display of progress bars during processing.
+
+conda install tqdm 
+
 If you have any problems installing this package, please open an issue.
