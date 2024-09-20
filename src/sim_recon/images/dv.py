@@ -170,15 +170,15 @@ def write_dv(
     wave = [*wavelengths, 0, 0, 0, 0, 0][:5]
     # header_array = get_mrc_header_array(input_file)
     bound_mrc = read_mrc_bound_array(input_file)
-    header = bound_mrc.mrc.hdr
+    resolution = image_resolution_from_mrc(bound_mrc.mrc, warn_not_square=False)
     mrc.save(
         array,
         output_file,
-        hdr=header,
+        hdr=bound_mrc.mrc.hdr,
         metadata={
-            "dx": header.d[2] / zoomfact,
-            "dy": header.d[1] / zoomfact,
-            "dz": header.d[0] / zzoom,
+            "dx": resolution.x / zoomfact,
+            "dy": resolution.y / zoomfact,
+            "dz": resolution.z / zzoom,
             "wave": wave,
         },
     )
@@ -195,14 +195,11 @@ def get_image_data(
     file_path = Path(file_path)
 
     bound_mrc = read_mrc_bound_array(file_path)
-    xyz_resolutions = bound_mrc.mrc.header.d
-    if xyz_resolutions[0] != xyz_resolutions[1]:
-        logger.warning("Pixels are not square in %s", file_path)
-
     axis_order = get_dv_axis_order_from_header(bound_mrc.mrc)
     axis_sizes = get_dv_axis_sizes(bound_mrc.mrc)
     channel_index = axis_order.index("w")
     dv_shape = tuple(axis_sizes[ax] for ax in axis_order)
+    resolution = image_resolution_from_mrc(bound_mrc.mrc, warn_not_square=True)
 
     # Essentially unsqueeze the axes to ensure the indexing is correct
     array = bound_mrc.array.reshape(dv_shape)
@@ -232,9 +229,18 @@ def get_image_data(
     return ImageData(
         channels=tuple(channels),
         # Get resolution values from DV file (they get applied to TIFFs later)
-        resolution=ImageResolution(
-            x=xyz_resolutions[0],
-            y=xyz_resolutions[1],
-            z=xyz_resolutions[2],  # Assumes square pixels
-        ),
+        resolution=resolution,
+    )
+
+
+def image_resolution_from_mrc(
+    mrc: mrc.mrc.Mrc, warn_not_square: bool = True
+) -> ImageResolution:
+    xyz_resolutions = mrc.header.d
+    if warn_not_square and xyz_resolutions[0] != xyz_resolutions[1]:
+        logger.warning("Pixels are not square in %s", mrc.path)
+    return ImageResolution(
+        x=xyz_resolutions[0],
+        y=xyz_resolutions[1],
+        z=xyz_resolutions[2],
     )
