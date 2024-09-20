@@ -25,9 +25,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def _format_makeotf_call(
+def _create_sim_otf_call(
     psf_path: str | PathLike[str],
-    otf_path: str | PathLike[str],
     **kwargs: dict[str, Any],
 ) -> str:
     settings_list: list[str] = []
@@ -44,7 +43,7 @@ def _format_makeotf_call(
             # Comma separated values
             value = " ".join((str(v) for v in value))
         settings_list.append(f"-{key.replace('_', '-')} {str(value)}")
-    return f"makeotf \"{psf_path}\" \"{otf_path}\" {' '.join(settings_list)}"
+    return f"sim-otf -p \"{psf_path}\" {' '.join(settings_list)}"
 
 
 def _get_psf_wavelengths(psf_path: str | PathLike[str]) -> Wavelengths:
@@ -160,10 +159,15 @@ def psf_to_otf(
 
         with redirect_output_to(otf_path.with_suffix(".log")):
             print(
-                "%s\n%s"
-                % (
-                    _format_makeotf_call(tiff_path, otf_path, **make_otf_kwargs),
-                    "-" * 80,
+                "\n".join(
+                    (
+                        "PSF to OTF log",
+                        f"Generating {otf_path}",
+                        "This output can be recreated with the following command:",
+                        _create_sim_otf_call(tiff_path, **make_otf_kwargs),
+                        "-" * 80,
+                        "The text below is the output from cudasirecon's makeotf",
+                    )
                 )
             )
             make_otf(**make_otf_kwargs)
