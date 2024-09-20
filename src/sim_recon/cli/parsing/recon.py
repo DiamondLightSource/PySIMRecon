@@ -1,5 +1,6 @@
 from __future__ import annotations
 import argparse
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ...settings.formatting import RECON_FORMATTERS
@@ -16,6 +17,23 @@ if TYPE_CHECKING:
 __all__ = ("parse_args",)
 
 
+def _otf_arg_conv(arg: str) -> tuple[int, Path]:
+    channel_str, path_str = arg.split(":", maxsplit=1)
+    try:
+        channel_int = int(channel_str.strip())
+    except Exception:
+        channel_int = None
+    try:
+        path = Path(path_str)
+    except Exception:
+        path = None
+    if channel_int is None or path is None:
+        raise ValueError(
+            f"Unable to parse {arg}: must be of the form '<channel integer>:<OTF path>'"
+        )
+    return channel_int, path
+
+
 def parse_args(
     args: Sequence[str] | None = None,
 ) -> tuple[argparse.Namespace, dict[str, Any]]:
@@ -23,13 +41,6 @@ def parse_args(
         prog="sim-recon",
         description="Reconstruct SIM data",
         add_help=True,
-    )
-    parser.add_argument(
-        "-c",
-        "--config-path",
-        dest="config_path",
-        required=True,
-        help="Path to the root config that specifies the paths to the OTFs and the other configs",
     )
     parser.add_argument(
         "-d",
@@ -40,9 +51,25 @@ def parse_args(
         help="Paths to SIM data files to be reconstructed (multiple paths can be given)",
     )
     parser.add_argument(
+        "-c",
+        "--config-path",
+        dest="config_path",
+        help="Path to the root config that specifies the paths to the OTFs and the other configs (recommended)",
+    )
+    parser.add_argument(
         "-o",
         "--output-directory",
         help="The output directory to save reconstructed files in",
+    )
+    parser.add_argument(
+        "--otf",
+        dest="otfs",
+        type=_otf_arg_conv,
+        action="append",
+        help="OTF file for a channel, which should be specified using the "
+        "emission wavelength in nm followed by the path to the OTF file e.g. "
+        "'--otf 525 /path/to/525_otf.tiff' (argument can be given multiple "
+        "times to provide OTFs for multiple channels)",
     )
     parser.add_argument(
         "--overwrite",

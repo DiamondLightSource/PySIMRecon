@@ -25,19 +25,18 @@ def parse_args(
         add_help=True,
     )
     parser.add_argument(
-        "-c",
-        "--config-path",
-        dest="config_path",
-        required=True,
-        help="Path to the root config that specifies the paths to the OTFs and the other configs",
-    )
-    parser.add_argument(
         "-p",
         "--psf",
         dest="psf_paths",
         required=True,
         nargs="+",
         help="Paths to PSF files to be reconstructed (multiple paths can be given)",
+    )
+    parser.add_argument(
+        "-c",
+        "--config-path",
+        dest="config_path",
+        help="Path to the root config that specifies the paths to the OTFs and the other configs (recommended)",
     )
     parser.add_argument(
         "-o",

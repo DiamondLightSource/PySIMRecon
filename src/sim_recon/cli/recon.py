@@ -13,9 +13,10 @@ def main() -> None:
     logging.basicConfig(level=logging.DEBUG if namespace.verbose else logging.INFO)
 
     sim_reconstruct(
-        namespace.config_path,
         *namespace.sim_data_paths,
+        config_path=namespace.config_path,
         output_directory=namespace.output_directory,
+        otf_overrides={} if namespace.otfs is None else dict(namespace.otfs),
         overwrite=namespace.overwrite,
         cleanup=namespace.cleanup,
         stitch_channels=namespace.stitch_channels,
