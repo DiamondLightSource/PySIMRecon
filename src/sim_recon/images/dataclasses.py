@@ -27,6 +27,7 @@ class ProcessingInfo:
     otf_path: Path
     config_path: Path
     output_path: Path
+    log_path: Path
     wavelengths: Wavelengths
     kwargs: dict[str, Any]
 

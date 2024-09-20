@@ -140,3 +140,27 @@ def redirect_output_to(file_path: str | PathLike[str]) -> Generator[None, None, 
         os.dup2(saved_stderr_fd, stderr_fd)
         sys.stdout = saved_stdout
         sys.stderr = saved_sterr
+
+
+def combine_text_files(
+    output_path: str | PathLike[str],
+    *paths: str | PathLike[str],
+    header: str | None = None,
+    sep_char: str = "-",
+    sep_lines: int = 2,
+    sep_length: int = 80,
+) -> None:
+
+    if sep_lines < 1:
+        separator = "\n"
+    else:
+        if sep_length < 1:
+            separator_line = ""
+        else:
+            separator_line = f"{sep_char * sep_length}"
+        separator = f"\n{'\n'.join([separator_line] * sep_lines)}\n"
+    contents_generator = (Path(fp).read_text() for fp in paths)
+    with open(output_path, "w+") as f:
+        if header is not None:
+            f.write(header + separator)
+        f.write(separator.join(contents_generator))
