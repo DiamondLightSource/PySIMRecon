@@ -45,9 +45,9 @@ class ImageChannel(Generic[OptionalWavelengths]):
 
 @dataclass(slots=True, frozen=True)
 class ImageResolution:
-    x: float | None
-    y: float | None
-    z: float | None
+    x: float
+    y: float
+    z: float
 
 
 @dataclass(slots=True, frozen=True)
