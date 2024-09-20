@@ -58,7 +58,7 @@ def dv_to_tiff(
     write_tiff(
         tiff_path,
         *image_data.channels,
-        pixel_size_microns=image_data.resolution.y,
+        xy_pixel_size_microns=(image_data.resolution.x, image_data.resolution.y),
         overwrite=overwrite,
     )
     return Path(tiff_path)
