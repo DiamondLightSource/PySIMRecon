@@ -1,4 +1,4 @@
-usage: sim-recon [-c CONFIG_PATH] [-d SIM_DATA_PATHS [SIM_DATA_PATHS ...]]
+usage: sim-recon [-h] -c CONFIG_PATH -d SIM_DATA_PATHS [SIM_DATA_PATHS ...]
                  [-o OUTPUT_DIRECTORY] [--overwrite] [--no-cleanup]
                  [--keep-split] [--parallel] [-v] [--no-progress]
                  [--ndirs NDIRS] [--nphases NPHASES] [--nordersout NORDERSOUT]
@@ -19,11 +19,12 @@ usage: sim-recon [-c CONFIG_PATH] [-d SIM_DATA_PATHS [SIM_DATA_PATHS ...]]
                  [--besselExWave BESSELEXWAVE] [--besselNA BESSELNA]
                  [--deskew DESKEW] [--deskewshift DESKEWSHIFT] [--noRecon]
                  [--cropXY CROPXY] [--xyres XYRES] [--zres ZRES]
-                 [--zresPSF ZRESPSF] [--wavelength WAVELENGTH] [-h]
+                 [--zresPSF ZRESPSF] [--wavelength WAVELENGTH]
 
 Reconstruct SIM data
 
 options:
+  -h, --help            show this help message and exit
   -c CONFIG_PATH, --config-path CONFIG_PATH
                         Path to the root config that specifies the paths to
                         the OTFs and the other configs
@@ -43,7 +44,6 @@ options:
   -v, --verbose         Show more logging
   --no-progress         turn off progress bars (only has an effect if tqdm is
                         installed)
-  -h, --help            show this help message and exit
 
 Overrides:
   Arguments that override configured values. Defaults stated are only used
