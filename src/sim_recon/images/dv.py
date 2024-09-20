@@ -7,7 +7,7 @@ import numpy as np
 import mrc
 from typing import TYPE_CHECKING, cast
 
-from .dataclasses import ImageData, ImageChannel, ImageResolution, Wavelengths
+from .dataclasses import ImageData, ImageChannel, ImageResolution, Wavelengths, BoundMrc
 
 if TYPE_CHECKING:
     from typing import Any
@@ -27,23 +27,23 @@ def read_dv(file_path: str | PathLike[str]) -> mrc.DVFile:
     return mrc.DVFile(file_path)
 
 
-def read_mrc_bound_array(file_path: str | PathLike[str]) -> NDArray[Any]:
+def read_mrc_bound_array(file_path: str | PathLike[str]) -> BoundMrc:
     file_path = Path(file_path)
     if not file_path.is_file():
         raise FileNotFoundError(f"File {file_path} not found")
     logger.debug("Reading %s", file_path)
-    return mrc.mrc.imread(str(file_path))
+    bound_array = mrc.mrc.imread(str(file_path))
+    return BoundMrc(bound_array, mrc=bound_array.Mrc)
 
 
 def get_mrc_header_array(
     file_path: str | PathLike[str],
 ) -> np.recarray[float | int | bytes, np.dtype[np.float_ | np.int_ | np.bytes_]]:
-    array = read_mrc_bound_array(file_path)
+    bound_mrc = read_mrc_bound_array(file_path)
     # This black magic is from the commented out bits of `makeHdrArray`.
     # Setting the memmap as a recarray, then `deepcopy`ing it allows the header
     # to be returned without requiring the large overall memmap to be kept open
-    header_array = array.Mrc.hdr._array.view()  # type: ignore[attr-defined]
-    header_array.__class__ = np.recarray
+    header_array = bound_mrc.mrc.hdr._array.view()
     return deepcopy(
         cast(
             np.recarray[float | int | bytes, np.dtype[np.float_ | np.int_ | np.bytes_]],
@@ -169,8 +169,8 @@ def write_dv(
         )
     wave = [*wavelengths, 0, 0, 0, 0, 0][:5]
     # header_array = get_mrc_header_array(input_file)
-    input_data = read_mrc_bound_array(input_file)
-    header = input_data.Mrc.hdr  # type: ignore
+    bound_mrc = read_mrc_bound_array(input_file)
+    header = bound_mrc.mrc.hdr
     mrc.save(
         array,
         output_file,
@@ -194,21 +194,21 @@ def get_image_data(
 ) -> ImageData:
     file_path = Path(file_path)
 
-    array = read_mrc_bound_array(file_path)
-    xyz_resolutions = array.Mrc.header.d  # type: ignore[attr-defined]
+    bound_mrc = read_mrc_bound_array(file_path)
+    xyz_resolutions = bound_mrc.mrc.header.d
     if xyz_resolutions[0] != xyz_resolutions[1]:
         logger.warning("Pixels are not square in %s", file_path)
 
-    axis_order = get_dv_axis_order_from_header(array.Mrc)  # type: ignore[attr-defined]
-    axis_sizes = get_dv_axis_sizes(array.Mrc)  # type: ignore[attr-defined]
+    axis_order = get_dv_axis_order_from_header(bound_mrc.mrc)
+    axis_sizes = get_dv_axis_sizes(bound_mrc.mrc)
     channel_index = axis_order.index("w")
     dv_shape = tuple(axis_sizes[ax] for ax in axis_order)
 
     # Essentially unsqueeze the axes to ensure the indexing is correct
-    array = array.reshape(dv_shape)
+    array = bound_mrc.array.reshape(dv_shape)
 
     channels: list[ImageChannel] = []
-    wavelengths_tuple = tuple(get_wavelengths_from_dv(array.Mrc))  # type: ignore[attr-defined]
+    wavelengths_tuple = tuple(get_wavelengths_from_dv(bound_mrc.mrc))
     num_channels = len(wavelengths_tuple)
 
     channel_dim_size = array.shape[channel_index]

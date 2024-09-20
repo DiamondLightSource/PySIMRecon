@@ -8,10 +8,17 @@ from typing import TYPE_CHECKING, TypeVar, Generic
 if TYPE_CHECKING:
     from typing import Any
     from numpy.typing import NDArray
+    from mrc.mrc import Mrc
 
 OptionalWavelengths = TypeVar("OptionalWavelengths", "Wavelengths", None)
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True, slots=True)
+class BoundMrc:
+    array: NDArray[Any]
+    mrc: Mrc
 
 
 @dataclass(frozen=True)
