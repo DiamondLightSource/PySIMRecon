@@ -123,7 +123,7 @@ def _create_otf_plots(array: NDArray[Any]) -> Figure:
         if i == 0:
             axes[0, i].set_ylabel("Amplitude")
         axes[0, i].imshow(
-            gamma_adjust(array[i, ::-1, :].real, 0.3),
+            gamma_adjust(array[i, ::-1, :].absolute, 0.3),
             vmin=-0.1,
             vmax=1,
             cmap="plasma",
@@ -135,7 +135,7 @@ def _create_otf_plots(array: NDArray[Any]) -> Figure:
         if i == 0:
             axes[1, i].set_ylabel("Phase")
         axes[1, i].imshow(
-            gamma_adjust(array[i, ::-1, :].imag, 0.3),
+            gamma_adjust(array[i, ::-1, :].angle, 1),
             vmin=-0.1,
             vmax=0.1,
             cmap="gray",
