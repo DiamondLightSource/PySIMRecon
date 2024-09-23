@@ -32,7 +32,7 @@ def add_override_args_from_formatters(
         "Arguments that override configured values. Defaults stated are only used if no value is given or configured.",
     )
     for arg_name, formatter in formatters.items():
-        if formatter.conv is bool:
+        if formatter.nargs == 0:
             arg_group.add_argument(
                 f"--{arg_name}",
                 action="store_true",
