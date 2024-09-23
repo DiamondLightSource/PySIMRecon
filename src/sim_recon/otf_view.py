@@ -1,6 +1,7 @@
 from __future__ import annotations
 import logging
 from pathlib import Path
+import numpy as np
 import matplotlib.pyplot as plt
 from typing import TYPE_CHECKING
 
@@ -123,7 +124,7 @@ def _create_otf_plots(array: NDArray[Any]) -> Figure:
         if i == 0:
             axes[0, i].set_ylabel("Amplitude")
         axes[0, i].imshow(
-            gamma_adjust(array[i, ::-1, :].real, 0.3),
+            gamma_adjust(np.absolute(array[i, ::-1, :]), 0.3),
             vmin=-0.1,
             vmax=1,
             cmap="plasma",
@@ -135,7 +136,7 @@ def _create_otf_plots(array: NDArray[Any]) -> Figure:
         if i == 0:
             axes[1, i].set_ylabel("Phase")
         axes[1, i].imshow(
-            gamma_adjust(array[i, ::-1, :].imag, 0.3),
+            gamma_adjust(np.angle(array[i, ::-1, :]), 1),
             vmin=-0.1,
             vmax=0.1,
             cmap="gray",
