@@ -19,6 +19,7 @@ class SettingFormat:
     nargs: int | Literal["+"] = 1  # "+" matching argparse
     description: str | None = None
     default_value: Any = None
+    depends_on: tuple[str, ...] | None = None
 
     @property
     def help_string(self) -> str | None:
@@ -27,6 +28,8 @@ class SettingFormat:
             help_string_parts.append(self.description)
         if self.default_value is not None:
             help_string_parts.append(f"(default={self.default_value})")
+        if self.depends_on is not None:
+            help_string_parts.append((f"(depends on: {', '.join(self.depends_on)})"))
         if help_string_parts:
             return " ".join(help_string_parts)
         return None
@@ -214,9 +217,13 @@ RECON_FORMATTERS: dict[str, SettingFormat] = {
         Decimal,
         description="Bessel SIM excitation wavelength in microns",
         default_value=Decimal("0.488"),
+        depends_on=("bessel",),
     ),
     "besselNA": SettingFormat(
-        Decimal, description="Bessel SIM excitation NA", default_value=Decimal("0.144")
+        Decimal,
+        description="Bessel SIM excitation NA",
+        default_value=Decimal("0.144"),
+        depends_on=("bessel",),
     ),
     "deskew": SettingFormat(
         Decimal,
@@ -227,6 +234,7 @@ RECON_FORMATTERS: dict[str, SettingFormat] = {
         int,
         description="If deskewed, shift the output image by this in X (positive->left)",
         default_value=0,
+        depends_on=("deskew",),
     ),
     "noRecon": SettingFormat(
         bool,
