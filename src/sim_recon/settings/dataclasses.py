@@ -29,7 +29,7 @@ class ChannelConfig:
 
 @dataclass(slots=True)
 class ConfigManager:
-    defaults_config_path: str | PathLike[str]
+    defaults_config_path: str | PathLike[str] | None
     default_reconstruction_config: dict[str, Any] = field(default_factory=dict)
     default_otf_config: dict[str, Any] = field(default_factory=dict)
     channel_configs: InitVar[Iterable[ChannelConfig]] = tuple()

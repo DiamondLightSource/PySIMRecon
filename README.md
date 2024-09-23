@@ -60,24 +60,25 @@ Config settings will be overriden by higher-priority sources.
 ##### sim-otf
 
 ```
-usage: sim-otf [-c CONFIG_PATH] [-p PSF_PATHS [PSF_PATHS ...]]
+usage: sim-otf [-h] -p PSF_PATHS [PSF_PATHS ...] [-c CONFIG_PATH]
                [-o OUTPUT_DIRECTORY] [--overwrite] [--no-cleanup]
                [--shape XY_SHAPE XY_SHAPE] [-v] [--no-progress]
                [--nphases NPHASES] [--ls LS] [--na NA] [--nimm NIMM]
                [--background BACKGROUND] [--beaddiam BEADDIAM] [--angle ANGLE]
                [--nocompen NOCOMPEN] [--5bands]
                [--fixorigin FIXORIGIN FIXORIGIN]
-               [--leavekz LEAVEKZ LEAVEKZ LEAVEKZ] [--I2M I2M] [-h]
+               [--leavekz LEAVEKZ LEAVEKZ LEAVEKZ] [--I2M I2M]
 
 SIM PSFs to OTFs
 
 options:
-  -c CONFIG_PATH, --config-path CONFIG_PATH
-                        Path to the root config that specifies the paths to
-                        the OTFs and the other configs
+  -h, --help            show this help message and exit
   -p PSF_PATHS [PSF_PATHS ...], --psf PSF_PATHS [PSF_PATHS ...]
                         Paths to PSF files to be reconstructed (multiple paths
                         can be given)
+  -c CONFIG_PATH, --config-path CONFIG_PATH
+                        Path to the root config that specifies the paths to
+                        the OTFs and the other configs (recommended)
   -o OUTPUT_DIRECTORY, --output-directory OUTPUT_DIRECTORY
                         If specified, the output directory that the OTFs will
                         be saved in, otherwise each OTF will be saved in the
@@ -93,7 +94,6 @@ options:
   -v, --verbose         Show more logging
   --no-progress         turn off progress bars (only has an effect if tqdm is
                         installed)
-  -h, --help            show this help message and exit
 
 Overrides:
   Arguments that override configured values. Defaults stated are only used
@@ -123,13 +123,13 @@ Overrides:
 ##### sim-recon
 
 ```
-usage: sim-recon [-c CONFIG_PATH] [-d SIM_DATA_PATHS [SIM_DATA_PATHS ...]]
-                 [-o OUTPUT_DIRECTORY] [--overwrite] [--no-cleanup]
-                 [--keep-split] [--parallel] [-v] [--no-progress]
-                 [--ndirs NDIRS] [--nphases NPHASES] [--nordersout NORDERSOUT]
-                 [--angle0 ANGLE0] [--ls LS] [--na NA] [--nimm NIMM]
-                 [--wiener WIENER] [--otfcutoff OTFCUTOFF]
-                 [--zoomfact ZOOMFACT] [--zzoom ZZOOM]
+usage: sim-recon [-h] -d SIM_DATA_PATHS [SIM_DATA_PATHS ...] [-c CONFIG_PATH]
+                 [-o OUTPUT_DIRECTORY] [--otf OTFS] [--overwrite]
+                 [--no-cleanup] [--keep-split] [--parallel] [-v]
+                 [--no-progress] [--ndirs NDIRS] [--nphases NPHASES]
+                 [--nordersout NORDERSOUT] [--angle0 ANGLE0] [--ls LS]
+                 [--na NA] [--nimm NIMM] [--wiener WIENER]
+                 [--otfcutoff OTFCUTOFF] [--zoomfact ZOOMFACT] [--zzoom ZZOOM]
                  [--background BACKGROUND] [--usecorr USECORR]
                  [--forcemodamp FORCEMODAMP [FORCEMODAMP ...]]
                  [--k0angles K0ANGLES K0ANGLES K0ANGLES] [--otfRA]
@@ -144,19 +144,25 @@ usage: sim-recon [-c CONFIG_PATH] [-d SIM_DATA_PATHS [SIM_DATA_PATHS ...]]
                  [--besselExWave BESSELEXWAVE] [--besselNA BESSELNA]
                  [--deskew DESKEW] [--deskewshift DESKEWSHIFT] [--noRecon]
                  [--cropXY CROPXY] [--xyres XYRES] [--zres ZRES]
-                 [--zresPSF ZRESPSF] [--wavelength WAVELENGTH] [-h]
+                 [--zresPSF ZRESPSF] [--wavelength WAVELENGTH]
 
 Reconstruct SIM data
 
 options:
-  -c CONFIG_PATH, --config-path CONFIG_PATH
-                        Path to the root config that specifies the paths to
-                        the OTFs and the other configs
+  -h, --help            show this help message and exit
   -d SIM_DATA_PATHS [SIM_DATA_PATHS ...], --data SIM_DATA_PATHS [SIM_DATA_PATHS ...]
                         Paths to SIM data files to be reconstructed (multiple
                         paths can be given)
+  -c CONFIG_PATH, --config-path CONFIG_PATH
+                        Path to the root config that specifies the paths to
+                        the OTFs and the other configs (recommended)
   -o OUTPUT_DIRECTORY, --output-directory OUTPUT_DIRECTORY
                         The output directory to save reconstructed files in
+  --otf OTFS            OTF file for a channel, which should be specified
+                        using the emission wavelength in nm followed by the
+                        path to the OTF file e.g. '--otf 525
+                        /path/to/525_otf.tiff' (argument can be given multiple
+                        times to provide OTFs for multiple channels)
   --overwrite           If specified, files will be overwritten if they
                         already exist (unique filenames will be used
                         otherwise)
@@ -168,7 +174,6 @@ options:
   -v, --verbose         Show more logging
   --no-progress         turn off progress bars (only has an effect if tqdm is
                         installed)
-  -h, --help            show this help message and exit
 
 Overrides:
   Arguments that override configured values. Defaults stated are only used
