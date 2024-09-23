@@ -1,9 +1,9 @@
 from __future__ import annotations
 import logging
 from pathlib import Path
+import numpy as np
 import matplotlib.pyplot as plt
 from typing import TYPE_CHECKING
-import numpy as np
 
 from .progress import get_progress_wrapper, get_logging_redirect
 from .images.dv import read_dv
