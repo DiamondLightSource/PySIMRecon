@@ -150,17 +150,10 @@ def create_wavelength_config(
 ) -> Path:
     config_path = Path(config_path)
     file_path = Path(file_path)
-    otf_path = Path(config_kwargs["otf_file"])
-
     # Convert to string so it can be written without a section, like sirecon expects
     with open(config_path, "w") as f:
         for line in format_kwargs_as_config(config_kwargs):
             f.write(line + "\n")
-        f.write(
-            "\n# To run from the directory containing these files, use the following command:\n"
-            f"# cudasirecon . {file_path.name} {otf_path.name} -c {config_path.name}\n"
-        )
-
     return Path(config_path)
 
 
