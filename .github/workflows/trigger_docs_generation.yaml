@@ -1,5 +1,8 @@
 name: Trigger docs generation
-on: pull_request
+on:
+  push:
+    branches:
+      - merge-action-test
 
 jobs:
   check-changes:
