@@ -5,6 +5,10 @@ on:
       git_ref:
         description: "Git reference to use for checks"
         type: string
+      push_options:
+        description: "push_options passed to stefanzweifel/git-auto-commit-action"
+        type: string
+        default: ""
 
     outputs:
       help_docs_changed:
@@ -52,4 +56,5 @@ jobs:
         id: autocommit
         with:
           file_pattern: docs/**/*
-          commit_message: Automated update of help docs
+          commit_message: Update help docs [GitHub Action]
+          push_options: ${{ inputs.push_options }}
