@@ -43,14 +43,17 @@ def get_temporary_path(directory: Path, stem: str, suffix: str) -> Path:
     )
 
 
-def ensure_unique_filepath(path: Path, max_iter: int = 99) -> Path:
+def ensure_unique_filepath(
+    output_directory: Path, stem: str, suffix: str, max_iter: int = 99
+) -> Path:
+    path = output_directory / f"{stem}{suffix}"
     if not path.exists():
         return path
     if max_iter <= 1:
         raise PySimReconValueError("max_iter must be >1")
     output_path = None
     for i in range(1, max_iter + 1):
-        output_path = path.with_name(f"{path.stem}_{i}{path.suffix}")
+        output_path = output_directory / f"{stem}_{i}{suffix}"
         if not output_path.exists():
             logger.debug("'%s' was not unique, so '%s' will be used", path, output_path)
             return output_path
@@ -115,11 +118,12 @@ def create_output_path(
         output_directory = Path(output_directory)
 
     file_stem = "_".join(output_fp_parts)
-    output_path = output_directory / ensure_valid_filename(f"{file_stem}{suffix}")
 
     if ensure_unique:
-        output_path = ensure_unique_filepath(output_path, max_iter=max_path_iter)
-    return output_path
+        return ensure_unique_filepath(
+            output_directory, stem=file_stem, suffix=suffix, max_iter=max_path_iter
+        )
+    return output_directory / ensure_valid_filename(f"{file_stem}{suffix}")
 
 
 @contextmanager
