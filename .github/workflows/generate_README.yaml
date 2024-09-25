@@ -23,6 +23,7 @@ jobs:
       - name: Fill template
         run: |
           ./releng/README_from_docs.sh
+
       - uses: stefanzweifel/git-auto-commit-action@v5
         with:
           file_pattern: README.md
