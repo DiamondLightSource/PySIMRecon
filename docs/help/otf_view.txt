@@ -2,7 +2,7 @@ usage: otf-view [-h] [--show] [--show-only] [-o OUTPUT_DIRECTORY] [-v]
                 [--no-progress]
                 otf_paths [otf_paths ...]
 
-Create OTF views
+Create OTF views TEST TEXT
 
 positional arguments:
   otf_paths             OTF file paths
