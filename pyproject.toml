@@ -1,6 +1,6 @@
 [project]
 name = "PySIMRecon"
-version = "0.1.0"
+version = "0.1.0b"
 description = "Easy to use wrapper for pyCUDAsirecon, allowing the use of DV (DeltaVision) files without IVE/Priism"
 authors = [
     { name = "Thomas Fish", email = "thomas.fish@diamond.ac.uk" },
