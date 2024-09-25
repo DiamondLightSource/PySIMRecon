@@ -15,7 +15,7 @@ def parse_args(
 ) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="otf-view",
-        description="Create OTF views",
+        description="Create OTF views HELLO",
         add_help=True,
     )
     parser.add_argument(
