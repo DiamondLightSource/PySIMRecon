@@ -2,42 +2,28 @@ name: Trigger docs generation
 on: pull_request
 
 jobs:
-  check-parser-paths:
+  check-changes:
+    # Check changes against the most recent commit on the same branch before the push
     runs-on: ubuntu-latest
     outputs:
-      changed: ${{ steps.filter.outputs.parser }}
+      docs-changed: ${{ steps.filter.outputs.docs }}
+      parser-changed: ${{ steps.filter.outputs.parser }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
-      - uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          filters: |
-            parser:
-              - 'src/sim_recon/cli/parsing/*'
-              - 'src/sim_recon/settings/formatting.py'
-  generate-help-docs:
-    needs: check-parser-paths
-    if: needs.check-parser-paths.outputs.changed == 'true'
-    uses: ./.github/workflows/generate_help_docs.yaml
-  check-docs-paths: # Checking this after generate-help-docs ensures changes made by that workflow are found
-    runs-on: ubuntu-latest
-    needs: generate-help-docs
-    if: always() && !cancelled() # Should be run after generate-help-docs, regardless of the result
-    outputs:
-      changed: ${{ steps.filter.outputs.docs }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
       - uses: dorny/paths-filter@v3
         id: filter
         with:
           filters: |
             docs:
               - 'docs/**/*'
+            parser:
+              - 'src/sim_recon/cli/parsing/*'
+              - 'src/sim_recon/settings/formatting.py'
+  generate-help-docs:
+    needs: check-changes
+    if: needs.check-changes.outputs.parser-changed == 'true'
+    uses: ./.github/workflows/generate_help_docs.yaml
   generate-README:
-    needs: check-docs-paths
-    if: always() && !cancelled() && needs.check-docs-paths.outputs.changed == 'true'
+    needs: [check-changes, generate-help-docs]
+    if: always() && !cancelled() && (needs.check-changes.outputs.docs-changed == 'true' || needs.generate-help-docs.outputs.changes_detected == 'true')
     uses: ./.github/workflows/generate_README.yaml
