@@ -6,6 +6,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    outputs:
+      changes_detected: ${{ steps.autocommit.outputs.changed_detected }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -30,6 +32,7 @@ jobs:
       - name: Generate help docs from package
         run: ./releng/generate_help_docs.sh
       - uses: stefanzweifel/git-auto-commit-action@v5
+        id: autocommit
         with:
           file_pattern: docs/**/*
           commit_message: Automated update of help docs
