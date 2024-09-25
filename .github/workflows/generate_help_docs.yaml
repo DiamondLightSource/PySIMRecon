@@ -1,11 +1,18 @@
 name: Generate help docs
-on: workflow_call
+on:
+  workflow_call:
+    outputs:
+      help_docs_changed:
+        description: "'true' if the help docs were updated, otherwise 'false'"
+        value: ${{ jobs.generate-help-docs.outputs.help_docs_changed }}
 
 jobs:
   generate-help-docs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    outputs:
+      help_docs_changed: ${{ steps.autocommit.outputs.changes_detected }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -30,6 +37,7 @@ jobs:
       - name: Generate help docs from package
         run: ./releng/generate_help_docs.sh
       - uses: stefanzweifel/git-auto-commit-action@v5
+        id: autocommit
         with:
           file_pattern: docs/**/*
           commit_message: Automated update of help docs
