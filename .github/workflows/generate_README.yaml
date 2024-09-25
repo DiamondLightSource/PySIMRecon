@@ -1,5 +1,10 @@
 name: Generate README
-on: workflow_call
+on:
+  workflow_call:
+    inputs:
+      git_ref:
+        description: "Git reference to use for checks"
+        type: string
 
 jobs:
   make-README:
@@ -9,7 +14,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref }}
+          ref: ${{ inputs.git_ref }}
+          sparse-checkout: |
+            README.md
+            docs
+            releng
+
       - name: Fill template
         run: |
           ./releng/README_from_docs.sh

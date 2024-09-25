@@ -1,5 +1,8 @@
 name: Trigger docs generation
-on: pull_request
+on:
+  push:
+    branches:
+      - main
 
 jobs:
   check-changes:
@@ -10,12 +13,14 @@ jobs:
       parser-changed: ${{ steps.filter.outputs.parser }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
       - uses: dorny/paths-filter@v3
         id: filter
         with:
           filters: |
             docs:
-              - 'docs/**/*'
+              - 'docs/**'
             parser:
               - 'src/sim_recon/cli/parsing/*'
               - 'src/sim_recon/settings/formatting.py'
@@ -23,7 +28,11 @@ jobs:
     needs: check-changes
     if: needs.check-changes.outputs.parser-changed == 'true'
     uses: ./.github/workflows/generate_help_docs.yaml
+    with:
+      git_ref: ${{ github.head_ref }}
   generate-README:
     needs: [check-changes, generate-help-docs]
     if: always() && !cancelled() && (needs.check-changes.outputs.docs-changed == 'true' || needs.generate-help-docs.outputs.help_docs_changed == 'true')
     uses: ./.github/workflows/generate_README.yaml
+    with:
+      git_ref: ${{ github.head_ref }}

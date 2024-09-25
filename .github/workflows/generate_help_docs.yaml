@@ -1,6 +1,10 @@
 name: Generate help docs
 on:
   workflow_call:
+    inputs:
+      git_ref:
+        description: "Git reference to use for checks"
+        type: string
     outputs:
       help_docs_changed:
         description: "'true' if the help docs were updated, otherwise 'false'"
@@ -16,7 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref }}
+          ref: ${{ inputs.git_ref }}
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
