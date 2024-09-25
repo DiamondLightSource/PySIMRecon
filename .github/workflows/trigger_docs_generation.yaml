@@ -2,7 +2,7 @@ name: Trigger docs generation
 on:
   push:
     branches:
-      - main
+      - merge-action-test
 
 jobs:
   check-changes:
@@ -19,6 +19,7 @@ jobs:
       - uses: dorny/paths-filter@v3
         id: filter
         with:
+          base: merge-action-test
           filters: |
             docs:
               - 'docs/**'
