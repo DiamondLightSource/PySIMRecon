@@ -35,7 +35,7 @@ This is not yet published on conda-forge, so the installation process is fairly 
 1. Within a conda terminal, create a new environment `conda create -n pysimrecon_env python=3.12` and activate it `conda activate pysimrecon_env`. The environment has been called `pysimrecon_env` in this example but this is not a requirement.
 2. Clone (or download) this repository.
 3. Navigate to where you've cloned the repo within your terminal.
-4. Install the requirements from the conda_requirements.txt file `conda install --file conda_requirements.txt`. If there are any issues with this step, please refer to the [requirements](#requirements) section.
+4. Install the requirements from the conda_requirements.txt file `conda install -c conda-forge --file conda_requirements.txt`. If there are any issues with this step, please refer to the [requirements](#requirements) section.
 5. Install the package with pip, now that the requirements have been met `python -m pip install .` The argument `-e` can be added if you want it install it in editable mode.
 
 If you have any problems installing this package, please open an issue.
@@ -60,18 +60,19 @@ Config settings will be overriden by higher-priority sources.
 ##### sim-otf
 
 ```
-usage: sim-otf [-c CONFIG_PATH] [-p PSF_PATHS [PSF_PATHS ...]]
+usage: sim-otf [-h] -c CONFIG_PATH -p PSF_PATHS [PSF_PATHS ...]
                [-o OUTPUT_DIRECTORY] [--overwrite] [--no-cleanup]
                [--shape XY_SHAPE XY_SHAPE] [-v] [--no-progress]
                [--nphases NPHASES] [--ls LS] [--na NA] [--nimm NIMM]
                [--background BACKGROUND] [--beaddiam BEADDIAM] [--angle ANGLE]
                [--nocompen NOCOMPEN] [--5bands]
                [--fixorigin FIXORIGIN FIXORIGIN]
-               [--leavekz LEAVEKZ LEAVEKZ LEAVEKZ] [--I2M I2M] [-h]
+               [--leavekz LEAVEKZ LEAVEKZ LEAVEKZ] [--I2M I2M]
 
 SIM PSFs to OTFs
 
 options:
+  -h, --help            show this help message and exit
   -c CONFIG_PATH, --config-path CONFIG_PATH
                         Path to the root config that specifies the paths to
                         the OTFs and the other configs
@@ -93,7 +94,6 @@ options:
   -v, --verbose         Show more logging
   --no-progress         turn off progress bars (only has an effect if tqdm is
                         installed)
-  -h, --help            show this help message and exit
 
 Overrides:
   Arguments that override configured values. Defaults stated are only used
@@ -123,7 +123,7 @@ Overrides:
 ##### sim-recon
 
 ```
-usage: sim-recon [-c CONFIG_PATH] [-d SIM_DATA_PATHS [SIM_DATA_PATHS ...]]
+usage: sim-recon [-h] -c CONFIG_PATH -d SIM_DATA_PATHS [SIM_DATA_PATHS ...]
                  [-o OUTPUT_DIRECTORY] [--overwrite] [--no-cleanup]
                  [--keep-split] [--parallel] [-v] [--no-progress]
                  [--ndirs NDIRS] [--nphases NPHASES] [--nordersout NORDERSOUT]
@@ -144,11 +144,12 @@ usage: sim-recon [-c CONFIG_PATH] [-d SIM_DATA_PATHS [SIM_DATA_PATHS ...]]
                  [--besselExWave BESSELEXWAVE] [--besselNA BESSELNA]
                  [--deskew DESKEW] [--deskewshift DESKEWSHIFT] [--noRecon]
                  [--cropXY CROPXY] [--xyres XYRES] [--zres ZRES]
-                 [--zresPSF ZRESPSF] [--wavelength WAVELENGTH] [-h]
+                 [--zresPSF ZRESPSF] [--wavelength WAVELENGTH]
 
 Reconstruct SIM data
 
 options:
+  -h, --help            show this help message and exit
   -c CONFIG_PATH, --config-path CONFIG_PATH
                         Path to the root config that specifies the paths to
                         the OTFs and the other configs
@@ -168,7 +169,6 @@ options:
   -v, --verbose         Show more logging
   --no-progress         turn off progress bars (only has an effect if tqdm is
                         installed)
-  -h, --help            show this help message and exit
 
 Overrides:
   Arguments that override configured values. Defaults stated are only used
