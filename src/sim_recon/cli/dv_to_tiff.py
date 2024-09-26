@@ -15,6 +15,8 @@ def main() -> None:
             if not fp.is_file():
                 raise PySimReconFileNotFoundError(f"{fp} is not a file")
             dv_to_tiff(fp, fp.with_suffix(".tiff"))
+        except PySimReconFileNotFoundError:
+            _logger.error("File not found", exc_info=True)
         except Exception:
             _logger.error("Failed to process %s", arg, exc_info=True)
 
