@@ -2,11 +2,10 @@ from __future__ import annotations
 import argparse
 from typing import TYPE_CHECKING
 
-from ...settings.formatting import OTF_FORMATTERS
+from ...settings.formatting import filter_out_invalid_kwargs, OTF_FORMATTERS
 from .shared import (
     add_general_args,
     add_override_args_from_formatters,
-    namespace_extract_to_dict,
 )
 
 if TYPE_CHECKING:
@@ -71,7 +70,9 @@ def parse_args(
     namespace, _ = parser.parse_known_args(args)
 
     # Split out kwargs to be used in makeotf
-    otf_kwargs = namespace_extract_to_dict(namespace, OTF_FORMATTERS, allow_none=False)
+    otf_kwargs = filter_out_invalid_kwargs(
+        vars(namespace), OTF_FORMATTERS, allow_none=False
+    )
 
     return namespace, otf_kwargs
 

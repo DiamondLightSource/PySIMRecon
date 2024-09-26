@@ -349,6 +349,28 @@ RECON_FORMATTERS: dict[str, SettingFormat] = {
 }
 
 
+def filter_out_invalid_kwargs(
+    kwargs: dict[str, Any],
+    formatters: dict[str, SettingFormat],
+    allow_none: bool = True,
+) -> dict[str, Any]:
+    output_kwargs = kwargs.copy()
+    for arg_name, value in kwargs.items():
+        setting_format = formatters.get(arg_name)
+        if (
+            (not allow_none and value is None)  # Check for None values
+            or setting_format is None  # Check setting is in formatters
+            or (
+                # Check if any dependencies are unmet
+                setting_format.depends_on is not None
+                and any(dep not in output_kwargs for dep in setting_format.depends_on)
+            )
+        ):
+            del output_kwargs[arg_name]
+
+    return output_kwargs
+
+
 def formatters_to_default_value_kwargs(
     formatters: dict[str, SettingFormat]
 ) -> dict[str, Any]:
