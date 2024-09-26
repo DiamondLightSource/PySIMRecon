@@ -1,5 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 from decimal import Decimal
 from configparser import RawConfigParser
@@ -40,13 +41,40 @@ class SettingConverters:
     PATH = Path
 
 
+class Comparators(Enum):
+    GREATER = (">", lambda x, y: x > y)
+    GREATER_EQUAL = (">=", lambda x, y: x >= y)
+    LESS = ("<", lambda x, y: x < y)
+    LESS_EQUAL = ("<=", lambda x, y: x <= y)
+    EQUAL = ("==", lambda x, y: x == y)
+    NOT_EQUAL = ("!=", lambda x, y: x != y)
+    IS = ("is", lambda x, y: x is y)
+    IS_NOT = ("is not", lambda x, y: x is not y)
+
+
+@dataclass(slots=True, frozen=True)
+class ConditionalSettingState:
+    name: str
+    comp: Comparators
+    value: Any
+
+    def check_condition_met(self, value: Any) -> bool:
+        return self.comp.value[1](value, self.value)
+
+    def __str__(self) -> str:
+        string = f"{self.name}"
+        if self.comp != Comparators.IS_NOT or self.value is not None:
+            string += f" {self.comp.value[0]} {self.value}"
+        return string
+
+
 @dataclass(slots=True, frozen=True)
 class SettingFormat:
     conv: Callable[[str], Any]
     nargs: int | Literal["+"] = 1  # "+" matching argparse
     description: str | None = None
     default_value: Any = None
-    depends_on: tuple[str, ...] | None = None
+    depends_on: tuple[ConditionalSettingState, ...] | None = None
 
     @property
     def help_string(self) -> str | None:
@@ -56,7 +84,9 @@ class SettingFormat:
         if self.default_value is not None:
             help_string_parts.append(f"(default={self.default_value})")
         if self.depends_on is not None:
-            help_string_parts.append((f"(depends on: {', '.join(self.depends_on)})"))
+            help_string_parts.append(
+                f"(depends on: {', '.join(str(condition) for condition in self.depends_on)})"
+            )
         if help_string_parts:
             return " ".join(help_string_parts)
         return None
@@ -150,6 +180,7 @@ RECON_FORMATTERS: dict[str, SettingFormat] = {
         SettingConverters.FLOAT,
         description="Angle of the first SIM angle in radians",
         default_value=Decimal("1.648"),
+        depends_on=(ConditionalSettingState("k0angles", Comparators.IS, value=None),),
     ),
     "ls": SettingFormat(
         SettingConverters.FLOAT,
@@ -209,46 +240,64 @@ RECON_FORMATTERS: dict[str, SettingFormat] = {
         SettingConverters.INT_FROM_BOOL,
         nargs=0,
         description="Use rotationally averaged OTF, otherwise 3/2D OTF is used for 3/2D raw data",
+        default_value=0,
     ),
     "otfPerAngle": SettingFormat(
         SettingConverters.INT_FROM_BOOL,
         nargs=0,
         description="Use one OTF per SIM angle, otherwise one OTF is used for all angles, which is how it's been done traditionally",
+        default_value=0,
     ),
     "fastSI": SettingFormat(
         SettingConverters.INT_FROM_BOOL,
         nargs=0,
         description="SIM image is organized in Z->Angle->Phase order, otherwise Angle->Z->Phase image order is assumed",
+        default_value=0,
     ),
     "k0searchAll": SettingFormat(
         SettingConverters.INT_FROM_BOOL,
         description="Search for k0 at all time points",
+        default_value=0,
     ),
     "norescale": SettingFormat(
-        SettingConverters.INT_FROM_BOOL, description="No bleach correction"
+        SettingConverters.INT_FROM_BOOL,
+        description="No bleach correction",
+        default_value=0,
     ),
     "equalizez": SettingFormat(
-        SettingConverters.INT_FROM_BOOL, nargs=0, description="Bleach correction for z"
+        SettingConverters.INT_FROM_BOOL,
+        nargs=0,
+        description="Bleach correction for z",
+        default_value=0,
+        depends_on=(
+            ConditionalSettingState("norescale", Comparators.NOT_EQUAL, value=1),
+        ),
     ),
     "equalizet": SettingFormat(
         SettingConverters.INT_FROM_BOOL,
         nargs=0,
         description="Bleach correction for time",
+        default_value=0,
+        depends_on=(
+            ConditionalSettingState("norescale", Comparators.NOT_EQUAL, value=1),
+        ),
     ),
     "dampenOrder0": SettingFormat(
         SettingConverters.INT_FROM_BOOL,
         nargs=0,
         description="Dampen order-0 in final assembly; do not use for 2D SIM; good choice for high-background images",
+        default_value=0,
     ),
     "nosuppress": SettingFormat(
         SettingConverters.INT_FROM_BOOL,
-        default_value=0,
         description="Do not suppress DC singularity in the result (good choice for 2D/TIRF data)",
+        default_value=0,
     ),
     "nokz0": SettingFormat(
         SettingConverters.INT_FROM_BOOL,
         nargs=0,
         description="Do not use kz=0 plane of the 0th order in the final assembly (mostly for debug)",
+        default_value=0,
     ),
     "gammaApo": SettingFormat(
         SettingConverters.FLOAT,
@@ -281,23 +330,29 @@ RECON_FORMATTERS: dict[str, SettingFormat] = {
         SettingConverters.INT_FROM_BOOL,
         nargs=0,
         description="Toggle to indicate I5S data",
+        default_value=0,
     ),
     "bessel": SettingFormat(
         SettingConverters.INT_FROM_BOOL,
         nargs=0,
         description="Toggle to indicate Bessel-SIM data",
+        default_value=0,
     ),
     "besselExWave": SettingFormat(
         SettingConverters.FLOAT,
         description="Bessel SIM excitation wavelength in microns",
         default_value=Decimal("0.488"),
-        depends_on=("bessel",),
+        depends_on=(
+            ConditionalSettingState("bessel", comp=Comparators.EQUAL, value=1),
+        ),
     ),
     "besselNA": SettingFormat(
         SettingConverters.FLOAT,
         description="Bessel SIM excitation NA",
         default_value=Decimal("0.144"),
-        depends_on=("bessel",),
+        depends_on=(
+            ConditionalSettingState("bessel", comp=Comparators.EQUAL, value=1),
+        ),
     ),
     "deskew": SettingFormat(
         SettingConverters.FLOAT,
@@ -308,12 +363,15 @@ RECON_FORMATTERS: dict[str, SettingFormat] = {
         SettingConverters.INT_POSITIVE,
         description="If deskewed, shift the output image by this in X (positive->left)",
         default_value=0,
-        depends_on=("deskew",),
+        depends_on=(
+            ConditionalSettingState("deskew", comp=Comparators.NOT_EQUAL, value=0),
+        ),
     ),
     "noRecon": SettingFormat(
         SettingConverters.INT_FROM_BOOL,
         nargs=0,
         description='No reconstruction will be performed; useful when combined with "deskew"',
+        default_value=0,
     ),
     "cropXY": SettingFormat(
         SettingConverters.INT_POSITIVE,
@@ -363,7 +421,10 @@ def filter_out_invalid_kwargs(
             or (
                 # Check if any dependencies are unmet
                 setting_format.depends_on is not None
-                and any(dep not in output_kwargs for dep in setting_format.depends_on)
+                and any(
+                    not dep.check_condition_met(output_kwargs.get(dep.name))
+                    for dep in setting_format.depends_on
+                )
             )
         ):
             del output_kwargs[arg_name]
