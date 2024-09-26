@@ -431,42 +431,47 @@ def _prepare_files(
 
     # Create TIFFs split by wavelength
     for channel in image_data.channels:
-        if conf.get_channel_config(channel.wavelengths.emission_nm_int) is not None:
-            try:
-                split_file_path = (
-                    processing_dir / f"data{channel.wavelengths.emission_nm}.tiff"
-                )
-                write_tiff(
-                    split_file_path,
-                    channel,
-                    xy_pixel_size_microns=(
-                        image_data.resolution.x,
-                        image_data.resolution.y,
-                    ),
+        if conf.get_channel_config(channel.wavelengths.emission_nm_int) is None:
+            logger.warning(
+                "Skipping channel: channel %i has not been configured",
+                channel.wavelengths.emission_nm_int,
+            )
+            continue
+        try:
+            split_file_path = (
+                processing_dir / f"data{channel.wavelengths.emission_nm}.tiff"
+            )
+            write_tiff(
+                split_file_path,
+                channel,
+                xy_pixel_size_microns=(
+                    image_data.resolution.x,
+                    image_data.resolution.y,
+                ),
+            )
+
+            processing_info = create_processing_info(
+                file_path=split_file_path,
+                output_dir=processing_dir,
+                wavelengths=channel.wavelengths,
+                conf=conf,
+                **config_kwargs,
+            )
+
+            if channel.wavelengths.emission_nm_int in processing_info_dict:
+                raise ConfigException(
+                    f"Emission wavelength {channel.wavelengths.emission_nm_int} found multiple times within {file_path}"
                 )
 
-                processing_info = create_processing_info(
-                    file_path=split_file_path,
-                    output_dir=processing_dir,
-                    wavelengths=channel.wavelengths,
-                    conf=conf,
-                    **config_kwargs,
-                )
-
-                if channel.wavelengths.emission_nm_int in processing_info_dict:
-                    raise ConfigException(
-                        f"Emission wavelength {channel.wavelengths.emission_nm_int} found multiple times within {file_path}"
-                    )
-
-                processing_info_dict[channel.wavelengths.emission_nm_int] = (
-                    processing_info
-                )
-            except Exception:
-                logger.error(
-                    "Failed to prepare files for channel %i (%s) of %s",
-                    channel.wavelengths.emission_nm_int,
-                    channel.wavelengths,
-                    file_path,
-                    exc_info=True,
-                )
+            processing_info_dict[channel.wavelengths.emission_nm_int] = processing_info
+        except Exception:
+            logger.error(
+                "Failed to prepare files for channel %i (%s) of %s",
+                channel.wavelengths.emission_nm_int,
+                channel.wavelengths,
+                file_path,
+                exc_info=True,
+            )
+    if not processing_info_dict:
+        raise ConfigException(f"No configuration found for any channel in {file_path}")
     return processing_info_dict
