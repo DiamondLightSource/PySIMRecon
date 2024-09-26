@@ -7,6 +7,7 @@ import tifffile as tf
 from typing import TYPE_CHECKING, cast
 
 from ..info import __version__
+from ...exceptions import PySimReconFileExistsError
 
 if TYPE_CHECKING:
     from typing import Any
@@ -61,7 +62,7 @@ def write_tiff(
             logger.warning("Overwriting file %s", output_path)
             output_path.unlink()
         else:
-            raise FileExistsError(f"File {output_path} already exists")
+            raise PySimReconFileExistsError(f"File {output_path} already exists")
 
     tiff_kwargs: dict[str, Any] = {
         "software": f"PySIMRecon {__version__}",

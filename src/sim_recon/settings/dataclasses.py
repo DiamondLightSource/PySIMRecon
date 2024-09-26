@@ -2,6 +2,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field, InitVar
 from typing import TYPE_CHECKING
 
+from ...exceptions import UndefinedValueError
+
 
 if TYPE_CHECKING:
     from typing import Any
@@ -74,5 +76,7 @@ class ConfigManager:
     def get_otf_path(self, emission_wavelength_nm: int) -> Path | None:
         ws = self.get_channel_config(emission_wavelength_nm)
         if ws is None:
-            raise ValueError(f"Channel '{emission_wavelength_nm}' is not configured")
+            raise UndefinedValueError(
+                f"Channel '{emission_wavelength_nm}' is not configured"
+            )
         return ws.otf

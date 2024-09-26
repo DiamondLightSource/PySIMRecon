@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 from ..settings import ChannelConfig
 from ..settings.formatting import OTF_FORMATTERS, RECON_FORMATTERS
+from ...exceptions import PySimReconFileNotFoundError, PySimReconTypeError
 
 if TYPE_CHECKING:
     from typing import Literal, Any, TypeVar
@@ -50,7 +51,7 @@ def _handle_paths_from_config(
 
     # If directory is not specified, an absolute path is required
     if not path.is_file():
-        raise FileNotFoundError(f"No {key} file found for at {path}")
+        raise PySimReconFileNotFoundError(f"No {key} file found for at {path}")
     # Ensure returned path is absolute
     return key, path.absolute()
 
@@ -178,7 +179,7 @@ def _config_section_to_dict(
     elif settings_for == "recon":
         formatters = RECON_FORMATTERS
     else:
-        raise TypeError(
+        raise PySimReconTypeError(
             '_config_section_to_dict argument "settings_for" only accepts "otf" or "recon"'
         )
 

@@ -8,6 +8,12 @@ import mrc
 from typing import TYPE_CHECKING, cast
 
 from .dataclasses import ImageData, ImageChannel, ImageResolution, Wavelengths, BoundMrc
+from ...exceptions import (
+    PySimReconFileNotFoundError,
+    PySimReconFileExistsError,
+    InvalidValueError,
+    PySimReconTypeError,
+)
 
 if TYPE_CHECKING:
     from typing import Any
@@ -22,7 +28,7 @@ logger = logging.getLogger(__name__)
 def read_dv(file_path: str | PathLike[str]) -> mrc.DVFile:
     file_path = Path(file_path)
     if not file_path.is_file():
-        raise FileNotFoundError(f"File {file_path} not found")
+        raise PySimReconFileNotFoundError(f"File {file_path} not found")
     logger.debug("Reading %s", file_path)
     return mrc.DVFile(file_path)
 
@@ -30,7 +36,7 @@ def read_dv(file_path: str | PathLike[str]) -> mrc.DVFile:
 def read_mrc_bound_array(file_path: str | PathLike[str]) -> BoundMrc:
     file_path = Path(file_path)
     if not file_path.is_file():
-        raise FileNotFoundError(f"File {file_path} not found")
+        raise PySimReconFileNotFoundError(f"File {file_path} not found")
     logger.debug("Reading %s", file_path)
     bound_array = mrc.mrc.imread(str(file_path))
     return BoundMrc(bound_array, mrc=bound_array.Mrc)
@@ -60,7 +66,7 @@ def get_dv_axis_order_from_header(dv: mrc.Mrc) -> str:
         return "tzwyx"
     elif sequence == 2:
         return "twzyx"
-    raise ValueError("DV header is invalid, ImgSequence must be 0, 1, or 2")
+    raise InvalidValueError("DV header is invalid, ImgSequence must be 0, 1, or 2")
 
 
 def get_dv_axis_sizes(dv: mrc.Mrc) -> dict[str, int]:
@@ -134,7 +140,7 @@ def get_wavelengths_from_dv(dv: mrc.Mrc) -> Generator[Wavelengths, None, None]:
             wavelength_index=wavelength_index,
             header_shape=header_shape,
         )
-    raise TypeError(
+    raise PySimReconTypeError(
         f"Extended header floats have an unexpected type {type(ext_floats)}"
     )
 
@@ -161,10 +167,10 @@ def write_dv(
             logger.warning("Overwriting file %s", output_file)
             output_file.unlink()
         else:
-            raise FileExistsError(f"File {output_file} already exists")
+            raise PySimReconFileExistsError(f"File {output_file} already exists")
 
     if len(wavelengths) != array.shape[-3]:
-        raise ValueError(
+        raise InvalidValueError(
             "Length of wavelengths list must be equal to the number of channels in the array"
         )
     wave = [*wavelengths, 0, 0, 0, 0, 0][:5]
@@ -211,7 +217,7 @@ def get_image_data(
     channel_dim_size = array.shape[channel_index]
 
     if channel_dim_size != num_channels:
-        raise IndexError(
+        raise InvalidValueError(
             "The number of channels defined in the extended header "
             f"({num_channels}) don't match the size ({channel_dim_size}) of "
             f"the expected dimension ({channel_index})"

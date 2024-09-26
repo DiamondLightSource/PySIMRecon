@@ -22,6 +22,13 @@ from .images.dataclasses import ImageChannel, Wavelengths, ProcessingInfo
 from .settings import ConfigManager
 from .settings.formatting import formatters_to_default_value_kwargs, RECON_FORMATTERS
 from .progress import get_progress_wrapper, get_logging_redirect
+from ..exceptions import (
+    PySimReconFileNotFoundError,
+    ReconstructionError,
+    ConfigException,
+    MissingOtfException,
+    UndefinedValueError,
+)
 
 if TYPE_CHECKING:
     from typing import Any
@@ -31,10 +38,6 @@ if TYPE_CHECKING:
 
 
 logger = logging.getLogger(__name__)
-
-
-class ReconstructionException(Exception):
-    pass
 
 
 def _recon_get_result(
@@ -73,7 +76,7 @@ def subprocess_recon(
         array = read_tiff(expected_path)
         expected_path.unlink()
         return array
-    raise ReconstructionException(f"No reconstruction file found at {expected_path}")
+    raise ReconstructionError(f"No reconstruction file found at {expected_path}")
 
 
 def reconstruct(
@@ -90,7 +93,7 @@ def reconstruct(
         z, y, x = array.shape
         z_div = ndirs * nphases
         if z % z_div != 0:
-            raise ReconstructionException(
+            raise ReconstructionError(
                 f"Z size {z} is not divisible by the number of phases and angles ({nphases} * {ndirs})"
             )
         z = (z // z_div) * zzoom
@@ -106,7 +109,7 @@ def reconstruct(
             config_path,
             exc_info=True,
         )
-        raise ReconstructionException(
+        raise ReconstructionError(
             f"Exception raised during reconstruction with config {config_path}"
         )
 
@@ -187,7 +190,7 @@ def run_reconstructions(
                     else Path(output_directory)
                 )
                 if not sim_data_path.is_file():
-                    raise FileNotFoundError(
+                    raise PySimReconFileNotFoundError(
                         f"Image file {sim_data_path} does not exist"
                     )
 
@@ -351,17 +354,19 @@ def create_processing_info(
     file_path = Path(file_path)
     output_dir = Path(output_dir)
     if not file_path.is_file():
-        raise FileNotFoundError(
+        raise PySimReconFileNotFoundError(
             f"Cannot create processing info: file {file_path} does not exist"
         )
     logger.debug("Creating processing files for %s in %s", file_path, output_dir)
 
     if wavelengths.emission_nm_int is None:
-        raise AttributeError("emission_nm_int", wavelengths)
+        raise UndefinedValueError(
+            f"Channel is missing emission wavelength: {wavelengths} (attribute 'emission_nm_int' is None)"
+        )
     otf_path = conf.get_otf_path(wavelengths.emission_nm_int)
 
     if otf_path is None:
-        raise ValueError(
+        raise MissingOtfException(
             f"No OTF file has been set for channel {wavelengths.emission_nm_int} ({wavelengths})"
         )
 
@@ -449,7 +454,7 @@ def _prepare_files(
                 )
 
                 if channel.wavelengths.emission_nm_int in processing_info_dict:
-                    raise KeyError(
+                    raise ConfigException(
                         f"Emission wavelength {channel.wavelengths.emission_nm_int} found multiple times within {file_path}"
                     )
 

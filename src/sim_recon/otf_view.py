@@ -9,6 +9,7 @@ from .progress import get_progress_wrapper, get_logging_redirect
 from .images.dv import read_dv
 from .images.tiff import read_tiff
 from .images.utils import interleaved_float_to_complex
+from ..exceptions import PySimReconIOError
 
 if TYPE_CHECKING:
     from typing import Any
@@ -74,7 +75,7 @@ def _open_otf(file_path: str | PathLike[str]) -> NDArray[Any]:
         return read_dv(file_path).asarray(squeeze=True)
     except Exception:
         pass
-    raise IOError(f"Unable to read {file_path}")
+    raise PySimReconIOError(f"Unable to read {file_path}")
 
 
 def _create_otf_plots(array: NDArray[Any]) -> Figure:
