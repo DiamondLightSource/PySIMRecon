@@ -1,6 +1,6 @@
 ### Configuration
-Calls to `sim-otf` and `sim-recon` can both take a `-c`/`--config` argument. This should be similar to the `config.ini` file in the configs directory, which specifies the defaults config, any per-channel configs (some values should be set on a per-channel basis), and the locations of OTFs for each channel.
-The channels are specified based on the emission wavelength in nanometres (must be an integer).
+Calls to `sim-otf` and `sim-recon` can both take a `-c`/`--config` argument. This should be similar to the `config.ini` file in the configs directory, which specifies the defaults config, any per-channel configs (some values should be set on a per-channel basis), and the locations of OTFs for each channel. Channels are specified based on the emission wavelength in nanometres (must be an integer).
+
 ##### Example:
 For a channel with an emission wavelength of 525nm:
 - In the `[configs]` section, the channel config can be specified as `525=/path/to/configs/525.cfg`
