@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, cast
 
 from .dataclasses import ImageData, ImageChannel, ImageResolution, Wavelengths, BoundMrc
 from ...exceptions import (
+    PySimReconIOError,
     PySimReconFileNotFoundError,
     PySimReconFileExistsError,
     InvalidValueError,
@@ -198,45 +199,49 @@ def write_dv(
 def get_image_data(
     file_path: str | PathLike[str],
 ) -> ImageData:
-    file_path = Path(file_path)
+    try:
+        file_path = Path(file_path)
 
-    bound_mrc = read_mrc_bound_array(file_path)
-    axis_order = get_dv_axis_order_from_header(bound_mrc.mrc)
-    axis_sizes = get_dv_axis_sizes(bound_mrc.mrc)
-    channel_index = axis_order.index("w")
-    dv_shape = tuple(axis_sizes[ax] for ax in axis_order)
-    resolution = image_resolution_from_mrc(bound_mrc.mrc, warn_not_square=True)
+        bound_mrc = read_mrc_bound_array(file_path)
+        axis_order = get_dv_axis_order_from_header(bound_mrc.mrc)
+        axis_sizes = get_dv_axis_sizes(bound_mrc.mrc)
+        channel_index = axis_order.index("w")
+        dv_shape = tuple(axis_sizes[ax] for ax in axis_order)
+        resolution = image_resolution_from_mrc(bound_mrc.mrc, warn_not_square=True)
 
-    # Essentially unsqueeze the axes to ensure the indexing is correct
-    array = bound_mrc.array.reshape(dv_shape)
+        # Essentially unsqueeze the axes to ensure the indexing is correct
+        array = bound_mrc.array.reshape(dv_shape)
 
-    channels: list[ImageChannel] = []
-    wavelengths_tuple = tuple(get_wavelengths_from_dv(bound_mrc.mrc))
-    num_channels = len(wavelengths_tuple)
+        channels: list[ImageChannel] = []
+        wavelengths_tuple = tuple(get_wavelengths_from_dv(bound_mrc.mrc))
+        num_channels = len(wavelengths_tuple)
 
-    channel_dim_size = array.shape[channel_index]
+        channel_dim_size = array.shape[channel_index]
 
-    if channel_dim_size != num_channels:
-        raise InvalidValueError(
-            "The number of channels defined in the extended header "
-            f"({num_channels}) don't match the size ({channel_dim_size}) of "
-            f"the expected dimension ({channel_index})"
-        )
-
-    for c, wavelengths in enumerate(wavelengths_tuple):
-        channel_slice: list[slice | int] = [slice(None)] * len(array.shape)
-        channel_slice[channel_index] = c
-        channels.append(
-            ImageChannel(
-                wavelengths,
-                array[*channel_slice].squeeze(),
+        if channel_dim_size != num_channels:
+            raise InvalidValueError(
+                "The number of channels defined in the extended header "
+                f"({num_channels}) don't match the size ({channel_dim_size}) of "
+                f"the expected dimension ({channel_index})"
             )
+
+        for c, wavelengths in enumerate(wavelengths_tuple):
+            channel_slice: list[slice | int] = [slice(None)] * len(array.shape)
+            channel_slice[channel_index] = c
+            channels.append(
+                ImageChannel(
+                    wavelengths,
+                    array[*channel_slice].squeeze(),
+                )
+            )
+        return ImageData(
+            channels=tuple(channels),
+            # Get resolution values from DV file (they get applied to TIFFs later)
+            resolution=resolution,
         )
-    return ImageData(
-        channels=tuple(channels),
-        # Get resolution values from DV file (they get applied to TIFFs later)
-        resolution=resolution,
-    )
+    except Exception:
+        logger.error("Failed to get image data from %s", file_path, exc_info=True)
+        raise PySimReconIOError(f"Failed to get image data from {file_path}")
 
 
 def image_resolution_from_mrc(
