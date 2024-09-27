@@ -1,6 +1,6 @@
-### Installation
+## Installation
 
-##### Requirements
+#### Requirements
 
 - This package requires Conda for package management. This project recommends using [miniforge](https://conda-forge.org/download/) from conda-forge.
 - This package required a CUDA-compatible NVIDIA GPU:
@@ -9,7 +9,7 @@
   - It is recommended to use the latest GPU drivers available for you system. Please see [cudasirecon's README](https://github.com/scopetools/cudasirecon/blob/main/README.md#gpu-requirements) for more details about CUDA and driver versions.
 - Unfortunately, macOS is not supported.
 
-##### Steps
+#### Steps
 
 This is not yet published on conda-forge, so the installation process is fairly manual.
 

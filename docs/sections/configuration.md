@@ -1,4 +1,4 @@
-### Configuration
+## Configuration
 Calls to `sim-otf` and `sim-recon` can both take a `-c`/`--config` argument. This should be similar to the `config.ini` file in the configs directory, which specifies the defaults config, any per-channel configs (some values should be set on a per-channel basis), and the locations of OTFs for each channel. Channels are specified based on the emission wavelength in nanometres (must be an integer).
 
 ##### Example:
@@ -13,7 +13,7 @@ Config settings will be overriden by higher-priority sources.
 The defaults config and per-channel configs expect the same form, with the headers `[otf config]` for settings that are used with `sim-otf` and `[recon config]` for settings that are used with `sim-recon`. For these commands, available settings can be found in their argument form (with a leading `--` that should be removed for config use) in the [CLI](#CLI) section under 'Overrides'. While these settings can be set via command line arguments, command line arguments cannot be set per-channel and will apply to all files and channels.
 
 
-##### Order of setting priority:
+#### Order of setting priority:
 1. Command line arguments (override all)
 2. Per-channel configs (override defaults for the appropriate channel only)
 3. Defaults (override any cudasirecon defaults)
