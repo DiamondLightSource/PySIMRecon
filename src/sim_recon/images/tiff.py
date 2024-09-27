@@ -18,6 +18,15 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def check_tiff(filepath: str | PathLike[str]) -> bool:
+    try:
+        with tf.TiffFile(filepath):
+            return True
+    except tf.TiffFileError:
+        pass
+    return False
+
+
 def read_tiff(filepath: str | PathLike[str]) -> NDArray[Any]:
     with tf.TiffFile(filepath) as tiff:
         return tiff.asarray()

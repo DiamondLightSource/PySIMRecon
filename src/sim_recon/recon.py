@@ -15,9 +15,14 @@ from pycudasirecon.sim_reconstructor import SIMReconstructor, lib  # type: ignor
 
 from .files.utils import redirect_output_to, create_output_path
 from .files.config import create_wavelength_config
-from .images import get_image_data
+from .images import get_image_data, dv_to_tiff
 from .images.dv import write_dv
-from .images.tiff import read_tiff, write_tiff, get_combined_array_from_tiffs
+from .images.tiff import (
+    check_tiff,
+    read_tiff,
+    write_tiff,
+    get_combined_array_from_tiffs,
+)
 from .images.dataclasses import ImageChannel, Wavelengths, ProcessingInfo
 from .settings import ConfigManager
 from .settings.formatting import formatters_to_default_value_kwargs, RECON_FORMATTERS
@@ -341,6 +346,21 @@ def _prepare_config_kwargs(
     return kwargs
 
 
+def _prepate_OTF_file(
+    otf_path: str | PathLike[str], output_directory: str | PathLike[str]
+) -> Path:
+    otf_path = Path(otf_path)
+    output_path = Path(output_directory) / otf_path.name
+    if check_tiff(otf_path):
+        return Path(
+            copyfile(
+                otf_path,
+                output_path,
+            )
+        )
+    return dv_to_tiff(otf_path, output_path.with_suffix(".tiff"))
+
+
 def create_processing_info(
     file_path: str | PathLike[str],
     output_dir: str | PathLike[str],
@@ -365,12 +385,7 @@ def create_processing_info(
             f"No OTF file has been set for channel {wavelengths.emission_nm_int} ({wavelengths})"
         )
 
-    otf_path = Path(
-        copyfile(
-            otf_path,
-            output_dir / otf_path.name,
-        )
-    )
+    otf_path = _prepate_OTF_file(otf_path, output_dir)
 
     kwargs = _prepare_config_kwargs(
         conf,
