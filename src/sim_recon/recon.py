@@ -271,6 +271,7 @@ def run_reconstructions(
     cleanup: bool = False,
     stitch_channels: bool = True,
     parallel_process: bool = False,
+    allow_missing_channels: bool = False,
     **config_kwargs: Any,
 ) -> None:
 
@@ -318,6 +319,7 @@ def run_reconstructions(
                         sim_data_path,
                         processing_directory,
                         conf=conf,
+                        allow_missing_channels=allow_missing_channels,
                         **config_kwargs,
                     )
                     if not processing_info_dict:
@@ -479,6 +481,7 @@ def _prepare_files(
     file_path: str | PathLike[str],
     processing_dir: str | PathLike[str],
     conf: ConfigManager,
+    allow_missing_channels: bool = False,
     **config_kwargs: Any,
 ) -> dict[int, ProcessingInfo]:
     file_path = Path(file_path)
@@ -500,13 +503,12 @@ def _prepare_files(
 
     # Create TIFFs split by wavelength
     for channel in image_data.channels:
-        if conf.get_channel_config(channel.wavelengths.emission_nm_int) is None:
-            logger.warning(
-                "Skipping channel: channel %i has not been configured",
-                channel.wavelengths.emission_nm_int,
-            )
-            continue
         try:
+            if conf.get_channel_config(channel.wavelengths.emission_nm_int) is None:
+                raise ConfigException(
+                    f"Channel {channel.wavelengths.emission_nm_int} has not been configured"
+                )
+
             split_file_path = (
                 processing_dir / f"data{channel.wavelengths.emission_nm}.tiff"
             )
@@ -541,6 +543,8 @@ def _prepare_files(
                 file_path,
                 exc_info=True,
             )
+            if not allow_missing_channels:
+                raise
     if not processing_info_dict:
         raise ConfigException(f"No configuration found for any channel in {file_path}")
     return processing_info_dict
