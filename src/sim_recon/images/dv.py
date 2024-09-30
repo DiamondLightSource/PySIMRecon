@@ -8,7 +8,7 @@ import mrc
 from typing import TYPE_CHECKING, cast
 
 from .dataclasses import ImageData, ImageChannel, ImageResolution, Wavelengths, BoundMrc
-from ...exceptions import (
+from ..exceptions import (
     PySimReconIOError,
     PySimReconFileNotFoundError,
     PySimReconFileExistsError,
