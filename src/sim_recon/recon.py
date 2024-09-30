@@ -32,6 +32,7 @@ from .settings.formatting import (
 )
 from .progress import get_progress_wrapper, get_logging_redirect
 from .exceptions import (
+    PySimReconException,
     PySimReconFileNotFoundError,
     ReconstructionError,
     ConfigException,
@@ -372,7 +373,8 @@ def run_reconstructions(
                                     processing_info.output_path,
                                     exc_info=True,
                                 )
-
+            except ConfigException as e:
+                logger.error("Unable to process %s: %s)", sim_data_path, e)
             except Exception:
                 logger.error("Error occurred for %s", sim_data_path, exc_info=True)
 
@@ -535,9 +537,19 @@ def _prepare_files(
                 )
 
             processing_info_dict[channel.wavelengths.emission_nm_int] = processing_info
+        except PySimReconException as e:
+            logger.error(
+                "Failed to prepare files for channel %i (%s) of %s: %s",
+                channel.wavelengths.emission_nm_int,
+                channel.wavelengths,
+                file_path,
+                e,
+            )
+            if not allow_missing_channels:
+                raise
         except Exception:
             logger.error(
-                "Failed to prepare files for channel %i (%s) of %s",
+                "Unexpected error preparing files for channel %i (%s) of %s",
                 channel.wavelengths.emission_nm_int,
                 channel.wavelengths,
                 file_path,
