@@ -183,7 +183,7 @@ Overrides:
                         Number of output SIM orders (must be <= nphases//2;
                         safe to ignore usually) (default=0)
   --angle0 ANGLE0       Angle of the first SIM angle in radians
-                        (default=1.648)
+                        (default=1.648) (depends on: k0angles is None)
   --ls LS               Line spacing of SIM pattern in microns (default=0.172)
   --na NA               Detection objective's numerical aperture (default=1.2)
   --nimm NIMM           Refractive index of immersion medium (default=1.33)
@@ -207,25 +207,29 @@ Overrides:
                         Use these pattern vector k0 angles for all directions
                         (instead of inferring the rest angles from angle0)
   --otfRA               Use rotationally averaged OTF, otherwise 3/2D OTF is
-                        used for 3/2D raw data
+                        used for 3/2D raw data (default=0)
   --otfPerAngle         Use one OTF per SIM angle, otherwise one OTF is used
                         for all angles, which is how it's been done
-                        traditionally
+                        traditionally (default=0)
   --fastSI              SIM image is organized in Z->Angle->Phase order,
                         otherwise Angle->Z->Phase image order is assumed
+                        (default=0)
   --k0searchAll K0SEARCHALL
-                        Search for k0 at all time points
+                        Search for k0 at all time points (default=0)
   --norescale NORESCALE
-                        No bleach correction
-  --equalizez           Bleach correction for z
-  --equalizet           Bleach correction for time
+                        No bleach correction (default=0)
+  --equalizez           Bleach correction for z (default=0) (depends on:
+                        norescale != 1)
+  --equalizet           Bleach correction for time (default=0) (depends on:
+                        norescale != 1)
   --dampenOrder0        Dampen order-0 in final assembly; do not use for 2D
                         SIM; good choice for high-background images
+                        (default=0)
   --nosuppress NOSUPPRESS
                         Do not suppress DC singularity in the result (good
                         choice for 2D/TIRF data) (default=0)
   --nokz0               Do not use kz=0 plane of the 0th order in the final
-                        assembly (mostly for debug)
+                        assembly (mostly for debug) (default=0)
   --gammaApo GAMMAAPO   Output apodization gamma; 1.0 means triangular apo;
                         lower value means less dampening of high-resolution
                         info at the trade-off of higher noise (default=1)
@@ -244,19 +248,20 @@ Overrides:
   --saveoverlaps SAVEOVERLAPS
                         Save overlap0 and overlap1 (real-space complex data)
                         into a file and exit (for debug)
-  --2lenses             Toggle to indicate I5S data
-  --bessel              Toggle to indicate Bessel-SIM data
+  --2lenses             Toggle to indicate I5S data (default=0)
+  --bessel              Toggle to indicate Bessel-SIM data (default=0)
   --besselExWave BESSELEXWAVE
                         Bessel SIM excitation wavelength in microns
-                        (default=0.488)
-  --besselNA BESSELNA   Bessel SIM excitation NA (default=0.144)
+                        (default=0.488) (depends on: bessel == 1)
+  --besselNA BESSELNA   Bessel SIM excitation NA (default=0.144) (depends on:
+                        bessel == 1)
   --deskew DESKEW       Deskew angle; if not 0.0 then perform deskewing before
                         processing (default=0)
   --deskewshift DESKEWSHIFT
                         If deskewed, shift the output image by this in X
-                        (positive->left) (default=0)
+                        (positive->left) (default=0) (depends on: deskew != 0)
   --noRecon             No reconstruction will be performed; useful when
-                        combined with "deskew"
+                        combined with "deskew" (default=0)
   --cropXY CROPXY       Crop the X-Y dimension to this number; 0 means no
                         cropping (default=0)
   --xyres XYRES         X-Y pixel size (use metadata value by default)
