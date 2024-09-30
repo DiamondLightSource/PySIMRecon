@@ -209,17 +209,22 @@ def _processing_files_to_output(
                 header="Reconstruction log",
             )
 
-            write_dv(
-                sim_data_path,
-                dv_path,
-                get_combined_array_from_tiffs(
-                    *(pi.output_path for pi in processing_info_dict.values())
-                ),
-                wavelengths=tuple(processing_info_dict.keys()),
-                zoomfact=float(zoom_factors[0][0]),
-                zzoom=zoom_factors[0][1],
-                overwrite=overwrite,
-            )
+            output_files = tuple(pi.output_path for pi in processing_info_dict.values())
+            if not output_files:
+                logger.warning(
+                    "No reconstructions were created from %s",
+                    sim_data_path,
+                )
+            else:
+                write_dv(
+                    sim_data_path,
+                    dv_path,
+                    get_combined_array_from_tiffs(*output_files),
+                    wavelengths=tuple(processing_info_dict.keys()),
+                    zoomfact=float(zoom_factors[0][0]),
+                    zzoom=zoom_factors[0][1],
+                    overwrite=overwrite,
+                )
             return
         except InvalidValueError as e:
             logger.warning("Unable to stitch files due to error: %s", e)
