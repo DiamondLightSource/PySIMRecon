@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 
 from pycudasirecon.sim_reconstructor import SIMReconstructor, lib  # type: ignore[import-untyped]
 
-from .files.utils import redirect_output_to, create_output_path
+from .files.utils import redirect_output_to, create_output_path, combine_text_files
 from .files.config import create_wavelength_config
 from .images import get_image_data
 from .images.dv import write_dv
@@ -129,7 +129,18 @@ def reconstruct_from_processing_info(processing_info: ProcessingInfo) -> Path:
 
     data = read_tiff(processing_info.image_path)  # Cannot use a memmap here!
 
-    with redirect_output_to(processing_info.output_path.with_suffix(".log")):
+    with redirect_output_to(processing_info.log_path):
+        print(
+            "\n".join(
+                (
+                    f"Channel {processing_info.wavelengths.emission_nm_int} ({processing_info.wavelengths})",
+                    "Config used:",
+                    processing_info.config_path.read_text().strip(),
+                    "-" * 80,
+                    "The text below is the output from cudasirecon",
+                )
+            )
+        )
         rec_array = reconstruct(
             data, processing_info.config_path, zoomfact, zzoom, ndirs, nphases
         )
@@ -212,10 +223,11 @@ def run_reconstructions(
                         conf=conf,
                         **config_kwargs,
                     )
+                    if not processing_info_dict:
+                        logger.warning("Skipping %s (unable to process)", sim_data_path)
+                        continue
 
                     async_results: list[AsyncResult] = []
-                    wavelengths: list[int] = []
-                    output_paths: list[Path] = []
                     zoom_factors: list[tuple[float, int]] = []
                     for wavelength, processing_info in processing_info_dict.items():
                         async_results.append(
@@ -232,15 +244,13 @@ def run_reconstructions(
                             )
                         )
 
-                        # Collect values needed for stitching:
-                        wavelengths.append(wavelength)
+                        # Get zoom factors to for checking if the output can be stitched
                         zoom_factors.append(
                             (
                                 processing_info.kwargs["zoomfact"],
                                 processing_info.kwargs["zzoom"],
                             )
                         )
-                        output_paths.append(processing_info.output_path)
 
                     # Wait for async processes to finish (otherwise there won't be files to stitch!)
                     for r in progress_wrapper(
@@ -268,11 +278,23 @@ def run_reconstructions(
                             output_directory=file_output_directory,
                             ensure_unique=not overwrite,
                         )
+
+                        combine_text_files(
+                            dv_path.with_suffix(".log"),
+                            *(pi.log_path for pi in processing_info_dict.values()),
+                            header="Reconstruction log",
+                        )
+
                         write_dv(
                             sim_data_path,
                             dv_path,
-                            get_combined_array_from_tiffs(*output_paths),
-                            wavelengths=wavelengths,
+                            get_combined_array_from_tiffs(
+                                *(
+                                    pi.output_path
+                                    for pi in processing_info_dict.values()
+                                )
+                            ),
+                            wavelengths=tuple(processing_info_dict.keys()),
                             zoomfact=float(zoom_factors[0][0]),
                             zzoom=zoom_factors[0][1],
                             overwrite=overwrite,
@@ -290,6 +312,13 @@ def run_reconstructions(
                                 wavelength=wavelength,
                                 ensure_unique=not overwrite,
                             )
+
+                            combine_text_files(
+                                dv_path.with_suffix(".log"),
+                                *(pi.log_path for pi in processing_info_dict.values()),
+                                header="Reconstruction log",
+                            )
+
                             write_dv(
                                 sim_data_path,
                                 dv_path,
@@ -389,18 +418,20 @@ def create_processing_info(
         file_path,
         **kwargs,
     )
+    output_path = create_output_path(
+        file_path,
+        output_type="recon",
+        suffix=".tiff",
+        output_directory=output_dir,
+        wavelength=wavelengths.emission_nm_int,
+        ensure_unique=True,
+    )
     return ProcessingInfo(
         file_path,
         otf_path=otf_path,
         config_path=config_path,
-        output_path=create_output_path(
-            file_path,
-            output_type="recon",
-            suffix=".tiff",
-            output_directory=output_dir,
-            wavelength=wavelengths.emission_nm_int,
-            ensure_unique=True,
-        ),
+        output_path=output_path,
+        log_path=output_path.with_suffix(".log"),
         wavelengths=wavelengths,
         kwargs=kwargs,
     )
