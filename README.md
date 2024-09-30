@@ -23,7 +23,7 @@ Under development
 
 - This package requires Conda for package management. This project recommends using [miniforge](https://conda-forge.org/download/) from conda-forge.
 - This package required a CUDA-compatible NVIDIA GPU:
-  - At the time of writing, the latest version of cudasirecon (1.2.0) requires CUDA 11.8+. Older versions of cudasirecon can work with older GPUs (10.2+ is supported) but this is not recommended.
+  - At the time of writing, the latest version of cudasirecon (1.2.0) requires CUDA 11.8+. Older versions of cudasirecon have a lower requirement of CUDA 10.2+ but are unsupported by this package.
   - The CUDA version that cudasirecon is built for is dependent on conda-forge's support.
   - It is recommended to use the latest GPU drivers available for you system. Please see [cudasirecon's README](https://github.com/scopetools/cudasirecon/blob/main/README.md#gpu-requirements) for more details about CUDA and driver versions.
 - Unfortunately, macOS is not supported.
