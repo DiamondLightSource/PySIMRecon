@@ -12,6 +12,7 @@ from ..exceptions import (
     PySimReconIOError,
     PySimReconFileNotFoundError,
     PySimReconFileExistsError,
+    PySimReconValueError,
     InvalidValueError,
     PySimReconTypeError,
 )
@@ -156,6 +157,11 @@ def write_dv(
     overwrite: bool = False,
 ) -> Path:
     output_file = Path(output_file)
+
+    if not array:
+        raise PySimReconValueError(
+            "%s will not be created as the array is empty", output_file
+        )
 
     logger.info(
         "Writing array to %s with wavelengths %s",
