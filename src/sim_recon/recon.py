@@ -22,7 +22,7 @@ from .images.dataclasses import ImageChannel, Wavelengths, ProcessingInfo
 from .settings import ConfigManager
 from .settings.formatting import formatters_to_default_value_kwargs, RECON_FORMATTERS
 from .progress import get_progress_wrapper, get_logging_redirect
-from ..exceptions import (
+from .exceptions import (
     PySimReconFileNotFoundError,
     ReconstructionError,
     ConfigException,

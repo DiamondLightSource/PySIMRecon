@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 
 from ..images import dv_to_tiff
-from ...exceptions import PySimReconFileNotFoundError
+from ..exceptions import PySimReconFileNotFoundError
 
 _logger = logging.getLogger(__name__)
 

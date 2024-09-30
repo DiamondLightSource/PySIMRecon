@@ -7,7 +7,7 @@ import tifffile as tf
 from typing import TYPE_CHECKING, cast
 
 from ..info import __version__
-from ...exceptions import PySimReconFileExistsError
+from ..exceptions import PySimReconFileExistsError
 
 if TYPE_CHECKING:
     from typing import Any

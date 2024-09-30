@@ -9,7 +9,7 @@ from .progress import get_progress_wrapper, get_logging_redirect
 from .images.dv import read_dv
 from .images.tiff import read_tiff
 from .images.utils import interleaved_float_to_complex
-from ..exceptions import PySimReconIOError
+from .exceptions import PySimReconIOError
 
 if TYPE_CHECKING:
     from typing import Any

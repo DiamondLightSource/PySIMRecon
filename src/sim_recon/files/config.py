@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 from ..settings import ChannelConfig
 from ..settings.formatting import OTF_FORMATTERS, RECON_FORMATTERS
-from ...exceptions import PySimReconFileNotFoundError, PySimReconTypeError
+from ..exceptions import PySimReconFileNotFoundError, PySimReconTypeError
 
 if TYPE_CHECKING:
     from typing import Literal, Any, TypeVar

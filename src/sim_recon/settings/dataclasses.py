@@ -2,7 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field, InitVar
 from typing import TYPE_CHECKING
 
-from ...exceptions import UndefinedValueError
+from ..exceptions import UndefinedValueError
 
 
 if TYPE_CHECKING:
