@@ -126,6 +126,8 @@ def redirect_output_to(file_path: str | PathLike[str]) -> Generator[None, None, 
     saved_stderr_fd = os.dup(stderr_fd)
     saved_stdout = sys.stdout
     saved_sterr = sys.stderr
+    f = None
+    f_fd = None
     try:
         f = file_path.open("w+", buffering=1)
         f_fd = f.fileno()
@@ -140,6 +142,10 @@ def redirect_output_to(file_path: str | PathLike[str]) -> Generator[None, None, 
         os.dup2(saved_stderr_fd, stderr_fd)
         sys.stdout = saved_stdout
         sys.stderr = saved_sterr
+        if f_fd is not None:
+            os.fsync(f_fd)
+        if f is not None:
+            f.close()
 
 
 def combine_text_files(
