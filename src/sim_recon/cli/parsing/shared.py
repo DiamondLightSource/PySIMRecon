@@ -4,8 +4,6 @@ from typing import TYPE_CHECKING
 
 
 if TYPE_CHECKING:
-    from typing import Any
-    from collections.abc import Container
     from ...settings.formatting import SettingFormat
 
 
@@ -48,12 +46,3 @@ def add_override_args_from_formatters(
                 required=False,
                 help=formatter.help_string,
             )
-
-
-def namespace_extract_to_dict(
-    namespace: argparse.Namespace, args: Container[str], allow_none: bool = True
-) -> dict[str, Any]:
-    key_value_generator = ((k, v) for k, v in vars(namespace).items() if k in args)
-    if allow_none:
-        return dict(key_value_generator)
-    return {k: v for k, v in key_value_generator if v is not None}

@@ -20,7 +20,11 @@ from .images.dv import write_dv
 from .images.tiff import read_tiff, write_tiff, get_combined_array_from_tiffs
 from .images.dataclasses import ImageChannel, Wavelengths, ProcessingInfo
 from .settings import ConfigManager
-from .settings.formatting import formatters_to_default_value_kwargs, RECON_FORMATTERS
+from .settings.formatting import (
+    formatters_to_default_value_kwargs,
+    filter_out_invalid_kwargs,
+    RECON_FORMATTERS,
+)
 from .progress import get_progress_wrapper, get_logging_redirect
 from .exceptions import (
     PySimReconFileNotFoundError,
@@ -363,6 +367,8 @@ def _prepare_config_kwargs(
 
     # config_kwargs override those any config defaults set
     kwargs.update(config_kwargs)
+
+    kwargs = filter_out_invalid_kwargs(kwargs, RECON_FORMATTERS, allow_none=False)
 
     # Set final variables:
     kwargs["wavelength"] = emission_wavelength

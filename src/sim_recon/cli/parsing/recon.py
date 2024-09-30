@@ -3,11 +3,10 @@ import argparse
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ...settings.formatting import RECON_FORMATTERS
+from ...settings.formatting import filter_out_invalid_kwargs, RECON_FORMATTERS
 from .shared import (
     add_general_args,
     add_override_args_from_formatters,
-    namespace_extract_to_dict,
 )
 
 if TYPE_CHECKING:
@@ -103,8 +102,8 @@ def parse_args(
     namespace, _ = parser.parse_known_args(args)
 
     # Split out kwargs to be used in recon config(s)
-    recon_kwargs = namespace_extract_to_dict(
-        namespace, RECON_FORMATTERS, allow_none=False
+    recon_kwargs = filter_out_invalid_kwargs(
+        vars(namespace), RECON_FORMATTERS, allow_none=False
     )
 
     return namespace, recon_kwargs
