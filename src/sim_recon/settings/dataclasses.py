@@ -1,4 +1,5 @@
 from __future__ import annotations
+import logging
 from dataclasses import dataclass, field, InitVar
 from typing import TYPE_CHECKING
 
@@ -10,6 +11,8 @@ if TYPE_CHECKING:
     from os import PathLike
     from pathlib import Path
     from collections.abc import Iterable
+
+_logger = logging.getLogger(__name__)
 
 _REQUIRED_DEFAULTS = {
     "nphases": 5,
@@ -27,6 +30,11 @@ class ChannelConfig:
     otf: Path | None
     reconstruction_config: dict[str, Any] = field(default_factory=dict)
     otf_config: dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self):
+        if self.otf is not None and not self.otf.is_file():
+            _logger.warning("No OTF file was not found at '%s'", self.otf)
+            self.otf = None
 
 
 @dataclass(slots=True)
