@@ -91,23 +91,36 @@ def get_defaults_config_path(main_config: RawConfigParser) -> Path:
 
 
 def get_channel_configs(
-    main_config: RawConfigParser,
+    main_config: RawConfigParser | None, otf_overrides: dict[int, Path] | None = None
 ) -> Generator[ChannelConfig, None, None]:
-    configs_dict = _get_paths_from_section(
-        __CONFIGS_SECTION,
-        main_config,
-    )
-    otfs_dict = _get_paths_from_section(
-        __OTF_LOCATIONS_SECTION,
-        main_config,
-    )
 
-    logger.info(
-        "Configured OTFs found:\n\t%s",
-        "\n\t".join(f"{k}: {v}" for k, v in otfs_dict.items()),
-    )
+    configs_dict: dict[int, Path] = {}
+    otfs_dict: dict[int, Path] = {}
+    wavelengths: set[int] = set()
 
-    wavelengths = set(configs_dict.keys())
+    if main_config is not None:
+        # Load from configs (if given)
+        configs_dict = _get_paths_from_section(
+            __CONFIGS_SECTION,
+            main_config,
+        )
+        otfs_dict.update(
+            _get_paths_from_section(
+                __OTF_LOCATIONS_SECTION,
+                main_config,
+            )
+        )
+        wavelengths.update(configs_dict.keys())
+
+    if otf_overrides is not None:
+        otfs_dict.update(otf_overrides)
+
+    if otfs_dict:
+        logger.info(
+            "Running with OTFs:\n\t%s",
+            "\n\t".join(f"{k}: {v}" for k, v in otfs_dict.items()),
+        )
+
     wavelengths.update(otfs_dict.keys())
 
     for wavelength in wavelengths:
