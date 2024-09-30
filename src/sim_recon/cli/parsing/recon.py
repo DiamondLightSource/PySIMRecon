@@ -58,7 +58,7 @@ def parse_args(
     parser.add_argument(
         "-o",
         "--output-directory",
-        help="The output directory to save reconstructed files in",
+        help="If specified, the output directory in which the reconstructed files will be saved (otherwise each reconstruction will be saved in the same directory as its SIM data file)",
     )
     parser.add_argument(
         "--otf",
