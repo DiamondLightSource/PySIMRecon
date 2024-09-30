@@ -17,9 +17,9 @@ To reconstruct the SIM data and create OTFs from PSFs from the cryoSIM at B24, D
 
 Under development
 
-### Installation
+## Installation
 
-##### Requirements
+#### Requirements
 
 - This package requires Conda for package management. This project recommends using [miniforge](https://conda-forge.org/download/) from conda-forge.
 - This package required a CUDA-compatible NVIDIA GPU:
@@ -28,7 +28,7 @@ Under development
   - It is recommended to use the latest GPU drivers available for you system. Please see [cudasirecon's README](https://github.com/scopetools/cudasirecon/blob/main/README.md#gpu-requirements) for more details about CUDA and driver versions.
 - Unfortunately, macOS is not supported.
 
-##### Steps
+#### Steps
 
 This is not yet published on conda-forge, so the installation process is fairly manual.
 
@@ -40,9 +40,9 @@ This is not yet published on conda-forge, so the installation process is fairly 
 
 If you have any problems installing this package, please open an issue.
 
-### Configuration
-Calls to `sim-otf` and `sim-recon` can both take a `-c`/`--config` argument. This should be similar to the `config.ini` file in the configs directory, which specifies the defaults config, any per-channel configs (some values should be set on a per-channel basis), and the locations of OTFs for each channel.
-The channels are specified based on the emission wavelength in nanometres (must be an integer).
+## Configuration
+Calls to `sim-otf` and `sim-recon` can both take a `-c`/`--config` argument. This should be similar to the `config.ini` file in the configs directory, which specifies the defaults config, any per-channel configs (some values should be set on a per-channel basis), and the locations of OTFs for each channel. Channels are specified based on the emission wavelength in nanometres (must be an integer).
+
 ##### Example:
 For a channel with an emission wavelength of 525nm:
 - In the `[configs]` section, the channel config can be specified as `525=/path/to/configs/525.cfg`
@@ -50,14 +50,19 @@ For a channel with an emission wavelength of 525nm:
 A directory can be specified within each of the `[configs]` and `[otfs]` sections. If given, files can also be defined relative to that directory, e.g. if `directory=/path/to`, then `525=/path/to/otfs/525_otf.tiff` could simply be `525=otfs/525_otf.tiff`.
 Config settings will be overriden by higher-priority sources.
 
-##### Order of setting priority:
+#### Configuring defaults
+
+The defaults config and per-channel configs expect the same form, with the headers `[otf config]` for settings that are used with `sim-otf` and `[recon config]` for settings that are used with `sim-recon`. For these commands, available settings can be found in their argument form (with a leading `--` that should be removed for config use) in the [CLI](#CLI) section under 'Overrides'. While these settings can be set via command line arguments, command line arguments cannot be set per-channel and will apply to all files and channels.
+
+
+#### Order of setting priority:
 1. Command line arguments (override all)
 2. Per-channel configs (override defaults for the appropriate channel only)
 3. Defaults (override any cudasirecon defaults)
 
-### CLI
+## CLI
 
-##### sim-otf
+#### sim-otf
 
 ```
 usage: sim-otf [-h] -p PSF_PATHS [PSF_PATHS ...] [-c CONFIG_PATH]
@@ -118,7 +123,7 @@ Overrides:
   --I2M I2M             I2M OTF file (input data contains I2M PSF)
 ```
 
-##### sim-recon
+#### sim-recon
 
 ```
 usage: sim-recon [-h] -d SIM_DATA_PATHS [SIM_DATA_PATHS ...] [-c CONFIG_PATH]
@@ -272,7 +277,7 @@ Overrides:
                         default)
 ```
 
-##### otf-view
+#### otf-view
 
 ```
 usage: otf-view [-h] [--show] [--show-only] [-o OUTPUT_DIRECTORY] [-v]
@@ -296,6 +301,6 @@ options:
                         installed)
 ```
 
-##### dv2tiff
+#### dv2tiff
 
 Accepts a list of DV files to be converted to TIFFs (with some OME metadata).
