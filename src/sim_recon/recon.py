@@ -323,9 +323,6 @@ def run_reconstructions(
                         allow_missing_channels=allow_missing_channels,
                         **config_kwargs,
                     )
-                    if not processing_info_dict:
-                        logger.warning("Skipping %s (unable to process)", sim_data_path)
-                        continue
 
                     async_results: list[AsyncResult] = []
                     for wavelength, processing_info in processing_info_dict.items():
