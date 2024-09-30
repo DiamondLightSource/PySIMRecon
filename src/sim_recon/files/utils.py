@@ -10,6 +10,13 @@ from uuid import uuid4
 from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
+from ...exceptions import (
+    PySimReconFileExistsError,
+    PySimReconIOError,
+    PySimReconOSError,
+    PySimReconValueError,
+)
+
 if TYPE_CHECKING:
     from typing import Literal
     from os import PathLike
@@ -31,7 +38,7 @@ def get_temporary_path(directory: Path, stem: str, suffix: str) -> Path:
     tiff_path = (directory / f"{stem}_{uuid4()}").with_suffix(suffix)
     if not tiff_path.exists():
         return tiff_path
-    raise FileExistsError(
+    raise PySimReconFileExistsError(
         f"Failed to create temporary file as the following already exists: {tiff_path}"
     )
 
@@ -40,7 +47,7 @@ def ensure_unique_filepath(path: Path, max_iter: int = 99) -> Path:
     if not path.exists():
         return path
     if max_iter <= 1:
-        raise ValueError("max_iter must be >1")
+        raise PySimReconValueError("max_iter must be >1")
     output_path = None
     for i in range(1, max_iter + 1):
         output_path = path.with_name(f"{path.stem}_{i}{path.suffix}")
@@ -50,7 +57,7 @@ def ensure_unique_filepath(path: Path, max_iter: int = 99) -> Path:
     error_str = f"Failed to create unique file path after {max_iter} attempts."
     if output_path is not None:
         error_str += f" Final attempt was '{output_path}'."
-    raise IOError(error_str)
+    raise PySimReconIOError(error_str)
 
 
 def ensure_valid_filename(filename: str) -> str:
@@ -64,7 +71,7 @@ def ensure_valid_filename(filename: str) -> str:
     elif system == "Darwin":
         invalid_chars = _DARWIN_FN_SUB
     else:
-        raise OSError(f"{system} is not a supported system")
+        raise PySimReconOSError(f"{system} is not a supported system")
 
     new_filename = filename.rstrip(rstrip)
     new_filename = re.sub(invalid_chars, "_", new_filename)

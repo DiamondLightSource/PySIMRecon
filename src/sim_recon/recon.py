@@ -22,6 +22,13 @@ from .images.dataclasses import ImageChannel, Wavelengths, ProcessingInfo
 from .settings import ConfigManager
 from .settings.formatting import formatters_to_default_value_kwargs, RECON_FORMATTERS
 from .progress import get_progress_wrapper, get_logging_redirect
+from ..exceptions import (
+    PySimReconFileNotFoundError,
+    ReconstructionError,
+    ConfigException,
+    MissingOtfException,
+    UndefinedValueError,
+)
 
 if TYPE_CHECKING:
     from typing import Any
@@ -31,10 +38,6 @@ if TYPE_CHECKING:
 
 
 logger = logging.getLogger(__name__)
-
-
-class ReconstructionException(Exception):
-    pass
 
 
 def _recon_get_result(
@@ -73,7 +76,7 @@ def subprocess_recon(
         array = read_tiff(expected_path)
         expected_path.unlink()
         return array
-    raise ReconstructionException(f"No reconstruction file found at {expected_path}")
+    raise ReconstructionError(f"No reconstruction file found at {expected_path}")
 
 
 def reconstruct(
@@ -90,7 +93,7 @@ def reconstruct(
         z, y, x = array.shape
         z_div = ndirs * nphases
         if z % z_div != 0:
-            raise ReconstructionException(
+            raise ReconstructionError(
                 f"Z size {z} is not divisible by the number of phases and angles ({nphases} * {ndirs})"
             )
         z = (z // z_div) * zzoom
@@ -106,7 +109,7 @@ def reconstruct(
             config_path,
             exc_info=True,
         )
-        raise ReconstructionException(
+        raise ReconstructionError(
             f"Exception raised during reconstruction with config {config_path}"
         )
 
@@ -187,7 +190,7 @@ def run_reconstructions(
                     else Path(output_directory)
                 )
                 if not sim_data_path.is_file():
-                    raise FileNotFoundError(
+                    raise PySimReconFileNotFoundError(
                         f"Image file {sim_data_path} does not exist"
                     )
 
@@ -351,17 +354,19 @@ def create_processing_info(
     file_path = Path(file_path)
     output_dir = Path(output_dir)
     if not file_path.is_file():
-        raise FileNotFoundError(
+        raise PySimReconFileNotFoundError(
             f"Cannot create processing info: file {file_path} does not exist"
         )
     logger.debug("Creating processing files for %s in %s", file_path, output_dir)
 
     if wavelengths.emission_nm_int is None:
-        raise AttributeError("emission_nm_int", wavelengths)
+        raise UndefinedValueError(
+            f"Channel is missing emission wavelength: {wavelengths} (attribute 'emission_nm_int' is None)"
+        )
     otf_path = conf.get_otf_path(wavelengths.emission_nm_int)
 
     if otf_path is None:
-        raise ValueError(
+        raise MissingOtfException(
             f"No OTF file has been set for channel {wavelengths.emission_nm_int} ({wavelengths})"
         )
 
@@ -426,42 +431,47 @@ def _prepare_files(
 
     # Create TIFFs split by wavelength
     for channel in image_data.channels:
-        if conf.get_channel_config(channel.wavelengths.emission_nm_int) is not None:
-            try:
-                split_file_path = (
-                    processing_dir / f"data{channel.wavelengths.emission_nm}.tiff"
-                )
-                write_tiff(
-                    split_file_path,
-                    channel,
-                    xy_pixel_size_microns=(
-                        image_data.resolution.x,
-                        image_data.resolution.y,
-                    ),
+        if conf.get_channel_config(channel.wavelengths.emission_nm_int) is None:
+            logger.warning(
+                "Skipping channel: channel %i has not been configured",
+                channel.wavelengths.emission_nm_int,
+            )
+            continue
+        try:
+            split_file_path = (
+                processing_dir / f"data{channel.wavelengths.emission_nm}.tiff"
+            )
+            write_tiff(
+                split_file_path,
+                channel,
+                xy_pixel_size_microns=(
+                    image_data.resolution.x,
+                    image_data.resolution.y,
+                ),
+            )
+
+            processing_info = create_processing_info(
+                file_path=split_file_path,
+                output_dir=processing_dir,
+                wavelengths=channel.wavelengths,
+                conf=conf,
+                **config_kwargs,
+            )
+
+            if channel.wavelengths.emission_nm_int in processing_info_dict:
+                raise ConfigException(
+                    f"Emission wavelength {channel.wavelengths.emission_nm_int} found multiple times within {file_path}"
                 )
 
-                processing_info = create_processing_info(
-                    file_path=split_file_path,
-                    output_dir=processing_dir,
-                    wavelengths=channel.wavelengths,
-                    conf=conf,
-                    **config_kwargs,
-                )
-
-                if channel.wavelengths.emission_nm_int in processing_info_dict:
-                    raise KeyError(
-                        f"Emission wavelength {channel.wavelengths.emission_nm_int} found multiple times within {file_path}"
-                    )
-
-                processing_info_dict[channel.wavelengths.emission_nm_int] = (
-                    processing_info
-                )
-            except Exception:
-                logger.error(
-                    "Failed to prepare files for channel %i (%s) of %s",
-                    channel.wavelengths.emission_nm_int,
-                    channel.wavelengths,
-                    file_path,
-                    exc_info=True,
-                )
+            processing_info_dict[channel.wavelengths.emission_nm_int] = processing_info
+        except Exception:
+            logger.error(
+                "Failed to prepare files for channel %i (%s) of %s",
+                channel.wavelengths.emission_nm_int,
+                channel.wavelengths,
+                file_path,
+                exc_info=True,
+            )
+    if not processing_info_dict:
+        raise ConfigException(f"No configuration found for any channel in {file_path}")
     return processing_info_dict
