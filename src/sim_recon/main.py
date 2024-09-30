@@ -5,8 +5,7 @@ from typing import TYPE_CHECKING
 from .files.config import (
     read_config,
     get_defaults_config_path,
-    get_recon_kwargs,
-    get_otf_kwargs,
+    get_otf_and_recon_kwargs,
     get_channel_configs,
 )
 from .settings import ConfigManager
@@ -37,10 +36,9 @@ def load_configs(
     main_config = read_config(config_path)
 
     defaults_config_path = get_defaults_config_path(main_config)
-    defaults_config = read_config(defaults_config_path)
-
-    default_recon_kwargs = get_recon_kwargs(defaults_config)
-    default_otf_kwargs = get_otf_kwargs(defaults_config)
+    default_otf_kwargs, default_recon_kwargs = get_otf_and_recon_kwargs(
+        defaults_config_path
+    )
 
     return ConfigManager(
         defaults_config_path=defaults_config_path,
