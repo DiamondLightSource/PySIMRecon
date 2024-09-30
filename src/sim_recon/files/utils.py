@@ -136,6 +136,8 @@ def redirect_output_to(file_path: str | PathLike[str]) -> Generator[None, None, 
         sys.stdout = f
         sys.stderr = f
         yield
+    except Exception:
+        logger.error("Failed to write output to log at %s", file_path, exc_info=True)
     finally:
         # Reset stdout and stderr file descriptors
         os.dup2(saved_stdout_fd, stdout_fd)
