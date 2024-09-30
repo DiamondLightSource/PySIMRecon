@@ -71,6 +71,13 @@ def parse_args(
         "times to provide OTFs for multiple channels)",
     )
     parser.add_argument(
+        "-amc",
+        "--allow-missing-channels",
+        dest="allow_missing_channels",
+        action="store_true",
+        help="If specified, attempt reconstruction of other channels in a multi-channel file if one or more are not configured",
+    )
+    parser.add_argument(
         "--overwrite",
         action="store_true",
         help="If specified, files will be overwritten if they already exist (unique filenames will be used otherwise)",

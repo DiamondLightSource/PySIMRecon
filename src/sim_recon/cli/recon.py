@@ -21,6 +21,7 @@ def main() -> None:
         cleanup=namespace.cleanup,
         stitch_channels=namespace.stitch_channels,
         parallel_process=namespace.parallel_process,
+        allow_missing_channels=namespace.allow_missing_channels,
         **recon_kwargs,
     )
 

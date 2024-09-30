@@ -98,6 +98,7 @@ def sim_reconstruct(
     cleanup: bool = True,
     stitch_channels: bool = True,
     parallel_process: bool = False,
+    allow_missing_channels: bool = False,
     **recon_kwargs: Any,
 ) -> None:
     """
@@ -121,6 +122,8 @@ def sim_reconstruct(
         Stitch channels back together after processing (otherwise output will be a separate DV per channel), by default True
     parallel_process : bool, optional
         Run reconstructions in 2 processes concurrently, by default False
+    allow_missing_channels: bool, optional
+        Attempt reconstruction of other channels in a multi-channel file if one or more are not configured, by default False
     """
     conf = load_configs(config_path, otf_overrides=otf_overrides)
     logger.info("Starting reconstructions...")
@@ -132,5 +135,6 @@ def sim_reconstruct(
         cleanup=cleanup,
         stitch_channels=stitch_channels,
         parallel_process=parallel_process,
+        allow_partial=allow_missing_channels,
         **recon_kwargs,
     )
