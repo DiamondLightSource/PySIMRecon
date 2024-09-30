@@ -32,6 +32,7 @@ from .exceptions import (
     ConfigException,
     MissingOtfException,
     UndefinedValueError,
+    InvalidValueError,
 )
 
 if TYPE_CHECKING:
@@ -170,6 +171,88 @@ def reconstruct_from_processing_info(processing_info: ProcessingInfo) -> Path:
     return Path(processing_info.output_path)
 
 
+def _processing_files_to_output(
+    sim_data_path: Path,
+    file_output_directory: Path,
+    processing_info_dict: dict[int, ProcessingInfo],
+    stitch_channels: bool = True,
+    overwrite: bool = True,
+) -> None:
+    if stitch_channels:
+        try:
+            # Get zoom factors to for checking if the output can be stitched
+            zoom_factors = tuple(
+                (
+                    processing_info.kwargs["zoomfact"],
+                    processing_info.kwargs["zzoom"],
+                )
+                for processing_info in processing_info_dict.values()
+            )
+
+            # Check if images can be stitched
+            if zoom_factors.count(zoom_factors[0]) != len(zoom_factors):
+                raise InvalidValueError(
+                    "Zoom factors are not consistent for all wavelengths"
+                )
+            # Stitch channels (if requested and possible)
+            dv_path = create_output_path(
+                sim_data_path,
+                output_type="recon",
+                suffix=".dv",
+                output_directory=file_output_directory,
+                ensure_unique=not overwrite,
+            )
+
+            combine_text_files(
+                dv_path.with_suffix(".log"),
+                *(pi.log_path for pi in processing_info_dict.values()),
+                header="Reconstruction log",
+            )
+
+            write_dv(
+                sim_data_path,
+                dv_path,
+                get_combined_array_from_tiffs(
+                    *(pi.output_path for pi in processing_info_dict.values())
+                ),
+                wavelengths=tuple(processing_info_dict.keys()),
+                zoomfact=float(zoom_factors[0][0]),
+                zzoom=zoom_factors[0][1],
+                overwrite=overwrite,
+            )
+            return
+        except InvalidValueError as e:
+            logger.warning("Unable to stitch files due to error: %s", e)
+
+    for (
+        wavelength,
+        processing_info,
+    ) in processing_info_dict.items():
+        dv_path = create_output_path(
+            sim_data_path,
+            output_type="recon",
+            suffix=".dv",
+            output_directory=file_output_directory,
+            wavelength=wavelength,
+            ensure_unique=not overwrite,
+        )
+
+        combine_text_files(
+            dv_path.with_suffix(".log"),
+            *(pi.log_path for pi in processing_info_dict.values()),
+            header="Reconstruction log",
+        )
+
+        write_dv(
+            sim_data_path,
+            dv_path,
+            get_combined_array_from_tiffs(processing_info.output_path),
+            wavelengths=(wavelength,),
+            zoomfact=float(processing_info.kwargs["zoomfact"]),
+            zzoom=processing_info.kwargs["zzoom"],
+        )
+
+
 def run_reconstructions(
     conf: ConfigManager,
     *sim_data_paths: str | PathLike[str],
@@ -232,7 +315,6 @@ def run_reconstructions(
                         continue
 
                     async_results: list[AsyncResult] = []
-                    zoom_factors: list[tuple[float, int]] = []
                     for wavelength, processing_info in processing_info_dict.items():
                         async_results.append(
                             pool.apply_async(
@@ -248,14 +330,6 @@ def run_reconstructions(
                             )
                         )
 
-                        # Get zoom factors to for checking if the output can be stitched
-                        zoom_factors.append(
-                            (
-                                processing_info.kwargs["zoomfact"],
-                                processing_info.kwargs["zzoom"],
-                            )
-                        )
-
                     # Wait for async processes to finish (otherwise there won't be files to stitch!)
                     for r in progress_wrapper(
                         async_results,
@@ -264,75 +338,13 @@ def run_reconstructions(
                     ):
                         r.wait()
 
-                    # Check if images can be stitched
-                    if stitch_channels and zoom_factors.count(zoom_factors[0]) != len(
-                        zoom_factors
-                    ):
-                        logger.warning(
-                            "Unable to stitch files due to mismatched zoom factors between wavelengths"
-                        )
-                        stitch_channels = False
-
-                    if stitch_channels:
-                        # Stitch channels (if requested and possible)
-                        dv_path = create_output_path(
-                            sim_data_path,
-                            output_type="recon",
-                            suffix=".dv",
-                            output_directory=file_output_directory,
-                            ensure_unique=not overwrite,
-                        )
-
-                        combine_text_files(
-                            dv_path.with_suffix(".log"),
-                            *(pi.log_path for pi in processing_info_dict.values()),
-                            header="Reconstruction log",
-                        )
-
-                        write_dv(
-                            sim_data_path,
-                            dv_path,
-                            get_combined_array_from_tiffs(
-                                *(
-                                    pi.output_path
-                                    for pi in processing_info_dict.values()
-                                )
-                            ),
-                            wavelengths=tuple(processing_info_dict.keys()),
-                            zoomfact=float(zoom_factors[0][0]),
-                            zzoom=zoom_factors[0][1],
-                            overwrite=overwrite,
-                        )
-                    else:
-                        for (
-                            wavelength,
-                            processing_info,
-                        ) in processing_info_dict.items():
-                            dv_path = create_output_path(
-                                sim_data_path,
-                                output_type="recon",
-                                suffix=".dv",
-                                output_directory=file_output_directory,
-                                wavelength=wavelength,
-                                ensure_unique=not overwrite,
-                            )
-
-                            combine_text_files(
-                                dv_path.with_suffix(".log"),
-                                *(pi.log_path for pi in processing_info_dict.values()),
-                                header="Reconstruction log",
-                            )
-
-                            write_dv(
-                                sim_data_path,
-                                dv_path,
-                                get_combined_array_from_tiffs(
-                                    processing_info.output_path
-                                ),
-                                wavelengths=(wavelength,),
-                                zoomfact=float(processing_info.kwargs["zoomfact"]),
-                                zzoom=processing_info.kwargs["zzoom"],
-                            )
+                    _processing_files_to_output(
+                        sim_data_path,
+                        file_output_directory=file_output_directory,
+                        processing_info_dict=processing_info_dict,
+                        stitch_channels=stitch_channels,
+                        overwrite=overwrite,
+                    )
 
                     if cleanup:
                         for processing_info in processing_info_dict.values():
