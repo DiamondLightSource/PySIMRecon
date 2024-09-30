@@ -1,35 +1,60 @@
 name: Generate help docs
-on: workflow_call
+on:
+  workflow_call:
+    inputs:
+      git_ref:
+        description: "Git reference to use for checks"
+        type: string
+      push_options:
+        description: "push_options passed to stefanzweifel/git-auto-commit-action"
+        type: string
+        default: ""
+
+    outputs:
+      help_docs_changed:
+        description: "'true' if the help docs were updated, otherwise 'false'"
+        value: ${{ jobs.generate-help-docs.outputs.help_docs_changed }}
 
 jobs:
   generate-help-docs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    outputs:
+      help_docs_changed: ${{ steps.autocommit.outputs.changes_detected }}
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref }}
+          ref: ${{ inputs.git_ref }}
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
       - name: Display Python version
         run: python -c "import sys; print(sys.version)"
+
       - name: Copy template
         run: cp -f docs/template.md README.md
+
       - name: Install (without dependencies)
         run: |
           python -m pip install --upgrade pip
           python -m pip install . --no-deps
+
       - name: Ensure README exists
         run: |
           if [ ! -f "README.md" ]; then
             touch README.md
           fi
+
       - name: Generate help docs from package
         run: ./releng/generate_help_docs.sh
+
       - uses: stefanzweifel/git-auto-commit-action@v5
+        id: autocommit
         with:
           file_pattern: docs/**/*
-          commit_message: Automated update of help docs
+          commit_message: Update help docs [GitHub Action]
+          push_options: ${{ inputs.push_options }}

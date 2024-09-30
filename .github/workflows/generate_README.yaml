@@ -1,5 +1,14 @@
 name: Generate README
-on: workflow_call
+on:
+  workflow_call:
+    inputs:
+      git_ref:
+        description: "Git reference to use for checks"
+        type: string
+      push_options:
+        description: "push_options passed to stefanzweifel/git-auto-commit-action"
+        type: string
+        default: ""
 
 jobs:
   make-README:
@@ -9,11 +18,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref }}
+          ref: ${{ inputs.git_ref }}
+          sparse-checkout: |
+            README.md
+            docs
+            releng
+
       - name: Fill template
         run: |
           ./releng/README_from_docs.sh
+
       - uses: stefanzweifel/git-auto-commit-action@v5
         with:
           file_pattern: README.md
-          commit_message: Automated update of README.md from docs
+          commit_message: Update README.md from docs [GitHub Action]
+          push_options: ${{ inputs.push_options }}
