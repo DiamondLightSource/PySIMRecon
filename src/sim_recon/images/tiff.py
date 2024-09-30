@@ -7,7 +7,7 @@ import tifffile as tf
 from typing import TYPE_CHECKING, cast
 
 from ..info import __version__
-from ..exceptions import PySimReconFileExistsError
+from ..exceptions import PySimReconFileExistsError, PySimReconValueError
 
 if TYPE_CHECKING:
     from typing import Any
@@ -31,6 +31,8 @@ def get_combined_array_from_tiffs(
         "Combining tiffs from:\n%s",
         "\n\t".join(str(fp) for fp in file_paths),
     )
+    if not file_paths:
+        raise PySimReconValueError("Cannot create a combined array without files")
     return np.stack(tuple(tf.memmap(fp).squeeze() for fp in file_paths), -3)
 
 
