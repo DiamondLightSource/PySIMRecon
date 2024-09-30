@@ -171,3 +171,4 @@ def combine_text_files(
         if header is not None:
             f.write(header + separator)
         f.write(separator.join(contents_generator))
+        os.fsync(f.fileno())
