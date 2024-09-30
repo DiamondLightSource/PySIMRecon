@@ -1,7 +1,7 @@
 from __future__ import annotations
 import logging
 from pathlib import Path
-from configparser import RawConfigParser
+from configparser import RawConfigParser, NoSectionError
 from typing import TYPE_CHECKING
 
 from ..settings import ChannelConfig
@@ -111,11 +111,9 @@ def get_channel_configs(
 
     for wavelength in wavelengths:
         if wavelength in configs_dict:
-            wavelength_config = read_config(configs_dict[wavelength])
-            # Get per-wavelength recon kwargs
-            recon_kwargs = get_recon_kwargs(wavelength_config)
-            # Get per-wavelength otf kwargs:
-            otf_kwargs = get_otf_kwargs(wavelength_config)
+            otf_kwargs, recon_kwargs = get_otf_and_recon_kwargs(
+                configs_dict[wavelength]
+            )
         else:
             recon_kwargs = {}
             otf_kwargs = {}
@@ -165,6 +163,33 @@ def get_otf_kwargs(
     return _config_section_to_dict(
         config_parser, section_name=__OTF_CONFIG_SECTION, settings_for="otf"
     )
+
+
+def get_otf_and_recon_kwargs(
+    config_path: str | PathLike[str],
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    config = read_config(config_path)
+    recon_kwargs = {}
+    otf_kwargs = {}
+    try:
+        # Get per-wavelength recon kwargs
+        recon_kwargs = get_recon_kwargs(config)
+    except NoSectionError as e:
+        logger.warning(
+            "No '%s' section found in %s",
+            e.section,
+            config_path,
+        )
+    try:
+        # Get per-wavelength otf kwargs:
+        otf_kwargs = get_otf_kwargs(config)
+    except NoSectionError as e:
+        logger.warning(
+            "No '%s' section found in %s",
+            e.section,
+            config_path,
+        )
+    return otf_kwargs, recon_kwargs
 
 
 def _config_section_to_dict(
