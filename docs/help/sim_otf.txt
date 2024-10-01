@@ -17,9 +17,9 @@ options:
                         Path to the root config that specifies the paths to
                         the OTFs and the other configs (recommended)
   -o OUTPUT_DIRECTORY, --output-directory OUTPUT_DIRECTORY
-                        If specified, the output directory that the OTFs will
-                        be saved in, otherwise each OTF will be saved in the
-                        same directory as its PSF
+                        If specified, the output directory in which the OTF
+                        files will be saved (otherwise each OTF will be saved
+                        in the same directory as its PSF)
   --overwrite           If specified, files will be overwritten if they
                         already exist (unique filenames will be used
                         otherwise)
