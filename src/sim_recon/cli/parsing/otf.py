@@ -40,7 +40,7 @@ def parse_args(
     parser.add_argument(
         "-o",
         "--output-directory",
-        help="If specified, the output directory that the OTFs will be saved in, otherwise each OTF will be saved in the same directory as its PSF",
+        help="If specified, the output directory in which the OTF files will be saved (otherwise each OTF will be saved in the same directory as its PSF)",
     )
     parser.add_argument(
         "--overwrite",

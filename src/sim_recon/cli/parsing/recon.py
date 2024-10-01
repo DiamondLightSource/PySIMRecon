@@ -58,17 +58,17 @@ def parse_args(
     parser.add_argument(
         "-o",
         "--output-directory",
-        help="The output directory to save reconstructed files in",
+        help="If specified, the output directory in which the reconstructed files will be saved (otherwise each reconstruction will be saved in the same directory as its SIM data file)",
     )
     parser.add_argument(
         "--otf",
         dest="otfs",
         type=_otf_arg_conv,
         action="append",
-        help="OTF file for a channel, which should be specified using the "
-        "emission wavelength in nm followed by the path to the OTF file e.g. "
-        "'--otf 525 /path/to/525_otf.tiff' (argument can be given multiple "
-        "times to provide OTFs for multiple channels)",
+        help="The OTF file for a channel can be specified, which should be "
+        "given as <emission wavelength in nm>:<the path to the OTF file> "
+        "e.g. '--otf 525:/path/to/525_otf.tiff' (argument can be given "
+        "multiple times to provide OTFs for multiple channels)",
     )
     parser.add_argument(
         "-amc",
