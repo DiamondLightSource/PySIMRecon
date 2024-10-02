@@ -17,6 +17,9 @@ on:
 
 jobs:
   generate-help-docs:
+    concurrency:
+      group: generate-help-docs -- ${{ github.workflow }} -- ${{ github.ref_name }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     permissions:
       contents: write
