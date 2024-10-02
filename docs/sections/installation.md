@@ -22,3 +22,4 @@ This is not yet published on conda-forge, so the installation process is fairly 
    * The package can be installed in editable mode by adding the option `-e`, i.e. `python -m pip install -e .[progress]`.
 
 If you have any problems installing this package, please open an issue.
+ test
