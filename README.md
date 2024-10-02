@@ -63,6 +63,8 @@ The defaults config and per-channel configs expect the same form, with the heade
 2. Per-channel configs (override defaults for the appropriate channel only)
 3. Defaults (override any cudasirecon defaults)
 
+afa
+
 ## CLI
 
 #### sim-otf
@@ -104,7 +106,7 @@ options:
 
 Overrides:
   Arguments that override configured values. Defaults stated are only used
-  if no value is given or configured.
+  if no value is given or configured. text
 
   --nphases NPHASES     Number of pattern phases per SIM direction (default=5)
   --ls LS               Line spacing of SIM pattern in microns (default=0.172)
@@ -190,7 +192,7 @@ options:
 
 Overrides:
   Arguments that override configured values. Defaults stated are only used
-  if no value is given or configured.
+  if no value is given or configured. text
 
   --ndirs NDIRS         Number of SIM directions (default=3)
   --nphases NPHASES     Number of pattern phases per SIM direction (default=5)
