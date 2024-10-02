@@ -41,6 +41,7 @@ This is not yet published on conda-forge, so the installation process is fairly 
    * The package can be installed in editable mode by adding the option `-e`, i.e. `python -m pip install -e .[progress]`.
 
 If you have any problems installing this package, please open an issue.
+ test
 
 ## Configuration
 Calls to `sim-otf` and `sim-recon` can both take a `-c`/`--config` argument. This should be similar to the `config.ini` file in the configs directory, which specifies the defaults config, any per-channel configs (some values should be set on a per-channel basis), and the locations of OTFs for each channel. Channels are specified based on the emission wavelength in nanometres (must be an integer).
@@ -313,3 +314,5 @@ options:
 #### dv2tiff
 
 Accepts a list of DV files to be converted to TIFFs (with some OME metadata).
+
+Extra text
