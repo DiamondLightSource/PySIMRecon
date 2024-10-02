@@ -106,7 +106,7 @@ options:
 
 Overrides:
   Arguments that override configured values. Defaults stated are only used
-  if no value is given or configured. text
+  if no value is given or configured. text 2
 
   --nphases NPHASES     Number of pattern phases per SIM direction (default=5)
   --ls LS               Line spacing of SIM pattern in microns (default=0.172)
@@ -192,7 +192,7 @@ options:
 
 Overrides:
   Arguments that override configured values. Defaults stated are only used
-  if no value is given or configured. text
+  if no value is given or configured. text 2
 
   --ndirs NDIRS         Number of SIM directions (default=3)
   --nphases NPHASES     Number of pattern phases per SIM direction (default=5)
@@ -316,5 +316,6 @@ options:
 #### dv2tiff
 
 Accepts a list of DV files to be converted to TIFFs (with some OME metadata).
+sdf
 
 Extra text
