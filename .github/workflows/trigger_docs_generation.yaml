@@ -2,7 +2,7 @@ name: Trigger docs generation
 on:
   push:
     branches:
-      - main
+      - docs-generation-test
 
 jobs:
   check-changes:
