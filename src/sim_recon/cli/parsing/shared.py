@@ -27,7 +27,7 @@ def add_override_args_from_formatters(
 ) -> None:
     arg_group = parser.add_argument_group(
         "Overrides",
-        "Arguments that override configured values. Defaults stated are only used if no value is given or configured.",
+        "Arguments that override configured values. Defaults stated are only used if no value is given or configured. text",
     )
     for arg_name, formatter in formatters.items():
         if formatter.nargs == 0:
