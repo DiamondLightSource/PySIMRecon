@@ -17,6 +17,8 @@ This is not yet published on conda-forge, so the installation process is fairly 
 2. Clone (or download) this repository.
 3. Navigate to where you've cloned the repo within your terminal.
 4. Install the requirements from the conda_requirements.txt file `conda install -c conda-forge --file conda_requirements.txt`. If there are any issues with this step, please refer to the [requirements](#requirements) section.
-5. Install the package with pip, now that the requirements have been met `python -m pip install .` The argument `-e` can be added if you want it install it in editable mode.
+5. Install the package with pip, now that the requirements have been met:
+   * It is recommended to install the package using `python -m pip install .[progress]` as this includes progress bars using [tqdm](https://tqdm.github.io/) (simply use `python -m pip install .` if you don't want this).
+   * The package can be installed in editable mode by adding the option `-e`, i.e. `python -m pip install -e .[progress]`.
 
 If you have any problems installing this package, please open an issue.
