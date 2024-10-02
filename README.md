@@ -36,7 +36,9 @@ This is not yet published on conda-forge, so the installation process is fairly 
 2. Clone (or download) this repository.
 3. Navigate to where you've cloned the repo within your terminal.
 4. Install the requirements from the conda_requirements.txt file `conda install -c conda-forge --file conda_requirements.txt`. If there are any issues with this step, please refer to the [requirements](#requirements) section.
-5. Install the package with pip, now that the requirements have been met `python -m pip install .` The argument `-e` can be added if you want it install it in editable mode.
+5. Install the package with pip, now that the requirements have been met:
+   * It is recommended to install the package using `python -m pip install .[progress]` as this includes progress bars using [tqdm](https://tqdm.github.io/) (simply use `python -m pip install .` if you don't want this).
+   * The package can be installed in editable mode by adding the option `-e`, i.e. `python -m pip install -e .[progress]`.
 
 If you have any problems installing this package, please open an issue.
 
@@ -84,9 +86,9 @@ options:
                         Path to the root config that specifies the paths to
                         the OTFs and the other configs (recommended)
   -o OUTPUT_DIRECTORY, --output-directory OUTPUT_DIRECTORY
-                        If specified, the output directory that the OTFs will
-                        be saved in, otherwise each OTF will be saved in the
-                        same directory as its PSF
+                        If specified, the output directory in which the OTF
+                        files will be saved (otherwise each OTF will be saved
+                        in the same directory as its PSF)
   --overwrite           If specified, files will be overwritten if they
                         already exist (unique filenames will be used
                         otherwise)
@@ -127,7 +129,7 @@ Overrides:
 
 ```
 usage: sim-recon [-h] -d SIM_DATA_PATHS [SIM_DATA_PATHS ...] [-c CONFIG_PATH]
-                 [-o OUTPUT_DIRECTORY] [--otf OTFS] [--overwrite]
+                 [-o OUTPUT_DIRECTORY] [--otf OTFS] [-amc] [--overwrite]
                  [--no-cleanup] [--keep-split] [--parallel] [-v]
                  [--no-progress] [--ndirs NDIRS] [--nphases NPHASES]
                  [--nordersout NORDERSOUT] [--angle0 ANGLE0] [--ls LS]
@@ -160,12 +162,19 @@ options:
                         Path to the root config that specifies the paths to
                         the OTFs and the other configs (recommended)
   -o OUTPUT_DIRECTORY, --output-directory OUTPUT_DIRECTORY
-                        The output directory to save reconstructed files in
-  --otf OTFS            OTF file for a channel, which should be specified
-                        using the emission wavelength in nm followed by the
-                        path to the OTF file e.g. '--otf 525
-                        /path/to/525_otf.tiff' (argument can be given multiple
-                        times to provide OTFs for multiple channels)
+                        If specified, the output directory in which the
+                        reconstructed files will be saved (otherwise each
+                        reconstruction will be saved in the same directory as
+                        its SIM data file)
+  --otf OTFS            The OTF file for a channel can be specified, which
+                        should be given as <emission wavelength in nm>:<the
+                        path to the OTF file> e.g. '--otf
+                        525:/path/to/525_otf.tiff' (argument can be given
+                        multiple times to provide OTFs for multiple channels)
+  -amc, --allow-missing-channels
+                        If specified, attempt reconstruction of other channels
+                        in a multi-channel file if one or more are not
+                        configured
   --overwrite           If specified, files will be overwritten if they
                         already exist (unique filenames will be used
                         otherwise)
