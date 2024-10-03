@@ -19,6 +19,7 @@ jobs:
       - uses: dorny/paths-filter@v3
         id: filter
         with:
+          base: ${{ github.ref_name }}
           filters: |
             docs:
               - 'docs/**'
@@ -31,11 +32,11 @@ jobs:
     if: needs.check-changes.outputs.parser-changed == 'true'
     uses: ./.github/workflows/generate_help_docs.yaml
     with:
-      git_ref: ${{ github.head_ref }}
+      git_ref: ${{ github.ref_name }}
 
   generate-README:
     needs: [check-changes, generate-help-docs]
     if: always() && !cancelled() && (needs.check-changes.outputs.docs-changed == 'true' || needs.generate-help-docs.outputs.help_docs_changed == 'true')
     uses: ./.github/workflows/generate_README.yaml
     with:
-      git_ref: ${{ github.head_ref }}
+      git_ref: ${{ github.ref_name }}
