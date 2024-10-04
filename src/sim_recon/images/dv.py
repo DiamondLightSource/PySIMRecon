@@ -158,7 +158,7 @@ def write_dv(
 ) -> Path:
     output_file = Path(output_file)
 
-    if not array:
+    if array.size == 0:
         raise PySimReconValueError(
             "%s will not be created as the array is empty", output_file
         )
