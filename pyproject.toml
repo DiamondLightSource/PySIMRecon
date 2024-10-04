@@ -6,7 +6,6 @@ authors = [
     { name = "Thomas Fish", email = "thomas.fish@diamond.ac.uk" },
 ]
 dependencies = [
-    "cudasirecon >= 1.2.0",
     "pycudasirecon ~= 0.1.0",
     "numpy ~= 1.26.4",
     "matplotlib ~= 3.9.2",
