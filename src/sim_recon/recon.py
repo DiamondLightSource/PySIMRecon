@@ -609,8 +609,7 @@ def _prepare_files(
             processing_info_dict[channel.wavelengths.emission_nm_int] = processing_info
         except PySimReconException as e:
             logger.error(
-                "Failed to prepare files for channel %i (%s) of %s: %s",
-                channel.wavelengths.emission_nm_int,
+                "Failed to prepare files for channel %s of %s: %s",
                 channel.wavelengths,
                 file_path,
                 e,
@@ -619,8 +618,7 @@ def _prepare_files(
                 raise
         except Exception:
             logger.error(
-                "Unexpected error preparing files for channel %i (%s) of %s",
-                channel.wavelengths.emission_nm_int,
+                "Unexpected error preparing files for channel %s of %s",
                 channel.wavelengths,
                 file_path,
                 exc_info=True,
