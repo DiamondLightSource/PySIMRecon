@@ -10,6 +10,7 @@ from ..info import __version__
 from ..exceptions import (
     PySimReconFileExistsError,
     PySimReconValueError,
+    UndefinedValueError,
     PySimReconIOError,
 )
 
@@ -69,6 +70,7 @@ def write_tiff(
     xy_pixel_size_microns: tuple[float | None, float | None] | None = None,
     ome: bool = True,
     overwrite: bool = False,
+    allow_empty_channels: bool = False,
 ) -> None:
     def get_channel_dict(channel: ImageChannel) -> dict[str, Any] | None:
         channel_dict: dict[str, Any] = {}
@@ -129,8 +131,15 @@ def write_tiff(
     ) as tiff:
         for channel in channels:
             if channel.array is None:
-                logger.warning("Channel %s has no array to write", channel.wavelengths)
-                continue
+                if allow_empty_channels:
+                    logger.warning(
+                        "Channel %s has no array to write",
+                        channel.wavelengths,
+                    )
+                    continue
+                raise UndefinedValueError(
+                    f"{output_path} will not be created as channel {channel.wavelengths} has no array to write",
+                )
             channel_kwargs = tiff_kwargs.copy()
             channel_kwargs["metadata"]["axes"] = (
                 "YX" if channel.array.ndim == 2 else "ZYX"
