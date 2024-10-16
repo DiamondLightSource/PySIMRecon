@@ -146,15 +146,16 @@ def redirect_output_to(file_path: str | PathLike[str]) -> Generator[None, None, 
     except Exception:
         logger.error("Failed to write output to log at %s", file_path, exc_info=True)
     finally:
+        if f is not None:
+            f.flush()
+            if f_fd is not None:
+                os.fsync(f_fd)
+            f.close()
         # Reset stdout and stderr file descriptors
         os.dup2(saved_stdout_fd, stdout_fd)
         os.dup2(saved_stderr_fd, stderr_fd)
         sys.stdout = saved_stdout
         sys.stderr = saved_sterr
-        if f_fd is not None:
-            os.fsync(f_fd)
-        if f is not None:
-            f.close()
 
 
 def combine_text_files(
