@@ -57,7 +57,10 @@ def get_combined_array_from_tiffs(
     )
     if not file_paths:
         raise PySimReconValueError("Cannot create a combined array without files")
-    return np.stack(tuple(tf.memmap(fp).squeeze() for fp in file_paths), -3)
+    try:
+        return np.stack(tuple(generate_memmaps_from_tiffs(*file_paths)), -3)
+    except Exception:
+        raise PySimReconIOError("Failed to combine TIFF files")
 
 
 def write_tiff(
