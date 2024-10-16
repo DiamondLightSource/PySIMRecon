@@ -462,7 +462,6 @@ def create_processing_info(
         output_type="recon",
         suffix=".tiff",
         output_directory=output_dir,
-        wavelength=wavelengths.emission_nm_int,
         ensure_unique=True,
     )
     return ProcessingInfo(
@@ -509,7 +508,7 @@ def _prepare_files(
                 )
 
             split_file_path = (
-                processing_dir / f"data{channel.wavelengths.emission_nm}.tiff"
+                processing_dir / f"data{channel.wavelengths.emission_nm_int}.tiff"
             )
             write_tiff(
                 split_file_path,
