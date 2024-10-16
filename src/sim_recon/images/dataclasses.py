@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
+from enum import StrEnum, auto
 from pathlib import Path
 from typing import TYPE_CHECKING, TypeVar, Generic
 
@@ -15,13 +16,20 @@ OptionalWavelengths = TypeVar("OptionalWavelengths", "Wavelengths", None)
 logger = logging.getLogger(__name__)
 
 
+class ProcessingStatus(StrEnum):
+    UNSET = auto()
+    PENDING = auto()
+    FAILED = auto()
+    COMPLETE = auto()
+
+
 @dataclass(frozen=True, slots=True)
 class BoundMrc:
     array: NDArray[Any]
     mrc: Mrc
 
 
-@dataclass(frozen=True)
+@dataclass(slots=True)
 class ProcessingInfo:
     image_path: Path
     otf_path: Path
@@ -30,6 +38,7 @@ class ProcessingInfo:
     log_path: Path
     wavelengths: Wavelengths
     kwargs: dict[str, Any]
+    status: ProcessingStatus = ProcessingStatus.UNSET
 
 
 @dataclass(slots=True)
