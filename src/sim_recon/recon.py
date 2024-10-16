@@ -119,15 +119,21 @@ def reconstruct(
 
         return _recon_get_result(reconstructor, output_shape=(z, y, x))
         # return reconstructor.get_result()
-    except Exception:
-        # Unlikely to ever hit this as errors from the C++ just kill the process
+
+    # Rare to ever hit this as errors from the C++ often just kill the process
+    except OSError as e:
+        logger.error("Reconstruction failed: %s", e)
+        raise ReconstructionError(
+            f"Error during reconstruction with config {config_path}: {e}"
+        )
+    except Exception as e:
         logger.error(
-            "Exception raised during reconstruction with config %s",
+            "Unexpected error during reconstruction",
             config_path,
             exc_info=True,
         )
         raise ReconstructionError(
-            f"Exception raised during reconstruction with config {config_path}"
+            f"Unexpected error during reconstruction with config {config_path}: {e}"
         )
 
 
@@ -146,14 +152,16 @@ def reconstruct_from_processing_info(processing_info: ProcessingInfo) -> Process
 
     data = read_tiff(processing_info.image_path)  # Cannot use a memmap here!
 
+    rec_array = None
     with redirect_output_to(processing_info.log_path):
+        sep = "-" * 80
         print(
             "\n".join(
                 (
-                    f"Channel {processing_info.wavelengths.emission_nm_int} ({processing_info.wavelengths})",
+                    f"Channel {processing_info.wavelengths}",
                     "Config used:",
                     processing_info.config_path.read_text().strip(),
-                    "-" * 80,
+                    sep,
                     "The text below is the output from cudasirecon",
                 )
             )
@@ -161,12 +169,17 @@ def reconstruct_from_processing_info(processing_info: ProcessingInfo) -> Process
         rec_array = reconstruct(
             data, processing_info.config_path, zoomfact, zzoom, ndirs, nphases
         )
+        # rec_array = subprocess_recon(
+        #     processing_info.image_path,
+        #     processing_info.otf_path,
+        #     processing_info.config_path,
+        # )
 
-    # rec_array = subprocess_recon(
-    #     processing_info.image_path,
-    #     processing_info.otf_path,
-    #     processing_info.config_path,
-    # )
+    if rec_array is None:
+        raise ReconstructionError(
+            f"No image was returned from reconstruction with {processing_info.config_path}"
+        )
+
     logger.info("Reconstructed %s", processing_info.image_path)
     recon_pixel_size = float(processing_info.kwargs["xyres"]) / zoomfact
     write_tiff(
@@ -441,9 +454,13 @@ def run_reconstructions(
                                     exc_info=True,
                                 )
             except ConfigException as e:
-                logger.error("Unable to process %s: %s)", sim_data_path, e)
+                logger.error("Unable to process %s: %s", sim_data_path, e)
+            except PySimReconException as e:
+                logger.error("Reconstruction failed for %s: %s", sim_data_path, e)
             except Exception:
-                logger.error("Error occurred for %s", sim_data_path, exc_info=True)
+                logger.error(
+                    "Unexpected error occurred for %s", sim_data_path, exc_info=True
+                )
 
 
 def _prepare_config_kwargs(
