@@ -74,4 +74,4 @@ class Wavelengths:
         object.__setattr__(self, "emission_nm_int", emission_nm_int)
 
     def __str__(self):
-        return f"excitation: {self.excitation_nm}nm; emission: {self.emission_nm}nm"
+        return f"{self.emission_nm_int} (excitation: {self.excitation_nm}nm; emission: {self.emission_nm}nm)"
