@@ -7,10 +7,14 @@ import tifffile as tf
 from typing import TYPE_CHECKING, cast
 
 from ..info import __version__
-from ..exceptions import PySimReconFileExistsError, PySimReconValueError
+from ..exceptions import (
+    PySimReconFileExistsError,
+    PySimReconValueError,
+    PySimReconIOError,
+)
 
 if TYPE_CHECKING:
-    from typing import Any
+    from typing import Any, Generator
     from os import PathLike
     from numpy.typing import NDArray
     from .dataclasses import ImageChannel
@@ -31,6 +35,17 @@ def check_tiff(filepath: str | PathLike[str]) -> bool:
 def read_tiff(filepath: str | PathLike[str]) -> NDArray[Any]:
     with tf.TiffFile(filepath) as tiff:
         return tiff.asarray()
+
+
+def generate_memmaps_from_tiffs(
+    *file_paths: str | PathLike[str],
+) -> Generator[NDArray[Any], None, None]:
+    for fp in file_paths:
+        try:
+            yield tf.memmap(fp).squeeze()
+        except Exception as e:
+            logger.error("Unable to read image from %s: %s", fp, e)
+            raise
 
 
 def get_combined_array_from_tiffs(
