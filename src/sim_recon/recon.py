@@ -462,7 +462,6 @@ def create_processing_info(
         output_type="recon",
         suffix=".tiff",
         output_directory=output_dir,
-        wavelength=wavelengths.emission_nm_int,
         ensure_unique=True,
     )
     return ProcessingInfo(
