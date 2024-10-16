@@ -509,7 +509,7 @@ def _prepare_files(
                 )
 
             split_file_path = (
-                processing_dir / f"data{channel.wavelengths.emission_nm}.tiff"
+                processing_dir / f"data{channel.wavelengths.emission_nm_int}.tiff"
             )
             write_tiff(
                 split_file_path,
