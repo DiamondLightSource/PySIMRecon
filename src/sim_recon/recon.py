@@ -179,6 +179,10 @@ def reconstruct_from_processing_info(processing_info: ProcessingInfo) -> Process
         raise ReconstructionError(
             f"No image was returned from reconstruction with {processing_info.config_path}"
         )
+    elif np.isnan(rec_array).all():
+        raise ReconstructionError(
+            f"Empty (NaN) image was returned from reconstruction with {processing_info.config_path}"
+        )
 
     logger.info("Reconstructed %s", processing_info.image_path)
     recon_pixel_size = float(processing_info.kwargs["xyres"]) / zoomfact
