@@ -4,6 +4,7 @@ import subprocess
 import multiprocessing
 import os
 import traceback
+from functools import partial
 from os.path import abspath
 from shutil import copyfile
 from pathlib import Path
@@ -23,7 +24,12 @@ from .images.tiff import (
     write_tiff,
     get_combined_array_from_tiffs,
 )
-from .images.dataclasses import ImageChannel, Wavelengths, ProcessingInfo
+from .images.dataclasses import (
+    ImageChannel,
+    Wavelengths,
+    ProcessingInfo,
+    ProcessingStatus,
+)
 from .settings import ConfigManager
 from .settings.formatting import (
     formatters_to_default_value_kwargs,
@@ -125,7 +131,8 @@ def reconstruct(
         )
 
 
-def reconstruct_from_processing_info(processing_info: ProcessingInfo) -> Path:
+def reconstruct_from_processing_info(processing_info: ProcessingInfo) -> ProcessingInfo:
+    processing_info.status = ProcessingStatus.RUNNING
     logger.info(
         "Starting reconstruction of %s with %s to be saved as %s",
         processing_info.image_path,
@@ -174,7 +181,8 @@ def reconstruct_from_processing_info(processing_info: ProcessingInfo) -> Path:
         processing_info.image_path,
         processing_info.output_path,
     )
-    return Path(processing_info.output_path)
+    processing_info.status = ProcessingStatus.COMPLETE
+    return processing_info
 
 
 def _processing_files_to_output(
@@ -215,7 +223,11 @@ def _processing_files_to_output(
                 header="Reconstruction log",
             )
 
-            output_files = tuple(pi.output_path for pi in processing_info_dict.values())
+            output_files = tuple(
+                pi.output_path
+                for pi in processing_info_dict.values()
+                if pi.status == ProcessingStatus.COMPLETE
+            )
             if not output_files:
                 logger.warning(
                     "No reconstructions were created from %s",
@@ -239,6 +251,8 @@ def _processing_files_to_output(
         wavelength,
         processing_info,
     ) in processing_info_dict.items():
+        if processing_info.status != ProcessingStatus.COMPLETE:
+            continue
         dv_path = create_output_path(
             sim_data_path,
             output_type="recon",
@@ -262,6 +276,41 @@ def _processing_files_to_output(
             zoomfact=float(processing_info.kwargs["zoomfact"]),
             zzoom=processing_info.kwargs["zzoom"],
         )
+
+
+def _reconstruction_process_error_callback(
+    exception: BaseException,
+    sim_data_path: str | PathLike[str],
+    wavelength: int,
+    processing_info: ProcessingInfo,
+) -> None:
+    processing_info.status = ProcessingStatus.FAILED
+    if isinstance(exception, PySimReconException):
+        exception_str = str(exception)
+    else:
+        exception_str = "".join(traceback.format_exception(exception))
+    logger.error(
+        # exc_info doesn't work with the callback
+        "Error occurred during reconstruction of %s channel %i: %s",
+        sim_data_path,
+        wavelength,
+        exception_str,
+    )
+
+
+def _get_incomplete_channels(
+    processing_info_dict: dict[int, ProcessingInfo]
+) -> list[int]:
+    incomplete_wavelengths: list[int] = []
+    for wavelength, processing_info in processing_info_dict.items():
+        if processing_info.status == ProcessingStatus.COMPLETE:
+            logger.debug("%i is complete", wavelength)
+        else:
+            incomplete_wavelengths.append(wavelength)
+            logger.warning(
+                "%i ended with status %s", wavelength, processing_info.status
+            )
+    return incomplete_wavelengths
 
 
 def run_reconstructions(
@@ -325,17 +374,19 @@ def run_reconstructions(
                     )
 
                     async_results: list[AsyncResult] = []
-                    for wavelength, processing_info in processing_info_dict.items():
+                    for wavelength, processing_info in tuple(
+                        processing_info_dict.items()
+                    ):
+                        processing_info.status = ProcessingStatus.PENDING
                         async_results.append(
                             pool.apply_async(
                                 reconstruct_from_processing_info,
                                 args=(processing_info,),
-                                error_callback=lambda e: logger.error(
-                                    # exc_info doesn't work with this
-                                    "Error occurred during reconstruction of %s channel %i: %s",
-                                    sim_data_path,
-                                    wavelength,
-                                    "".join(traceback.format_exception(e)),
+                                error_callback=partial(
+                                    _reconstruction_process_error_callback,
+                                    sim_data_path=sim_data_path,
+                                    wavelength=wavelength,
+                                    processing_info=processing_info,
                                 ),
                             )
                         )
@@ -347,6 +398,12 @@ def run_reconstructions(
                         leave=False,
                     ):
                         r.wait()
+
+                    incomplete_channels = _get_incomplete_channels(processing_info_dict)
+                    if incomplete_channels and not allow_missing_channels:
+                        raise ReconstructionError(
+                            f"Failed to reconstruct channels: {', '.join(str(i) for i in incomplete_channels)}"
+                        )
 
                     _processing_files_to_output(
                         sim_data_path,
