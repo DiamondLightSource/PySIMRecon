@@ -7,9 +7,14 @@ import numpy as np
 from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
-from .dv import get_image_data
-from .tiff import write_tiff
-from .utils import apply_crop, complex_to_interleaved_float
+from .dv import get_image_data, write_mrc
+from .tiff import read_tiff, write_tiff
+from .utils import (
+    apply_crop,
+    complex_to_interleaved_float,
+    interleaved_float_to_complex,
+)
+from ..exceptions import PySimReconTypeError
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -63,3 +68,27 @@ def dv_to_tiff(
         overwrite=overwrite,
     )
     return Path(tiff_path)
+
+
+def tiff_to_mrc(
+    tiff_path: str | PathLike[str],
+    mrc_path: str | PathLike[str],
+    complex_output: bool = False,
+    xy_shape: tuple[int, int] | None = None,
+    crop: float = 0,
+    overwrite: bool = False,
+) -> Path:
+    array = read_tiff(tiff_path)
+    is_floating = np.issubdtype(array.dtype, np.floating)
+    if complex_output and is_floating:
+        array = interleaved_float_to_complex(array)
+    elif not is_floating:
+        raise PySimReconTypeError(
+            "Only floating type images can be converted to complex"
+        )
+
+    array = apply_crop(array, xy_shape=xy_shape, crop=crop)
+
+    write_mrc(output_file=mrc_path, array=array, overwrite=overwrite)
+
+    return Path(mrc_path)

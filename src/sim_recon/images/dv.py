@@ -147,6 +147,33 @@ def get_wavelengths_from_dv(dv: mrc.Mrc) -> Generator[Wavelengths, None, None]:
     )
 
 
+def write_mrc(
+    output_file: str | PathLike[str],
+    array: NDArray[Any],
+    overwrite: bool = False,
+) -> Path:
+    output_file = Path(output_file)
+
+    if array.size == 0:
+        raise PySimReconValueError(
+            "%s will not be created as the array is empty", output_file
+        )
+
+    if output_file.is_file():
+        if overwrite:
+            logger.warning("Overwriting file %s", output_file)
+            output_file.unlink()
+        else:
+            raise PySimReconFileExistsError(f"File {output_file} already exists")
+
+    mrc.save(array, output_file)
+    logger.info(
+        "%s saved",
+        output_file,
+    )
+    return Path(output_file)
+
+
 def write_dv(
     input_file: str | PathLike[str],
     output_file: str | PathLike[str],
