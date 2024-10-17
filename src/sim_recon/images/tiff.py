@@ -7,10 +7,15 @@ import tifffile as tf
 from typing import TYPE_CHECKING, cast
 
 from ..info import __version__
-from ..exceptions import PySimReconFileExistsError, PySimReconValueError
+from ..exceptions import (
+    PySimReconFileExistsError,
+    PySimReconValueError,
+    UndefinedValueError,
+    PySimReconIOError,
+)
 
 if TYPE_CHECKING:
-    from typing import Any
+    from typing import Any, Generator
     from os import PathLike
     from numpy.typing import NDArray
     from .dataclasses import ImageChannel
@@ -33,6 +38,17 @@ def read_tiff(filepath: str | PathLike[str]) -> NDArray[Any]:
         return tiff.asarray()
 
 
+def generate_memmaps_from_tiffs(
+    *file_paths: str | PathLike[str],
+) -> Generator[NDArray[Any], None, None]:
+    for fp in file_paths:
+        try:
+            yield tf.memmap(fp).squeeze()
+        except Exception as e:
+            logger.error("Unable to read image from %s: %s", fp, e)
+            raise
+
+
 def get_combined_array_from_tiffs(
     *file_paths: str | PathLike[str],
 ) -> NDArray[Any]:
@@ -42,7 +58,10 @@ def get_combined_array_from_tiffs(
     )
     if not file_paths:
         raise PySimReconValueError("Cannot create a combined array without files")
-    return np.stack(tuple(tf.memmap(fp).squeeze() for fp in file_paths), -3)
+    try:
+        return np.stack(tuple(generate_memmaps_from_tiffs(*file_paths)), -3)
+    except Exception:
+        raise PySimReconIOError("Failed to combine TIFF files")
 
 
 def write_tiff(
@@ -51,6 +70,7 @@ def write_tiff(
     xy_pixel_size_microns: tuple[float | None, float | None] | None = None,
     ome: bool = True,
     overwrite: bool = False,
+    allow_empty_channels: bool = False,
 ) -> None:
     def get_channel_dict(channel: ImageChannel) -> dict[str, Any] | None:
         channel_dict: dict[str, Any] = {}
@@ -111,8 +131,15 @@ def write_tiff(
     ) as tiff:
         for channel in channels:
             if channel.array is None:
-                logger.warning("Channel %s has no array to write", channel.wavelengths)
-                continue
+                if allow_empty_channels:
+                    logger.warning(
+                        "Channel %s has no array to write",
+                        channel.wavelengths,
+                    )
+                    continue
+                raise UndefinedValueError(
+                    f"{output_path} will not be created as channel {channel.wavelengths} has no array to write",
+                )
             channel_kwargs = tiff_kwargs.copy()
             channel_kwargs["metadata"]["axes"] = (
                 "YX" if channel.array.ndim == 2 else "ZYX"
