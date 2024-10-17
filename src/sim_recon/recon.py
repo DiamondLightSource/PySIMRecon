@@ -201,7 +201,7 @@ def reconstruct_from_processing_info(processing_info: ProcessingInfo) -> Process
     return processing_info
 
 
-def _processing_files_to_output(
+def _reconstructions_to_output(
     sim_data_path: Path,
     file_output_directory: Path,
     processing_info_dict: dict[int, ProcessingInfo],
@@ -231,12 +231,6 @@ def _processing_files_to_output(
                 suffix=".dv",
                 output_directory=file_output_directory,
                 ensure_unique=not overwrite,
-            )
-
-            combine_text_files(
-                dv_path.with_suffix(".log"),
-                *(pi.log_path for pi in processing_info_dict.values()),
-                header="Reconstruction log",
             )
 
             output_files = tuple(
@@ -276,12 +270,6 @@ def _processing_files_to_output(
             output_directory=file_output_directory,
             wavelength=wavelength,
             ensure_unique=not overwrite,
-        )
-
-        combine_text_files(
-            dv_path.with_suffix(".log"),
-            *(pi.log_path for pi in processing_info_dict.values()),
-            header="Reconstruction log",
         )
 
         write_dv(
@@ -400,48 +388,83 @@ def run_reconstructions(
                         **config_kwargs,
                     )
 
-                    async_results: list[AsyncResult] = []
-                    for wavelength, processing_info in processing_info_dict.items():
-                        processing_info.status = ProcessingStatus.PENDING
-                        async_results.append(
-                            pool.apply_async(
-                                reconstruct_from_processing_info,
-                                args=(processing_info,),
-                                callback=partial(
-                                    _reconstruction_process_callback,
-                                    wavelength=wavelength,
-                                    processing_info_dict=processing_info_dict,
-                                ),
-                                error_callback=partial(
-                                    _reconstruction_process_error_callback,
-                                    sim_data_path=sim_data_path,
-                                    wavelength=wavelength,
-                                    processing_info=processing_info,
-                                ),
+                    try:
+                        async_results: list[AsyncResult] = []
+                        for wavelength, processing_info in processing_info_dict.items():
+                            processing_info.status = ProcessingStatus.PENDING
+                            async_results.append(
+                                pool.apply_async(
+                                    reconstruct_from_processing_info,
+                                    args=(processing_info,),
+                                    callback=partial(
+                                        _reconstruction_process_callback,
+                                        wavelength=wavelength,
+                                        processing_info_dict=processing_info_dict,
+                                    ),
+                                    error_callback=partial(
+                                        _reconstruction_process_error_callback,
+                                        sim_data_path=sim_data_path,
+                                        wavelength=wavelength,
+                                        processing_info=processing_info,
+                                    ),
+                                )
                             )
+
+                        # Wait for async processes to finish (otherwise there won't be files to stitch!)
+                        for r in progress_wrapper(
+                            async_results,
+                            unit="wavelengths",
+                            leave=False,
+                        ):
+                            r.wait()
+
+                        incomplete_channels = _get_incomplete_channels(
+                            processing_info_dict
                         )
+                        if incomplete_channels and not allow_missing_channels:
+                            raise ReconstructionError(
+                                f"Failed to reconstruct channels: {', '.join(str(i) for i in incomplete_channels)}"
+                            )
 
-                    # Wait for async processes to finish (otherwise there won't be files to stitch!)
-                    for r in progress_wrapper(
-                        async_results,
-                        unit="wavelengths",
-                        leave=False,
-                    ):
-                        r.wait()
-
-                    incomplete_channels = _get_incomplete_channels(processing_info_dict)
-                    if incomplete_channels and not allow_missing_channels:
-                        raise ReconstructionError(
-                            f"Failed to reconstruct channels: {', '.join(str(i) for i in incomplete_channels)}"
+                        _reconstructions_to_output(
+                            sim_data_path,
+                            file_output_directory=file_output_directory,
+                            processing_info_dict=processing_info_dict,
+                            stitch_channels=stitch_channels,
+                            overwrite=overwrite,
                         )
+                    finally:
+                        proc_log_files: list[Path] = []
+                        for pi in processing_info_dict.values():
+                            if pi.log_path.is_file():
+                                proc_log_files.append(pi.log_path)
+                            else:
+                                logger.warning(
+                                    "No reconstruction log file found for channel %s",
+                                    pi.wavelengths,
+                                )
 
-                    _processing_files_to_output(
-                        sim_data_path,
-                        file_output_directory=file_output_directory,
-                        processing_info_dict=processing_info_dict,
-                        stitch_channels=stitch_channels,
-                        overwrite=overwrite,
-                    )
+                        if not proc_log_files:
+                            logger.warning(
+                                "No output log file created as no per-channel log files were found",
+                                processing_directory,
+                            )
+                        else:
+                            log_path = create_output_path(
+                                sim_data_path,
+                                output_type="recon",
+                                suffix=".log",
+                                output_directory=file_output_directory,
+                                ensure_unique=True,
+                            )
+                            combine_text_files(
+                                log_path,
+                                *proc_log_files,
+                                header="Reconstruction log",
+                            )
+                            logger.info(
+                                "Reconstruction log file created at '%s'", log_path
+                            )
 
                     if cleanup:
                         for processing_info in processing_info_dict.values():
