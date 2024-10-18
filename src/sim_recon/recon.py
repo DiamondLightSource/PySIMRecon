@@ -516,7 +516,7 @@ def _prepare_config_kwargs(
     return kwargs
 
 
-def _prepate_OTF_file(
+def _prepare_OTF_file(
     otf_path: str | PathLike[str], output_directory: str | PathLike[str]
 ) -> Path:
     otf_path = Path(otf_path)
@@ -557,7 +557,7 @@ def create_processing_info(
             f"No OTF file has been set for channel {wavelengths.emission_nm_int} ({wavelengths})"
         )
 
-    otf_path = _prepate_OTF_file(otf_path, output_dir)
+    otf_path = _prepare_OTF_file(otf_path, output_dir)
 
     kwargs = _prepare_config_kwargs(
         conf,
