@@ -49,10 +49,12 @@ from .exceptions import (
 )
 
 if TYPE_CHECKING:
-    from typing import Any, Literal
+    from typing import Any, Literal, TypeAlias
     from os import PathLike
     from multiprocessing.pool import AsyncResult
     from numpy.typing import NDArray
+
+    OutputFileTypes: TypeAlias = Literal["dv", "tiff"]
 
 
 logger = logging.getLogger(__name__)
@@ -208,7 +210,7 @@ def _reconstructions_to_output(
     processing_info_dict: dict[int, ProcessingInfo],
     stitch_channels: bool = True,
     overwrite: bool = True,
-    file_type: Literal["dv", "tiff"] = "dv",
+    file_type: OutputFileTypes = "dv",
 ) -> None:
     input_dv = read_mrc_bound_array(sim_data_path).mrc
     input_resolution = image_resolution_from_mrc(input_dv, warn_not_square=False)
@@ -356,6 +358,7 @@ def run_reconstructions(
     stitch_channels: bool = True,
     parallel_process: bool = False,
     allow_missing_channels: bool = False,
+    output_file_type: OutputFileTypes = "dv",
     **config_kwargs: Any,
 ) -> None:
 
@@ -451,6 +454,7 @@ def run_reconstructions(
                             processing_info_dict=processing_info_dict,
                             stitch_channels=stitch_channels,
                             overwrite=overwrite,
+                            file_type=output_file_type
                         )
                     finally:
                         proc_log_files: list[Path] = []
