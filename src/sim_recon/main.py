@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from typing import Any
     from os import PathLike
     from pathlib import Path
+    from .recon import OutputFileTypes
 
 
 logger = logging.getLogger(__name__)
@@ -97,6 +98,7 @@ def sim_reconstruct(
     stitch_channels: bool = True,
     parallel_process: bool = False,
     allow_missing_channels: bool = False,
+    output_file_type: OutputFileTypes = "dv",
     **recon_kwargs: Any,
 ) -> None:
     """
@@ -122,6 +124,8 @@ def sim_reconstruct(
         Run reconstructions in 2 processes concurrently, by default False
     allow_missing_channels: bool, optional
         Attempt reconstruction of other channels in a multi-channel file if one or more are not configured, by default False
+    output_file_type: Literal["dv", "tiff"], optional
+        File type that output images will be saved as, by default "dv"
     """
     conf = load_configs(config_path, otf_overrides=otf_overrides)
     logger.info("Starting reconstructions...")
@@ -134,5 +138,6 @@ def sim_reconstruct(
         stitch_channels=stitch_channels,
         parallel_process=parallel_process,
         allow_partial=allow_missing_channels,
+        output_file_type=output_file_type,
         **recon_kwargs,
     )

@@ -78,6 +78,13 @@ def parse_args(
         help="If specified, attempt reconstruction of other channels in a multi-channel file if one or more are not configured",
     )
     parser.add_argument(
+        "--type",
+        dest="output_file_type",
+        choices=["dv", "tiff"],
+        default="dv",
+        help="File type of output images",
+    )
+    parser.add_argument(
         "--overwrite",
         action="store_true",
         help="If specified, files will be overwritten if they already exist (unique filenames will be used otherwise)",
