@@ -166,7 +166,7 @@ def psf_to_otf(
                         "This output can be recreated with the following command:",
                         _create_sim_otf_call(tiff_path, **make_otf_kwargs),
                         "-" * 80,
-                        "The text below is the output from cudasirecon's makeotf",
+                        "The text below is the output from cudasirecon's makeotf\n",
                     )
                 )
             )

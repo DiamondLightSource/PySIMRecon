@@ -162,7 +162,7 @@ def reconstruct_from_processing_info(processing_info: ProcessingInfo) -> Process
                     "Config used:",
                     processing_info.config_path.read_text().strip(),
                     sep,
-                    "The text below is the output from cudasirecon",
+                    "The text below is the output from cudasirecon\n",
                 )
             )
         )
