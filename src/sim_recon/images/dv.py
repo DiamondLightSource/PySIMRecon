@@ -148,16 +148,15 @@ def get_wavelengths_from_dv(dv: mrc.Mrc) -> Generator[Wavelengths, None, None]:
 
 
 def write_dv(
-    input_file: str | PathLike[str],
     output_file: str | PathLike[str],
-    array: NDArray[Any],
-    wavelengths: Collection[int],
-    zoomfact: float,
-    zzoom: int,
+    *channels: ImageChannel[Wavelengths],
+    input_dv: mrc.Mrc,
+    resolution: ImageResolution,
     overwrite: bool = False,
 ) -> Path:
     output_file = Path(output_file)
-
+    array = np.stack([c.array for c in channels], axis=-3)
+    wavelengths = tuple(c.wavelengths.emission_nm_int for c in channels)
     if array.size == 0:
         raise PySimReconValueError(
             "%s will not be created as the array is empty", output_file
@@ -176,24 +175,19 @@ def write_dv(
         else:
             raise PySimReconFileExistsError(f"File {output_file} already exists")
 
-    if len(wavelengths) != array.shape[-3]:
-        raise InvalidValueError(
-            "Length of wavelengths list must be equal to the number of channels in the array"
-        )
     wave = [*wavelengths, 0, 0, 0, 0, 0][:5]
-    # header_array = get_mrc_header_array(input_file)
-    bound_mrc = read_mrc_bound_array(input_file)
-    resolution = image_resolution_from_mrc(bound_mrc.mrc, warn_not_square=False)
+    metadata = {
+        "dx": resolution.x,
+        "dy": resolution.y,
+        "wave": wave,
+    }
+    if resolution.z is not None:
+        metadata["dz"] = resolution.z
     mrc.save(
         array,
         output_file,
-        hdr=bound_mrc.mrc.hdr,
-        metadata={
-            "dx": resolution.x / zoomfact,
-            "dy": resolution.y / zoomfact,
-            "dz": resolution.z / zzoom,
-            "wave": wave,
-        },
+        hdr=input_dv.hdr,
+        metadata=metadata,
     )
     logger.info(
         "%s saved",

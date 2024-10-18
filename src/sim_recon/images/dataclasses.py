@@ -50,14 +50,14 @@ class ImageData:
 @dataclass(slots=True)
 class ImageChannel(Generic[OptionalWavelengths]):
     wavelengths: OptionalWavelengths
-    array: NDArray[Any] | None = None
+    array: NDArray[Any]
 
 
 @dataclass(slots=True, frozen=True)
 class ImageResolution:
     x: float
     y: float
-    z: float
+    z: float | None = None
 
 
 @dataclass(slots=True, frozen=True)
