@@ -44,7 +44,7 @@ class ProcessingInfo:
 @dataclass(slots=True)
 class ImageData:
     resolution: ImageResolution
-    channels: tuple[ImageChannel, ...]
+    channels: tuple[ImageChannel[Wavelengths] | ImageChannel[None], ...]
 
 
 @dataclass(slots=True)
