@@ -616,7 +616,11 @@ def _prepare_files(
     # Create TIFFs split by wavelength
     for channel in image_data.channels:
         try:
-            if conf.get_channel_config(channel.wavelengths.emission_nm_int) is None:
+            if channel.wavelengths is None:
+                raise UndefinedValueError("Channel wavelengths are undefined")
+            elif channel.wavelengths.emission_nm_int is None:
+                raise UndefinedValueError("Channel emission wavelength is undefined")
+            elif conf.get_channel_config(channel.wavelengths.emission_nm_int) is None:
                 raise ConfigException(
                     f"Channel {channel.wavelengths.emission_nm_int} has not been configured"
                 )
