@@ -211,7 +211,7 @@ def _reconstructions_to_output(
     stitch_channels: bool = True,
     overwrite: bool = True,
     file_type: OutputFileTypes = "dv",
-) -> None:
+) -> tuple[Path, ...]:
     input_dv = read_mrc_bound_array(sim_data_path).mrc
     input_resolution = image_resolution_from_mrc(input_dv, warn_not_square=False)
     if file_type == "dv":
@@ -257,28 +257,25 @@ def _reconstructions_to_output(
                 if pi.status == ProcessingStatus.COMPLETE
             )
             if not output_wavelengths_path_tuples:
-                logger.warning(
-                    "No reconstructions were created from %s",
-                    sim_data_path,
+                raise ReconstructionError(
+                    f"No reconstructions completed from '{sim_data_path}'",
                 )
-            else:
-                zoom_fact = float(zoom_factors[0][0])
-                zzoom = zoom_factors[0][1]
-                write_output(
-                    output_image_path,
-                    tuple(
-                        generate_channels_from_tiffs(*output_wavelengths_path_tuples)
-                    ),
-                    resolution=ImageResolution(
-                        input_resolution.x / zoom_fact,
-                        input_resolution.y / zoom_fact,
-                        input_resolution.z / zzoom,
-                    ),
-                )
-            return
+            zoom_fact = float(zoom_factors[0][0])
+            zzoom = zoom_factors[0][1]
+            write_output(
+                output_image_path,
+                tuple(generate_channels_from_tiffs(*output_wavelengths_path_tuples)),
+                resolution=ImageResolution(
+                    input_resolution.x / zoom_fact,
+                    input_resolution.y / zoom_fact,
+                    input_resolution.z / zzoom,
+                ),
+            )
+            return (output_image_path,)
         except InvalidValueError as e:
             logger.warning("Unable to stitch files due to error: %s", e)
 
+    output_paths: list[Path] = []
     for (
         wavelength,
         processing_info,
@@ -308,6 +305,12 @@ def _reconstructions_to_output(
                 input_resolution.z / zzoom,
             ),
         )
+        output_paths.append(output_image_path)
+    if not output_paths:
+        raise ReconstructionError(
+            f"No reconstructions completed from '{sim_data_path}'",
+        )
+    return tuple(output_paths)
 
 
 def _reconstruction_process_callback(
@@ -385,6 +388,7 @@ def run_reconstructions(
         for sim_data_path in progress_wrapper(
             sim_data_paths, desc="SIM data files", unit="file"
         ):
+            output_paths: tuple[Path, ...] | None = None
             try:
                 sim_data_path = Path(sim_data_path)
                 file_output_directory = (
@@ -455,13 +459,17 @@ def run_reconstructions(
                                 f"Failed to reconstruct channels: {', '.join(str(i) for i in incomplete_channels)}"
                             )
 
-                        _reconstructions_to_output(
+                        output_paths = _reconstructions_to_output(
                             sim_data_path,
                             file_output_directory=file_output_directory,
                             processing_info_dict=processing_info_dict,
                             stitch_channels=stitch_channels,
                             overwrite=overwrite,
                             file_type=output_file_type,
+                        )
+                        logger.info(
+                            "Reconstructed data saved to: %s",
+                            ", ".join(str(_) for _ in output_paths),
                         )
                     finally:
                         proc_log_files: list[Path] = []
@@ -487,10 +495,15 @@ def run_reconstructions(
                                 output_directory=file_output_directory,
                                 ensure_unique=True,
                             )
+                            log_header = f"Reconstruction log for:\n{sim_data_path}"
+                            if output_paths is None:
+                                log_header += "\nNo output was created"
+                            else:
+                                log_header += f"\nOutput:\n{'\n'.join(str(_) for _ in output_paths)}"
                             combine_text_files(
                                 log_path,
                                 *proc_log_files,
-                                header="Reconstruction log",
+                                header=log_header,
                             )
                             logger.info(
                                 "Reconstruction log file created at '%s'", log_path
