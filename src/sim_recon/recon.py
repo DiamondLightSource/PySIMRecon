@@ -191,7 +191,7 @@ def reconstruct_from_processing_info(processing_info: ProcessingInfo) -> Process
     recon_pixel_size = float(processing_info.kwargs["xyres"]) / zoomfact
     write_tiff(
         processing_info.output_path,
-        ImageChannel(processing_info.wavelengths, rec_array),
+        (ImageChannel(processing_info.wavelengths, rec_array),),
         resolution=ImageResolution(recon_pixel_size, recon_pixel_size),
         overwrite=True,
     )
@@ -266,12 +266,15 @@ def _reconstructions_to_output(
                 zzoom = zoom_factors[0][1]
                 write_output(
                     output_image_path,
-                    *generate_channels_from_tiffs(*output_wavelengths_path_tuples),
+                    tuple(
+                        generate_channels_from_tiffs(*output_wavelengths_path_tuples)
+                    ),
                     resolution=ImageResolution(
                         input_resolution.x / zoom_fact,
                         input_resolution.y / zoom_fact,
                         input_resolution.z / zzoom,
-                    ))
+                    ),
+                )
             return
         except InvalidValueError as e:
             logger.warning("Unable to stitch files due to error: %s", e)
@@ -294,7 +297,11 @@ def _reconstructions_to_output(
         zzoom = processing_info.kwargs["zzoom"]
         write_output(
             output_image_path,
-            *generate_channels_from_tiffs((processing_info.wavelengths, processing_info.output_path)),
+            tuple(
+                generate_channels_from_tiffs(
+                    (processing_info.wavelengths, processing_info.output_path)
+                )
+            ),
             resolution=ImageResolution(
                 input_resolution.x / zoom_fact,
                 input_resolution.y / zoom_fact,
@@ -454,7 +461,7 @@ def run_reconstructions(
                             processing_info_dict=processing_info_dict,
                             stitch_channels=stitch_channels,
                             overwrite=overwrite,
-                            file_type=output_file_type
+                            file_type=output_file_type,
                         )
                     finally:
                         proc_log_files: list[Path] = []
@@ -649,7 +656,7 @@ def _prepare_files(
             )
             write_tiff(
                 split_file_path,
-                channel,
+                (channel,),
                 resolution=image_data.resolution,
             )
 

@@ -149,7 +149,7 @@ def get_wavelengths_from_dv(dv: mrc.Mrc) -> Generator[Wavelengths, None, None]:
 
 def write_dv(
     output_file: str | PathLike[str],
-    *channels: ImageChannel[Wavelengths],
+    channels: Collection[ImageChannel[Wavelengths]],
     input_dv: mrc.Mrc,
     resolution: ImageResolution,
     overwrite: bool = False,

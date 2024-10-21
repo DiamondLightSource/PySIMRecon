@@ -58,8 +58,9 @@ def dv_to_tiff(
                 channel.array = complex_to_interleaved_float(channel.array)
     write_tiff(
         tiff_path,
-        *image_data.channels,
+        image_data.channels,
         resolution=image_data.resolution,
         overwrite=overwrite,
+        allow_missing_channel_info=True,
     )
     return Path(tiff_path)
