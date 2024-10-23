@@ -4,21 +4,22 @@ import logging
 from pathlib import Path
 import numpy as np
 import tifffile as tf
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
+from .dataclasses import ImageResolution, ImageChannel
 from ..info import __version__
 from ..exceptions import (
     PySimReconFileExistsError,
-    PySimReconValueError,
     UndefinedValueError,
     PySimReconIOError,
 )
 
 if TYPE_CHECKING:
-    from typing import Any, Generator
+    from typing import Any
+    from collections.abc import Generator, Collection
     from os import PathLike
     from numpy.typing import NDArray
-    from .dataclasses import ImageChannel
+    from .dataclasses import Wavelengths
 
 
 logger = logging.getLogger(__name__)
@@ -38,51 +39,66 @@ def read_tiff(filepath: str | PathLike[str]) -> NDArray[Any]:
         return tiff.asarray()
 
 
-def generate_memmaps_from_tiffs(
-    *file_paths: str | PathLike[str],
-) -> Generator[NDArray[Any], None, None]:
-    for fp in file_paths:
-        try:
-            yield tf.memmap(fp).squeeze()
-        except Exception as e:
-            logger.error("Unable to read image from %s: %s", fp, e)
-            raise
-
-
-def get_combined_array_from_tiffs(
-    *file_paths: str | PathLike[str],
-) -> NDArray[Any]:
-    logger.debug(
-        "Combining tiffs from:\n%s",
-        "\n\t".join(str(fp) for fp in file_paths),
-    )
-    if not file_paths:
-        raise PySimReconValueError("Cannot create a combined array without files")
+def get_memmap_from_tiff(file_path: str | PathLike[str]) -> NDArray[Any]:
     try:
-        return np.stack(tuple(generate_memmaps_from_tiffs(*file_paths)), -3)
-    except Exception:
-        raise PySimReconIOError("Failed to combine TIFF files")
+        return tf.memmap(file_path).squeeze()
+    except Exception as e:
+        logger.error("Unable to read image from %s: %s", file_path, e)
+        raise
+
+
+def generate_channels_from_tiffs(
+    *wavelengths_path_tuple: tuple[Wavelengths, Path]
+) -> Generator[ImageChannel[Wavelengths], None, None]:
+    for wavelengths, fp in wavelengths_path_tuple:
+        try:
+            yield ImageChannel(wavelengths=wavelengths, array=get_memmap_from_tiff(fp))
+        except Exception:
+            raise PySimReconIOError(f"Failed to read TIFF file '{fp}'")
 
 
 def write_tiff(
     output_path: str | PathLike[str],
-    *channels: ImageChannel,
-    xy_pixel_size_microns: tuple[float | None, float | None] | None = None,
+    *images: Collection[ImageChannel[Wavelengths] | ImageChannel[None]],
+    resolution: ImageResolution | None = None,
     ome: bool = True,
-    overwrite: bool = False,
     allow_empty_channels: bool = False,
-) -> None:
-    def get_channel_dict(channel: ImageChannel) -> dict[str, Any] | None:
-        channel_dict: dict[str, Any] = {}
-        if channel.wavelengths is None:
-            return None
-        if channel.wavelengths.excitation_nm is not None:
-            channel_dict["ExcitationWavelength"] = channel.wavelengths.excitation_nm
-            channel_dict["ExcitationWavelengthUnits"] = "nm"
-        if channel.wavelengths.emission_nm is not None:
-            channel_dict["EmissionWavelength"] = channel.wavelengths.emission_nm
-            channel_dict["EmissionWavelengthUnits"] = "nm"
-        return channel_dict
+    allow_missing_channel_info: bool = False,
+    overwrite: bool = False,
+) -> Path:
+    def get_ome_channel_dict(*channels: ImageChannel) -> dict[str, Any] | None:
+        names: list[str] = []
+        excitation_wavelengths: list[float | None] = []
+        excitation_wavelength_units: list[str | None] = []
+        emission_wavelengths: list[float | None] = []
+        emission_wavelength_units: list[str | None] = []
+        for i, channel in enumerate(channels, 1):
+            if channel.wavelengths is None:
+                if not allow_missing_channel_info:
+                    raise UndefinedValueError(f"Missing wavelengths for channel {i}")
+                names.append(f"Channel {i}")
+                excitation_wavelengths.append(None)
+                excitation_wavelength_units.append(None)
+                emission_wavelengths.append(None)
+                emission_wavelength_units.append(None)
+
+            else:
+                names.append(
+                    f"Channel {i}"
+                    if channel.wavelengths.emission_nm_int is None
+                    else str(channel.wavelengths.emission_nm_int)
+                )
+                excitation_wavelengths.append(channel.wavelengths.excitation_nm)
+                excitation_wavelength_units.append("nm")
+                emission_wavelengths.append(channel.wavelengths.emission_nm)
+                emission_wavelength_units.append("nm")
+        return {
+            "Name": names,
+            "ExcitationWavelength": excitation_wavelengths,
+            "ExcitationWavelengthUnits": excitation_wavelength_units,
+            "EmissionWavelength": emission_wavelengths,
+            "EmissionWavelengthUnits": emission_wavelength_units,
+        }
 
     output_path = Path(output_path)
 
@@ -95,32 +111,34 @@ def write_tiff(
         else:
             raise PySimReconFileExistsError(f"File {output_path} already exists")
 
+    tiff_metadata: dict[str, Any] = {}
     tiff_kwargs: dict[str, Any] = {
         "software": f"PySIMRecon {__version__}",
         "photometric": "MINISBLACK",
-        "metadata": {},
+        "metadata": tiff_metadata,
     }
 
-    if xy_pixel_size_microns is not None and None not in xy_pixel_size_microns:
-        xy_pixel_size_microns = cast(tuple[float, float], xy_pixel_size_microns)
+    if resolution is not None:
         # TIFF tags:
         tiff_kwargs["resolution"] = (
-            1e4 / xy_pixel_size_microns[0],
-            1e4 / xy_pixel_size_microns[1],
+            1e4 / resolution.x,
+            1e4 / resolution.y,
         )
         tiff_kwargs["resolutionunit"] = (
             tf.RESUNIT.CENTIMETER
         )  # Use CENTIMETER for maximum compatibility
 
     if ome:
-        if xy_pixel_size_microns is not None:
+        tiff_metadata["Name"] = output_path.name
+        if resolution is not None:
             # OME PhysicalSize:
-            if xy_pixel_size_microns[0] is not None:
-                tiff_kwargs["metadata"]["PhysicalSizeX"] = xy_pixel_size_microns[0]
-                tiff_kwargs["metadata"]["PhysicalSizeXUnit"] = "µm"
-            if xy_pixel_size_microns[1] is not None:
-                tiff_kwargs["metadata"]["PhysicalSizeY"] = xy_pixel_size_microns[1]
-                tiff_kwargs["metadata"]["PhysicalSizeYUnit"] = "µm"
+            tiff_metadata["PhysicalSizeX"] = resolution.x
+            tiff_metadata["PhysicalSizeXUnit"] = "µm"
+            tiff_metadata["PhysicalSizeY"] = resolution.x
+            tiff_metadata["PhysicalSizeYUnit"] = "µm"
+            if resolution.z is not None:
+                tiff_metadata["PhysicalSizeZ"] = resolution.z
+                tiff_metadata["PhysicalSizeYUnit"] = "µm"
 
     with tf.TiffWriter(
         output_path,
@@ -129,23 +147,43 @@ def write_tiff(
         ome=ome,
         shaped=not ome,
     ) as tiff:
-        for channel in channels:
-            if channel.array is None:
-                if allow_empty_channels:
-                    logger.warning(
-                        "Channel %s has no array to write",
-                        channel.wavelengths,
+        for channels in images:
+            channels_to_write = []
+            for channel in channels:
+                if channel.array is None:
+                    if allow_empty_channels:
+                        logger.warning(
+                            "Channel %s has no array to write",
+                            channel.wavelengths,
+                        )
+                        continue
+                    raise UndefinedValueError(
+                        f"{output_path} will not be created as channel {channel.wavelengths} has no array to write",
                     )
-                    continue
-                raise UndefinedValueError(
-                    f"{output_path} will not be created as channel {channel.wavelengths} has no array to write",
-                )
-            channel_kwargs = tiff_kwargs.copy()
-            channel_kwargs["metadata"]["axes"] = (
-                "YX" if channel.array.ndim == 2 else "ZYX"
-            )
+                channels_to_write.append(channel)
+
+            array = np.stack(
+                [_.array for _ in channels], axis=0
+            )  # adds another axis, even if only 1 channel
+
+            image_kwargs = tiff_kwargs.copy()
+            if array.ndim == 3:
+                # In case the images are 2D
+                tiff_metadata["axes"] = "CYX"
+            else:
+                tiff_metadata["axes"] = "CZYX"
+
             if ome:
-                channel_dict = get_channel_dict(channel)
-                if channel_dict is not None:
-                    channel_kwargs["metadata"]["Channel"] = channel_dict
-            tiff.write(channel.array, **channel_kwargs)
+                try:
+                    channel_dict = get_ome_channel_dict(*channels)
+                    if channel_dict is not None:
+                        tiff_metadata["Channel"] = channel_dict
+                except UndefinedValueError as e:
+                    if not allow_missing_channel_info:
+                        logger.error("Failed to write image '%s': %s", output_path, e)
+                        raise
+                    logger.warning(
+                        "Writing without OME Channel metadata due to error: %s", e
+                    )
+            tiff.write(array, **image_kwargs)
+    return output_path

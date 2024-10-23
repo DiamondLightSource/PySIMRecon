@@ -17,15 +17,16 @@ from pycudasirecon.sim_reconstructor import SIMReconstructor, lib  # type: ignor
 from .files.utils import redirect_output_to, create_output_path, combine_text_files
 from .files.config import create_wavelength_config
 from .images import get_image_data, dv_to_tiff
-from .images.dv import write_dv
+from .images.dv import write_dv, image_resolution_from_mrc, read_mrc_bound_array
 from .images.tiff import (
     check_tiff,
     read_tiff,
     write_tiff,
-    get_combined_array_from_tiffs,
+    generate_channels_from_tiffs,
 )
 from .images.dataclasses import (
     ImageChannel,
+    ImageResolution,
     Wavelengths,
     ProcessingInfo,
     ProcessingStatus,
@@ -48,10 +49,12 @@ from .exceptions import (
 )
 
 if TYPE_CHECKING:
-    from typing import Any
+    from typing import Any, Literal, TypeAlias
     from os import PathLike
     from multiprocessing.pool import AsyncResult
     from numpy.typing import NDArray
+
+    OutputFileTypes: TypeAlias = Literal["dv", "tiff"]
 
 
 logger = logging.getLogger(__name__)
@@ -188,8 +191,8 @@ def reconstruct_from_processing_info(processing_info: ProcessingInfo) -> Process
     recon_pixel_size = float(processing_info.kwargs["xyres"]) / zoomfact
     write_tiff(
         processing_info.output_path,
-        ImageChannel(processing_info.wavelengths, rec_array),
-        xy_pixel_size_microns=(recon_pixel_size, recon_pixel_size),
+        (ImageChannel(processing_info.wavelengths, rec_array),),
+        resolution=ImageResolution(recon_pixel_size, recon_pixel_size),
         overwrite=True,
     )
     logger.debug(
@@ -207,7 +210,22 @@ def _reconstructions_to_output(
     processing_info_dict: dict[int, ProcessingInfo],
     stitch_channels: bool = True,
     overwrite: bool = True,
+    file_type: OutputFileTypes = "dv",
 ) -> None:
+    input_dv = read_mrc_bound_array(sim_data_path).mrc
+    input_resolution = image_resolution_from_mrc(input_dv, warn_not_square=False)
+    if file_type == "dv":
+        suffix = ".dv"
+        write_output = partial(
+            write_dv,
+            input_dv=input_dv,
+            overwrite=overwrite,
+        )
+    elif file_type == "tiff":
+        suffix = ".ome.tiff"
+        write_output = partial(write_tiff, ome=True, overwrite=overwrite)
+        del input_dv
+
     if stitch_channels:
         try:
             # Get zoom factors to for checking if the output can be stitched
@@ -225,33 +243,37 @@ def _reconstructions_to_output(
                     "Zoom factors are not consistent for all wavelengths"
                 )
             # Stitch channels (if requested and possible)
-            dv_path = create_output_path(
+            output_image_path = create_output_path(
                 sim_data_path,
                 output_type="recon",
-                suffix=".dv",
+                suffix=suffix,
                 output_directory=file_output_directory,
                 ensure_unique=not overwrite,
             )
 
-            output_files = tuple(
-                pi.output_path
+            output_wavelengths_path_tuples = tuple(
+                (pi.wavelengths, pi.output_path)
                 for pi in processing_info_dict.values()
                 if pi.status == ProcessingStatus.COMPLETE
             )
-            if not output_files:
+            if not output_wavelengths_path_tuples:
                 logger.warning(
                     "No reconstructions were created from %s",
                     sim_data_path,
                 )
             else:
-                write_dv(
-                    sim_data_path,
-                    dv_path,
-                    get_combined_array_from_tiffs(*output_files),
-                    wavelengths=tuple(processing_info_dict.keys()),
-                    zoomfact=float(zoom_factors[0][0]),
-                    zzoom=zoom_factors[0][1],
-                    overwrite=overwrite,
+                zoom_fact = float(zoom_factors[0][0])
+                zzoom = zoom_factors[0][1]
+                write_output(
+                    output_image_path,
+                    tuple(
+                        generate_channels_from_tiffs(*output_wavelengths_path_tuples)
+                    ),
+                    resolution=ImageResolution(
+                        input_resolution.x / zoom_fact,
+                        input_resolution.y / zoom_fact,
+                        input_resolution.z / zzoom,
+                    ),
                 )
             return
         except InvalidValueError as e:
@@ -263,22 +285,28 @@ def _reconstructions_to_output(
     ) in processing_info_dict.items():
         if processing_info.status != ProcessingStatus.COMPLETE:
             continue
-        dv_path = create_output_path(
+        output_image_path = create_output_path(
             sim_data_path,
             output_type="recon",
-            suffix=".dv",
+            suffix=suffix,
             output_directory=file_output_directory,
             wavelength=wavelength,
             ensure_unique=not overwrite,
         )
-
-        write_dv(
-            sim_data_path,
-            dv_path,
-            get_combined_array_from_tiffs(processing_info.output_path),
-            wavelengths=(wavelength,),
-            zoomfact=float(processing_info.kwargs["zoomfact"]),
-            zzoom=processing_info.kwargs["zzoom"],
+        zoom_fact = float(processing_info.kwargs["zoomfact"])
+        zzoom = processing_info.kwargs["zzoom"]
+        write_output(
+            output_image_path,
+            tuple(
+                generate_channels_from_tiffs(
+                    (processing_info.wavelengths, processing_info.output_path)
+                )
+            ),
+            resolution=ImageResolution(
+                input_resolution.x / zoom_fact,
+                input_resolution.y / zoom_fact,
+                input_resolution.z / zzoom,
+            ),
         )
 
 
@@ -337,6 +365,7 @@ def run_reconstructions(
     stitch_channels: bool = True,
     parallel_process: bool = False,
     allow_missing_channels: bool = False,
+    output_file_type: OutputFileTypes = "dv",
     **config_kwargs: Any,
 ) -> None:
 
@@ -432,6 +461,7 @@ def run_reconstructions(
                             processing_info_dict=processing_info_dict,
                             stitch_channels=stitch_channels,
                             overwrite=overwrite,
+                            file_type=output_file_type,
                         )
                     finally:
                         proc_log_files: list[Path] = []
@@ -630,11 +660,8 @@ def _prepare_files(
             )
             write_tiff(
                 split_file_path,
-                channel,
-                xy_pixel_size_microns=(
-                    image_data.resolution.x,
-                    image_data.resolution.y,
-                ),
+                (channel,),
+                resolution=image_data.resolution,
             )
 
             processing_info = create_processing_info(

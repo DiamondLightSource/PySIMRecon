@@ -22,6 +22,7 @@ def main() -> None:
         stitch_channels=namespace.stitch_channels,
         parallel_process=namespace.parallel_process,
         allow_missing_channels=namespace.allow_missing_channels,
+        output_file_type=namespace.output_file_type,
         **recon_kwargs,
     )
 
