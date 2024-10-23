@@ -7,7 +7,8 @@ from configparser import RawConfigParser
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from typing import Callable, Literal
+    from typing import Literal
+    from collections.abc import Callable
 
 # Using the logic from RawConfigParser for consistency
 _boolean_conv = RawConfigParser()._convert_to_boolean  # type: ignore[attr-defined]
