@@ -34,10 +34,10 @@ def int_range_conversion_wrapper(
 class SettingConverters:
     FLOAT = Decimal
     INT = int
-    BOOL = _boolean_conv
-    INT_FROM_BOOL = _bool_as_int
-    INT_POSITIVE = int_range_conversion_wrapper(minimum=0)
-    INT_GREATER_THAN_ONE = int_range_conversion_wrapper(minimum=1)
+    BOOL = staticmethod(_boolean_conv)
+    INT_FROM_BOOL = staticmethod(_bool_as_int)
+    INT_POSITIVE = staticmethod(int_range_conversion_wrapper(minimum=0))
+    INT_GREATER_THAN_ONE = staticmethod(int_range_conversion_wrapper(minimum=1))
     PATH = Path
 
 
