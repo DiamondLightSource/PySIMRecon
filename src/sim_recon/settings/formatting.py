@@ -7,7 +7,8 @@ from configparser import RawConfigParser
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from typing import Callable, Literal
+    from typing import Literal
+    from collections.abc import Callable
 
 # Using the logic from RawConfigParser for consistency
 _boolean_conv = RawConfigParser()._convert_to_boolean  # type: ignore[attr-defined]
@@ -34,10 +35,10 @@ def int_range_conversion_wrapper(
 class SettingConverters:
     FLOAT = Decimal
     INT = int
-    BOOL = _boolean_conv
-    INT_FROM_BOOL = _bool_as_int
-    INT_POSITIVE = int_range_conversion_wrapper(minimum=0)
-    INT_GREATER_THAN_ONE = int_range_conversion_wrapper(minimum=1)
+    BOOL = staticmethod(_boolean_conv)
+    INT_FROM_BOOL = staticmethod(_bool_as_int)
+    INT_POSITIVE = staticmethod(int_range_conversion_wrapper(minimum=0))
+    INT_GREATER_THAN_ONE = staticmethod(int_range_conversion_wrapper(minimum=1))
     PATH = Path
 
 

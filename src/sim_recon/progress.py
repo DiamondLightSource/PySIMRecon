@@ -44,8 +44,8 @@ def _passthrough_logging_redirect() -> Generator[None, None, None]:
 
 class ProgressManager:
     _use_tqdm = False
-    progress_wrapper: _ProgressWrapperProtocol = _passthrough_wrapper
-    logging_redirect = _passthrough_logging_redirect
+    progress_wrapper: _ProgressWrapperProtocol = staticmethod(_passthrough_wrapper)
+    logging_redirect = staticmethod(_passthrough_logging_redirect)
 
     @classmethod
     def set_use_tqdm(cls, v: bool) -> None:
@@ -74,15 +74,15 @@ class ProgressManager:
                         dynamic_ncols=True,
                     )
 
-                cls.progress_wrapper = tqdm_progress_wrapper
-                cls.logging_redirect = logging_redirect_tqdm
+                cls.progress_wrapper = staticmethod(tqdm_progress_wrapper)
+                cls.logging_redirect = staticmethod(logging_redirect_tqdm)
                 return
 
             except ImportError:
                 logger.warning("tqdm not available, cannot monitor progress")
 
-        cls.progress_wrapper = _passthrough_wrapper
-        cls.logging_redirect = _passthrough_logging_redirect
+        cls.progress_wrapper = staticmethod(_passthrough_wrapper)
+        cls.logging_redirect = staticmethod(_passthrough_logging_redirect)
 
 
 def set_use_tqdm(v: bool) -> None:
