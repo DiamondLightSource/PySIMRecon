@@ -129,8 +129,8 @@ Overrides:
 
 ```
 usage: sim-recon [-h] -d SIM_DATA_PATHS [SIM_DATA_PATHS ...] [-c CONFIG_PATH]
-                 [-o OUTPUT_DIRECTORY] [--otf OTFS] [-amc] [--overwrite]
-                 [--no-cleanup] [--keep-split] [--parallel] [-v]
+                 [-o OUTPUT_DIRECTORY] [--otf OTFS] [-amc] [--type {dv,tiff}]
+                 [--overwrite] [--no-cleanup] [--keep-split] [--parallel] [-v]
                  [--no-progress] [--ndirs NDIRS] [--nphases NPHASES]
                  [--nordersout NORDERSOUT] [--angle0 ANGLE0] [--ls LS]
                  [--na NA] [--nimm NIMM] [--wiener WIENER]
@@ -175,6 +175,7 @@ options:
                         If specified, attempt reconstruction of other channels
                         in a multi-channel file if one or more are not
                         configured
+  --type {dv,tiff}      File type of output images
   --overwrite           If specified, files will be overwritten if they
                         already exist (unique filenames will be used
                         otherwise)
