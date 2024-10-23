@@ -41,7 +41,10 @@ def read_mrc_bound_array(file_path: str | PathLike[str]) -> BoundMrc:
         raise PySimReconFileNotFoundError(f"File {file_path} not found")
     logger.debug("Reading %s", file_path)
     bound_array = mrc.mrc.imread(str(file_path))
-    return BoundMrc(bound_array, mrc=bound_array.Mrc)
+    return BoundMrc(
+        bound_array,  # pyright: ignore[reportArgumentType]
+        mrc=bound_array.Mrc,  # pyright: ignore[reportAttributeAccessIssue]
+    )
 
 
 def get_mrc_header_array(
