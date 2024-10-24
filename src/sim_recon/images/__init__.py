@@ -26,6 +26,7 @@ def dv_to_temporary_tiff(
     delete: bool = False,
     xy_shape: tuple[int, int] | None = None,
     crop: float = 0,
+    xy_centre: tuple[float, float] | None = None,
     overwrite: bool = False,
 ) -> Generator[Path, None, None]:
     try:
@@ -33,6 +34,7 @@ def dv_to_temporary_tiff(
             dv_path,
             tiff_path,
             xy_shape=xy_shape,
+            xy_centre=xy_centre,
             crop=crop,
             overwrite=overwrite,
         )
@@ -45,13 +47,19 @@ def dv_to_tiff(
     dv_path: str | PathLike[str],
     tiff_path: str | PathLike[str],
     xy_shape: tuple[int, int] | None = None,
+    xy_centre: tuple[float, float] | None = None,
     crop: float = 0,
     overwrite: bool = False,
 ) -> Path:
     image_data = get_image_data(dv_path)
     for channel in image_data.channels:
         if channel.array is not None:
-            channel.array = apply_crop(channel.array, xy_shape=xy_shape, crop=crop)
+            channel.array = apply_crop(
+                channel.array,
+                shape=None if xy_shape is None else (xy_shape[1], xy_shape[0]),
+                crop=crop,
+                centre=None if xy_centre is None else (xy_centre[1], xy_centre[0]),
+            )
 
             # TIFFs cannot handle complex values
             if np.iscomplexobj(channel.array):

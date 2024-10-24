@@ -63,6 +63,7 @@ def convert_psfs_to_otfs(
     overwrite: bool = False,
     cleanup: bool = True,
     xy_shape: tuple[int, int] | None = None,
+    xy_centre: tuple[float, float] | None = None,
     **kwargs: Any,
 ) -> list[Path]:
     completed_otfs: list[Path] = []
@@ -101,6 +102,7 @@ def convert_psfs_to_otfs(
                     overwrite=overwrite,
                     cleanup=cleanup,
                     xy_shape=xy_shape,
+                    xy_centre=xy_centre,
                     **otf_kwargs,
                 )
             except Exception:
@@ -134,6 +136,7 @@ def psf_to_otf(
     overwrite: bool = False,
     cleanup: bool = True,
     xy_shape: tuple[int, int] | None = None,
+    xy_centre: tuple[float, float] | None = None,
     **kwargs: Any,
 ) -> Path | None:
     otf_path = Path(otf_path)
@@ -152,6 +155,7 @@ def psf_to_otf(
         get_temporary_path(otf_path.parent, f".{psf_path.stem}", suffix=".tiff"),
         delete=cleanup,
         xy_shape=xy_shape,
+        xy_centre=xy_centre,
         overwrite=overwrite,
     ) as tiff_path:
         make_otf_kwargs["psf"] = str(tiff_path)

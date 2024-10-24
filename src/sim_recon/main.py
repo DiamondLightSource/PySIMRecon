@@ -56,6 +56,7 @@ def sim_psf_to_otf(
     overwrite: bool = False,
     cleanup: bool = True,
     xy_shape: tuple[int, int] | None = None,
+    xy_centre: tuple[float, float] | None = None,
     **otf_kwargs: Any,
 ) -> None:
     """
@@ -75,6 +76,8 @@ def sim_psf_to_otf(
         Clean up temporary files after OTF conversion, by default True
     xy_shape : tuple[int, int] | None, optional
         Shape to crop PSFs to before conversion (powers of 2 will make for faster processing), by default None
+    xy_centre : tuple[float, float] | None, optional
+        The 0-indexed coordinates the image will be cropped around if xy_shape is given (the image centre is used if not specified), by default None
     """
     conf = load_configs(config_path)
     convert_psfs_to_otfs(
@@ -84,6 +87,7 @@ def sim_psf_to_otf(
         overwrite=overwrite,
         cleanup=cleanup,
         xy_shape=xy_shape,
+        xy_centre=xy_centre,
         **otf_kwargs,
     )
 
