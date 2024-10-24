@@ -61,6 +61,14 @@ def parse_args(
         type=int,
         help="Takes 2 integers (X Y), specifying the shape to crop PSFs to before converting (powers of 2 are fastest)",
     )
+    parser.add_argument(
+        "--centre",
+        dest="xy_centre",
+        default=None,
+        nargs=2,
+        type=float,
+        help="Takes 2 floats (X Y), specifying the 0-indexed pixel coordinates that PSFs are cropped around (the image centre is used otherwise)",
+    )
 
     add_general_args(parser)
 

@@ -19,6 +19,7 @@ def main() -> None:
         overwrite=namespace.overwrite,
         cleanup=namespace.cleanup,
         xy_shape=namespace.xy_shape,
+        xy_centre=namespace.xy_centre,
         **otf_kwargs,
     )
 
