@@ -50,5 +50,9 @@ class InvalidValueError(PySimReconValueError):
     pass
 
 
+class OutOfBoundsError(InvalidValueError):
+    pass
+
+
 class MissingOtfException(ConfigException):
     pass
