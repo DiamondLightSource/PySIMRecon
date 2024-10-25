@@ -9,12 +9,16 @@ from os.path import abspath
 from shutil import copyfile
 from pathlib import Path
 import numpy as np
-from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
 
 from pycudasirecon.sim_reconstructor import SIMReconstructor, lib  # type: ignore[import-untyped]
 
-from .files.utils import redirect_output_to, create_output_path, combine_text_files
+from .files.utils import (
+    redirect_output_to,
+    create_output_path,
+    combine_text_files,
+    NamedTemporaryDirectory,
+)
 from .files.config import create_wavelength_config
 from .images import get_image_data, dv_to_tiff
 from .images.dv import write_dv, image_resolution_from_mrc, read_mrc_bound_array
@@ -363,6 +367,7 @@ def run_reconstructions(
     conf: ConfigManager,
     *sim_data_paths: str | PathLike[str],
     output_directory: str | PathLike[str] | None,
+    processing_directory: str | PathLike[str] | None = None,
     overwrite: bool = False,
     cleanup: bool = False,
     stitch_channels: bool = True,
@@ -400,22 +405,24 @@ def run_reconstructions(
                     raise PySimReconFileNotFoundError(
                         f"Image file {sim_data_path} does not exist"
                     )
-
-                processing_directory: str | Path
-                with TemporaryDirectory(
-                    prefix="proc_",
-                    suffix=f"_{sim_data_path.stem}",
-                    dir=file_output_directory,
+                with NamedTemporaryDirectory(
+                    name=sim_data_path.stem,
+                    parents=True,
+                    directory=(
+                        file_output_directory
+                        if processing_directory is None
+                        else processing_directory
+                    ),
                     delete=cleanup,
-                ) as processing_directory:
-                    processing_directory = Path(processing_directory)
+                ) as proc_dir:
+                    proc_dir = Path(proc_dir)
 
                     # These processing files are cleaned up by TemporaryDirectory
                     # As single-wavelength files will be used directly and we don't
                     # want to delete real input files!
                     processing_info_dict = _prepare_files(
                         sim_data_path,
-                        processing_directory,
+                        proc_dir,
                         conf=conf,
                         allow_missing_channels=allow_missing_channels,
                         **config_kwargs,
@@ -485,7 +492,7 @@ def run_reconstructions(
                         if not proc_log_files:
                             logger.warning(
                                 "No output log file created as no per-channel log files were found",
-                                processing_directory,
+                                proc_dir,
                             )
                         else:
                             log_path = create_output_path(

@@ -8,10 +8,13 @@ from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
 from contextlib import contextmanager
+from tempfile import TemporaryDirectory
+import weakref as _weakref
 from typing import TYPE_CHECKING
 
 from ..exceptions import (
     PySimReconFileExistsError,
+    PySimReconFileNotFoundError,
     PySimReconIOError,
     PySimReconOSError,
     PySimReconValueError,
@@ -184,3 +187,51 @@ def combine_text_files(
             f.write(header + separator)
         f.write(separator.join(contents_generator))
         os.fsync(f.fileno())
+
+
+class NamedTemporaryDirectory(TemporaryDirectory):
+
+    def __init__(
+        self,
+        directory: str | PathLike[str],
+        name: str | None = None,
+        parents: bool = True,
+        allow_fallback: bool = True,
+        ignore_cleanup_errors: bool = False,
+        *,
+        delete: bool = True,
+    ) -> None:
+        self.name: str
+        if name is not None:
+            path = Path(directory) / name
+            if not path.parent.is_dir():
+                if not parents:
+                    raise PySimReconFileNotFoundError(
+                        f"Parent directory {path.parent} does not exist"
+                    )
+                path.parent.mkdir(parents=True)
+            if not path.exists():
+                path.mkdir(exist_ok=False, parents=False)
+                self.name = str(path)
+                self._ignore_cleanup_errors = ignore_cleanup_errors
+                self._delete = delete
+                self._finalizer = _weakref.finalize(
+                    self,
+                    self._cleanup,  # type: ignore
+                    self.name,
+                    warn_message="Implicitly cleaning up {!r}".format(self),
+                    ignore_errors=self._ignore_cleanup_errors,
+                    delete=self._delete,
+                )
+                return
+            elif not allow_fallback:
+                raise PySimReconFileExistsError(
+                    f"Directory cannot be created as '{path}' exists"
+                )
+        # Used if name is not defined or if the path already exists and allow_fallback is True
+        super().__init__(
+            prefix=name,
+            dir=directory,
+            ignore_cleanup_errors=ignore_cleanup_errors,
+            delete=delete,
+        )
