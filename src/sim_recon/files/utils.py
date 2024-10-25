@@ -235,3 +235,25 @@ class NamedTemporaryDirectory(TemporaryDirectory):
             ignore_cleanup_errors=ignore_cleanup_errors,
             delete=delete,
         )
+
+
+@contextmanager
+def delete_directory_if_empty(
+    path: str | PathLike[str] | None,
+) -> Generator[None, None, None]:
+    if path is None:
+        yield None
+        return
+    try_cleanup = not os.path.isdir(path)
+    try:
+        yield None
+    finally:
+        if try_cleanup and os.path.isdir(path):
+            with os.scandir(path) as it:
+                directory_empty = not any(it)  # False if any entries found
+            if directory_empty:
+                logger.info(
+                    "Removing empty directory '%s'",
+                    path,
+                )
+                os.rmdir(path)

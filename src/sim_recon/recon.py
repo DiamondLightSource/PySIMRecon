@@ -17,6 +17,7 @@ from .files.utils import (
     redirect_output_to,
     create_output_path,
     combine_text_files,
+    delete_directory_if_empty,
     NamedTemporaryDirectory,
 )
 from .files.config import create_wavelength_config
@@ -389,6 +390,7 @@ def run_reconstructions(
             maxtasksperchild=1,
         ) as pool,
         logging_redirect(),
+        delete_directory_if_empty(processing_directory),
     ):
         for sim_data_path in progress_wrapper(
             sim_data_paths, desc="SIM data files", unit="file"
@@ -417,9 +419,8 @@ def run_reconstructions(
                 ) as proc_dir:
                     proc_dir = Path(proc_dir)
 
-                    # These processing files are cleaned up by TemporaryDirectory
-                    # As single-wavelength files will be used directly and we don't
-                    # want to delete real input files!
+                    # These processing files are cleaned up by
+                    # NamedTemporaryDirectory if cleanup == True
                     processing_info_dict = _prepare_files(
                         sim_data_path,
                         proc_dir,
@@ -516,20 +517,6 @@ def run_reconstructions(
                                 "Reconstruction log file created at '%s'", log_path
                             )
 
-                    if cleanup:
-                        for processing_info in processing_info_dict.values():
-                            try:
-                                if processing_info.output_path.is_file():
-                                    logger.debug(
-                                        "Removing %s", processing_info.output_path
-                                    )
-                                    os.remove(processing_info.output_path)
-                            except Exception:
-                                logger.error(
-                                    "Failed to remove %s",
-                                    processing_info.output_path,
-                                    exc_info=True,
-                                )
             except ConfigException as e:
                 logger.error("Unable to process %s: %s", sim_data_path, e)
             except PySimReconException as e:
