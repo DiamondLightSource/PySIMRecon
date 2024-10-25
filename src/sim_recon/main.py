@@ -96,6 +96,7 @@ def sim_reconstruct(
     *sim_data_paths: str | PathLike[str],
     config_path: str | PathLike[str] | None = None,
     output_directory: str | PathLike[str] | None = None,
+    processing_directory: str | PathLike[str] | None = None,
     otf_overrides: dict[int, Path] | None = None,
     overwrite: bool = False,
     cleanup: bool = True,
@@ -116,6 +117,8 @@ def sim_reconstruct(
         Path of the top level config file, by default None
     output_directory : str | PathLike[str] | None, optional
         Directory to save reconstructions in (reconstructions will be saved with the data files if not specified), by default None
+    processing_directory : str | PathLike[str] | None, optional
+        The directory in which the temporary files will be stored for processing (otherwise the output directory will be used), by default None
     otf_overrides : dict[int, Path] | None, optional
         A dictionary with emission wavelengths in nm as keys and paths to OTF files as values (these override configured OTFs), by default None
     overwrite : bool, optional
@@ -137,6 +140,7 @@ def sim_reconstruct(
         conf,
         *sim_data_paths,
         output_directory=output_directory,
+        processing_directory=processing_directory,
         overwrite=overwrite,
         cleanup=cleanup,
         stitch_channels=stitch_channels,
