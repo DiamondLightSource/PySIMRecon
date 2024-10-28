@@ -69,10 +69,11 @@ The defaults config and per-channel configs expect the same form, with the heade
 ```
 usage: sim-otf [-h] -p PSF_PATHS [PSF_PATHS ...] [-c CONFIG_PATH]
                [-o OUTPUT_DIRECTORY] [--overwrite] [--no-cleanup]
-               [--shape XY_SHAPE XY_SHAPE] [-v] [--no-progress]
-               [--nphases NPHASES] [--ls LS] [--na NA] [--nimm NIMM]
-               [--background BACKGROUND] [--beaddiam BEADDIAM] [--angle ANGLE]
-               [--nocompen] [--5bands] [--fixorigin FIXORIGIN FIXORIGIN]
+               [--shape XY_SHAPE XY_SHAPE] [--centre XY_CENTRE XY_CENTRE] [-v]
+               [--no-progress] [--nphases NPHASES] [--ls LS] [--na NA]
+               [--nimm NIMM] [--background BACKGROUND] [--beaddiam BEADDIAM]
+               [--angle ANGLE] [--nocompen] [--5bands]
+               [--fixorigin FIXORIGIN FIXORIGIN]
                [--leavekz LEAVEKZ LEAVEKZ LEAVEKZ] [--I2M I2M]
 
 SIM PSFs to OTFs
@@ -97,6 +98,10 @@ options:
   --shape XY_SHAPE XY_SHAPE
                         Takes 2 integers (X Y), specifying the shape to crop
                         PSFs to before converting (powers of 2 are fastest)
+  --centre XY_CENTRE XY_CENTRE
+                        Takes 2 floats (X Y), specifying the 0-indexed pixel
+                        coordinates that PSFs are cropped around (the image
+                        centre is used otherwise)
   -v, --verbose         Show more logging
   --no-progress         turn off progress bars (only has an effect if tqdm is
                         installed)
