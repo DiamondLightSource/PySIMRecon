@@ -56,7 +56,7 @@ from .exceptions import (
 if TYPE_CHECKING:
     from typing import Any, Literal, TypeAlias
     from os import PathLike
-    from multiprocessing.pool import AsyncResult
+    from multiprocessing.pool import AsyncResult, Pool
     from numpy.typing import NDArray
 
     OutputFileTypes: TypeAlias = Literal["dv", "tiff"]
@@ -364,37 +364,39 @@ def _get_incomplete_channels(
     return incomplete_wavelengths
 
 
-def run_reconstructions(
+def run_single_reconstruction(
     conf: ConfigManager,
-    *sim_data_paths: str | PathLike[str],
+    sim_data_path: str | PathLike[str],
+    *,
     output_directory: str | PathLike[str] | None,
     processing_directory: str | PathLike[str] | None = None,
     overwrite: bool = False,
     cleanup: bool = False,
     stitch_channels: bool = True,
-    parallel_process: bool = False,
     allow_missing_channels: bool = False,
     output_file_type: OutputFileTypes = "dv",
+    multiprocessing_pool: Pool | None = None,
+    parallel_process: bool = False,
     **config_kwargs: Any,
 ) -> None:
 
-    logging_redirect = get_logging_redirect()
-    progress_wrapper = get_progress_wrapper()
-
-    # `maxtasksperchild=1` is necessary to ensure the child process is cleaned
-    # up between tasks, as the cudasirecon process doesn't fully release memory
-    # afterwards
-    with (
-        multiprocessing.Pool(
-            processes=1 + int(parallel_process),  # 2 processes max
+    if multiprocessing_pool is None:
+        # `maxtasksperchild=1` is necessary to ensure the child process is cleaned
+        # up between tasks, as the cudasirecon process doesn't fully release memory
+        # afterwards
+        pool = multiprocessing.Pool(
+            processes=2 if parallel_process else 1,  # 2 processes max
             maxtasksperchild=1,
-        ) as pool,
-        logging_redirect(),
-        delete_directory_if_empty(processing_directory),
-    ):
-        for sim_data_path in progress_wrapper(
-            sim_data_paths, desc="SIM data files", unit="file"
-        ):
+        )
+    else:
+        pool = multiprocessing_pool
+
+    try:
+
+        logging_redirect = get_logging_redirect()
+        progress_wrapper = get_progress_wrapper()
+
+        with logging_redirect(), delete_directory_if_empty(processing_directory):
             output_paths: tuple[Path, ...] | None = None
             try:
                 sim_data_path = Path(sim_data_path)
@@ -407,14 +409,23 @@ def run_reconstructions(
                     raise PySimReconFileNotFoundError(
                         f"Image file {sim_data_path} does not exist"
                     )
+
+                named_temp_dir_kwargs: dict[str, Any]
+                if processing_directory is None:
+                    named_temp_dir_kwargs = {
+                        "name": sim_data_path.stem,
+                        "parents": False,
+                        "directory": file_output_directory,
+                    }
+                else:
+                    processing_directory = Path(processing_directory)
+                    named_temp_dir_kwargs = {
+                        "name": processing_directory.name,
+                        "parents": True,
+                        "directory": processing_directory.parent,
+                    }
                 with NamedTemporaryDirectory(
-                    name=sim_data_path.stem,
-                    parents=True,
-                    directory=(
-                        file_output_directory
-                        if processing_directory is None
-                        else processing_directory
-                    ),
+                    **named_temp_dir_kwargs,
                     delete=cleanup,
                 ) as proc_dir:
                     proc_dir = Path(proc_dir)
@@ -525,6 +536,66 @@ def run_reconstructions(
                 logger.error(
                     "Unexpected error occurred for %s", sim_data_path, exc_info=True
                 )
+    finally:
+        if multiprocessing_pool is None:
+            # Only close pools that were created by this function
+            pool.close()
+
+
+def run_reconstructions(
+    conf: ConfigManager,
+    *sim_data_paths: str | PathLike[str],
+    output_directory: str | PathLike[str] | None,
+    processing_directory: str | PathLike[str] | None = None,
+    overwrite: bool = False,
+    cleanup: bool = False,
+    stitch_channels: bool = True,
+    allow_missing_channels: bool = False,
+    output_file_type: OutputFileTypes = "dv",
+    parallel_process: bool = False,
+    **config_kwargs: Any,
+) -> None:
+
+    logging_redirect = get_logging_redirect()
+    progress_wrapper = get_progress_wrapper()
+
+    # `maxtasksperchild=1` is necessary to ensure the child process is cleaned
+    # up between tasks, as the cudasirecon process doesn't fully release memory
+    # afterwards
+    with (
+        multiprocessing.Pool(
+            processes=2 if parallel_process else 1,  # 2 processes max
+            maxtasksperchild=1,
+        ) as pool,
+        logging_redirect(),
+        delete_directory_if_empty(processing_directory),
+    ):
+        for sim_data_path in progress_wrapper(
+            sim_data_paths, desc="SIM data files", unit="file"
+        ):
+            sim_data_path = Path(sim_data_path)
+
+            if processing_directory is None:
+                proc_dir = None
+            else:
+                # For multiple reconstructions sharing the same processing directory
+                # Use subdirectories from the data path stem
+                proc_dir = Path(processing_directory) / sim_data_path.stem
+
+            run_single_reconstruction(
+                conf,
+                sim_data_path,
+                output_directory=output_directory,
+                processing_directory=proc_dir,
+                overwrite=overwrite,
+                cleanup=cleanup,
+                stitch_channels=stitch_channels,
+                allow_missing_channels=allow_missing_channels,
+                output_file_type=output_file_type,
+                multiprocessing_pool=pool,
+                parallel_process=parallel_process,
+                **config_kwargs,
+            )
 
 
 def _prepare_config_kwargs(
