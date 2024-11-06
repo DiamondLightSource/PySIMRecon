@@ -139,29 +139,32 @@ def redirect_output_to(file_path: str | PathLike[str]) -> Generator[None, None, 
     saved_stdout_fd = os.dup(stdout_fd)
     saved_stderr_fd = os.dup(stderr_fd)
     saved_stdout = sys.stdout
-    saved_sterr = sys.stderr
-    f = None
-    f_fd = None
+    saved_stderr = sys.stderr
     try:
-        f = file_path.open("w+", buffering=1)
-        f_fd = f.fileno()
-        os.dup2(f_fd, stdout_fd)
-        os.dup2(f_fd, stderr_fd)
-        sys.stdout = f
-        sys.stderr = f
-        yield
+        with file_path.open("w+", buffering=1) as f:
+            f_fd = f.fileno()
+            try:
+
+                os.dup2(f_fd, stdout_fd)
+                os.dup2(f_fd, stderr_fd)
+                sys.stdout = f
+                sys.stderr = f
+                yield
+            except Exception:
+                logger.error(
+                    "Failed to redirect output to log at %s", file_path, exc_info=True
+                )
+            finally:
+                sys.stdout.flush()
+                sys.stderr.flush()
+                os.fsync(f_fd)
+                # Reset stdout and stderr file descriptors
+                os.dup2(saved_stdout_fd, stdout_fd)
+                os.dup2(saved_stderr_fd, stderr_fd)
+                sys.stdout = saved_stdout
+                sys.stderr = saved_stderr
     except Exception:
-        logger.error("Failed to write output to log at %s", file_path, exc_info=True)
-    finally:
-        # Reset stdout and stderr file descriptors
-        os.dup2(saved_stdout_fd, stdout_fd)
-        os.dup2(saved_stderr_fd, stderr_fd)
-        sys.stdout = saved_stdout
-        sys.stderr = saved_sterr
-        if f_fd is not None:
-            os.fsync(f_fd)
-        if f is not None:
-            f.close()
+        logger.error("Failed to create log file %s", file_path)
 
 
 def combine_text_files(
