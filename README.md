@@ -134,12 +134,13 @@ Overrides:
 
 ```
 usage: sim-recon [-h] -d SIM_DATA_PATHS [SIM_DATA_PATHS ...] [-c CONFIG_PATH]
-                 [-o OUTPUT_DIRECTORY] [--otf OTFS] [-amc] [--type {dv,tiff}]
-                 [--overwrite] [--no-cleanup] [--keep-split] [--parallel] [-v]
-                 [--no-progress] [--ndirs NDIRS] [--nphases NPHASES]
-                 [--nordersout NORDERSOUT] [--angle0 ANGLE0] [--ls LS]
-                 [--na NA] [--nimm NIMM] [--wiener WIENER]
-                 [--otfcutoff OTFCUTOFF] [--zoomfact ZOOMFACT] [--zzoom ZZOOM]
+                 [-o OUTPUT_DIRECTORY] [-p PROCESSING_DIRECTORY] [--otf OTFS]
+                 [-amc] [--type {dv,tiff}] [--overwrite] [--no-cleanup]
+                 [--keep-split] [--parallel] [-v] [--no-progress]
+                 [--ndirs NDIRS] [--nphases NPHASES] [--nordersout NORDERSOUT]
+                 [--angle0 ANGLE0] [--ls LS] [--na NA] [--nimm NIMM]
+                 [--wiener WIENER] [--otfcutoff OTFCUTOFF]
+                 [--zoomfact ZOOMFACT] [--zzoom ZZOOM]
                  [--background BACKGROUND] [--usecorr USECORR]
                  [--forcemodamp FORCEMODAMP [FORCEMODAMP ...]]
                  [--k0angles K0ANGLES K0ANGLES K0ANGLES] [--otfRA]
@@ -171,6 +172,10 @@ options:
                         reconstructed files will be saved (otherwise each
                         reconstruction will be saved in the same directory as
                         its SIM data file)
+  -p PROCESSING_DIRECTORY, --processing-directory PROCESSING_DIRECTORY
+                        If specified, the directory in which the temporary
+                        files will be stored for processing (otherwise the
+                        output directory will be used)
   --otf OTFS            The OTF file for a channel can be specified, which
                         should be given as <emission wavelength in nm>:<the
                         path to the OTF file> e.g. '--otf
