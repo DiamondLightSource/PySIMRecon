@@ -16,6 +16,7 @@ def main() -> None:
         *namespace.sim_data_paths,
         config_path=namespace.config_path,
         output_directory=namespace.output_directory,
+        processing_directory=namespace.processing_directory,
         otf_overrides={} if namespace.otfs is None else dict(namespace.otfs),
         overwrite=namespace.overwrite,
         cleanup=namespace.cleanup,

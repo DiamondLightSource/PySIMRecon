@@ -9,12 +9,17 @@ from os.path import abspath
 from shutil import copyfile
 from pathlib import Path
 import numpy as np
-from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
 
 from pycudasirecon.sim_reconstructor import SIMReconstructor, lib  # type: ignore[import-untyped]
 
-from .files.utils import redirect_output_to, create_output_path, combine_text_files
+from .files.utils import (
+    redirect_output_to,
+    create_output_path,
+    combine_text_files,
+    delete_directory_if_empty,
+    NamedTemporaryDirectory,
+)
 from .files.config import create_wavelength_config
 from .images import get_image_data, dv_to_tiff
 from .images.dv import write_dv, image_resolution_from_mrc, read_mrc_bound_array
@@ -363,6 +368,7 @@ def run_reconstructions(
     conf: ConfigManager,
     *sim_data_paths: str | PathLike[str],
     output_directory: str | PathLike[str] | None,
+    processing_directory: str | PathLike[str] | None = None,
     overwrite: bool = False,
     cleanup: bool = False,
     stitch_channels: bool = True,
@@ -384,6 +390,7 @@ def run_reconstructions(
             maxtasksperchild=1,
         ) as pool,
         logging_redirect(),
+        delete_directory_if_empty(processing_directory),
     ):
         for sim_data_path in progress_wrapper(
             sim_data_paths, desc="SIM data files", unit="file"
@@ -400,22 +407,23 @@ def run_reconstructions(
                     raise PySimReconFileNotFoundError(
                         f"Image file {sim_data_path} does not exist"
                     )
-
-                processing_directory: str | Path
-                with TemporaryDirectory(
-                    prefix="proc_",
-                    suffix=f"_{sim_data_path.stem}",
-                    dir=file_output_directory,
+                with NamedTemporaryDirectory(
+                    name=sim_data_path.stem,
+                    parents=True,
+                    directory=(
+                        file_output_directory
+                        if processing_directory is None
+                        else processing_directory
+                    ),
                     delete=cleanup,
-                ) as processing_directory:
-                    processing_directory = Path(processing_directory)
+                ) as proc_dir:
+                    proc_dir = Path(proc_dir)
 
-                    # These processing files are cleaned up by TemporaryDirectory
-                    # As single-wavelength files will be used directly and we don't
-                    # want to delete real input files!
+                    # These processing files are cleaned up by
+                    # NamedTemporaryDirectory if cleanup == True
                     processing_info_dict = _prepare_files(
                         sim_data_path,
-                        processing_directory,
+                        proc_dir,
                         conf=conf,
                         allow_missing_channels=allow_missing_channels,
                         **config_kwargs,
@@ -485,7 +493,7 @@ def run_reconstructions(
                         if not proc_log_files:
                             logger.warning(
                                 "No output log file created as no per-channel log files were found",
-                                processing_directory,
+                                proc_dir,
                             )
                         else:
                             log_path = create_output_path(
@@ -509,20 +517,6 @@ def run_reconstructions(
                                 "Reconstruction log file created at '%s'", log_path
                             )
 
-                    if cleanup:
-                        for processing_info in processing_info_dict.values():
-                            try:
-                                if processing_info.output_path.is_file():
-                                    logger.debug(
-                                        "Removing %s", processing_info.output_path
-                                    )
-                                    os.remove(processing_info.output_path)
-                            except Exception:
-                                logger.error(
-                                    "Failed to remove %s",
-                                    processing_info.output_path,
-                                    exc_info=True,
-                                )
             except ConfigException as e:
                 logger.error("Unable to process %s: %s", sim_data_path, e)
             except PySimReconException as e:
