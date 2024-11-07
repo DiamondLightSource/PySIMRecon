@@ -93,6 +93,82 @@ def sim_psf_to_otf(
     )
 
 
+def sim_reconstruct(
+    *sim_data_paths: str | PathLike[str],
+    config_path: str | PathLike[str] | None = None,
+    output_directory: str | PathLike[str] | None = None,
+    processing_directory: str | PathLike[str] | None = None,
+    otf_overrides: dict[int, Path] | None = None,
+    overwrite: bool = False,
+    cleanup: bool = True,
+    stitch_channels: bool = True,
+    allow_missing_channels: bool = False,
+    output_file_type: OutputFileTypes = "dv",
+    multiprocessing_pool: Pool | None = None,
+    parallel_process: bool = False,
+    **recon_kwargs: Any,
+) -> None:
+    """
+    Top level function for reconstructing SIM data.
+
+    The handling of `processing_directory` depends on the number of `sim_data_paths`:
+    - For `len(sim_data_paths) == 1`, `sim_reconstruct_single` is used.
+    - For `len(sim_data_paths) > 1`, `sim_reconstruct_multiple` is used.
+
+    For consistent behaviour, one of those functions can be used instead.
+
+    Parameters
+    ----------
+    *sim_data_paths : str | PathLike[str]
+        Paths to SIM data files (DV expected)
+    config_path : str | PathLike[str] | None, optional
+        Path of the top level config file, by default None
+    output_directory : str | PathLike[str] | None, optional
+        Directory to save reconstructions in (reconstructions will be saved with the data files if not specified), by default None
+    processing_directory : str | PathLike[str] | None, optional
+        The directory in which subdirectories of temporary files will be stored for processing (otherwise the output directory will be used), by default None
+    otf_overrides : dict[int, Path] | None, optional
+        A dictionary with emission wavelengths in nm as keys and paths to OTF files as values (these override configured OTFs), by default None
+    overwrite : bool, optional
+        Overwrite files if they already exist, by default False
+    cleanup : bool, optional
+        Clean up temporary directory and files after reconstruction, by default True
+    stitch_channels : bool, optional
+        Stitch channels back together after processing (otherwise output will be a separate DV per channel), by default True
+    allow_missing_channels: bool, optional
+        Attempt reconstruction of other channels in a multi-channel file if one or more are not configured, by default False
+    output_file_type: Literal["dv", "tiff"], optional
+        File type that output images will be saved as, by default "dv"
+    parallel_process : bool, optional
+        Run reconstructions in 2 processes concurrently, by default False
+    """
+    kwargs: dict[str, Any] = {
+        "config_path": config_path,
+        "output_directory": output_directory,
+        "processing_directory": processing_directory,
+        "otf_overrides": otf_overrides,
+        "overwrite": overwrite,
+        "cleanup": cleanup,
+        "stitch_channels": stitch_channels,
+        "allow_missing_channels": allow_missing_channels,
+        "output_file_type": output_file_type,
+        "multiprocessing_pool": multiprocessing_pool,
+        "parallel_process": parallel_process,
+    }
+    if len(sim_data_paths) == 1:
+        sim_reconstruct_single(
+            sim_data_paths[0],
+            **kwargs,
+            **recon_kwargs,
+        )
+    else:
+        sim_reconstruct_multiple(
+            *sim_data_paths,
+            **kwargs,
+            **recon_kwargs,
+        )
+
+
 def sim_reconstruct_multiple(
     *sim_data_paths: str | PathLike[str],
     config_path: str | PathLike[str] | None = None,
