@@ -10,7 +10,7 @@ from .files.config import (
 )
 from .settings import ConfigManager
 from .otfs import convert_psfs_to_otfs
-from .recon import run_reconstructions, run_single_reconstruction
+from .recon import reconstruct_multiple, reconstruct_single
 
 
 if TYPE_CHECKING:
@@ -137,7 +137,7 @@ def sim_reconstruct(
     """
     conf = load_configs(config_path, otf_overrides=otf_overrides)
     logger.info("Starting reconstructions...")
-    run_reconstructions(
+    reconstruct_multiple(
         conf,
         *sim_data_paths,
         output_directory=output_directory,
@@ -199,7 +199,7 @@ def sim_reconstruct_single(
     """
     conf = load_configs(config_path, otf_overrides=otf_overrides)
     logger.info("Starting reconstruction of %s", sim_data_path)
-    run_single_reconstruction(
+    reconstruct_single(
         conf,
         sim_data_path,
         output_directory=output_directory,

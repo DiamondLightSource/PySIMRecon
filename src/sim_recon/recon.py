@@ -374,6 +374,7 @@ def create_process_pool(parallel_process: bool = False) -> Pool:
     )
 
 
+def reconstruct_single(
     conf: ConfigManager,
     sim_data_path: str | PathLike[str],
     *,
@@ -545,7 +546,7 @@ def create_process_pool(parallel_process: bool = False) -> Pool:
             pool.close()
 
 
-def run_reconstructions(
+def reconstruct_multiple(
     conf: ConfigManager,
     *sim_data_paths: str | PathLike[str],
     output_directory: str | PathLike[str] | None,
