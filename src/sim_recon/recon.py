@@ -177,11 +177,6 @@ def reconstruct_from_processing_info(processing_info: ProcessingInfo) -> Process
         rec_array = cudasirecon_reconstruct(
             data, processing_info.config_path, zoomfact, zzoom, ndirs, nphases
         )
-        # rec_array = subprocess_recon(
-        #     processing_info.image_path,
-        #     processing_info.otf_path,
-        #     processing_info.config_path,
-        # )
 
     if rec_array is None:
         raise ReconstructionError(
