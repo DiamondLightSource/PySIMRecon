@@ -2,7 +2,6 @@ from __future__ import annotations
 import logging
 import subprocess
 import multiprocessing
-import os
 import traceback
 from functools import partial
 from os.path import abspath
