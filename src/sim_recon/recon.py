@@ -364,7 +364,16 @@ def _get_incomplete_channels(
     return incomplete_wavelengths
 
 
-def run_single_reconstruction(
+def create_process_pool(parallel_process: bool = False) -> Pool:
+    # `maxtasksperchild=1` is necessary to ensure the child process is cleaned
+    # up between tasks, as the cudasirecon process doesn't fully release memory
+    # afterwards
+    return multiprocessing.Pool(
+        processes=2 if parallel_process else 1,  # 2 processes max
+        maxtasksperchild=1,
+    )
+
+
     conf: ConfigManager,
     sim_data_path: str | PathLike[str],
     *,
@@ -381,13 +390,7 @@ def run_single_reconstruction(
 ) -> None:
 
     if multiprocessing_pool is None:
-        # `maxtasksperchild=1` is necessary to ensure the child process is cleaned
-        # up between tasks, as the cudasirecon process doesn't fully release memory
-        # afterwards
-        pool = multiprocessing.Pool(
-            processes=2 if parallel_process else 1,  # 2 processes max
-            maxtasksperchild=1,
-        )
+        pool = create_process_pool(parallel_process)
     else:
         pool = multiprocessing_pool
 
@@ -552,50 +555,54 @@ def run_reconstructions(
     stitch_channels: bool = True,
     allow_missing_channels: bool = False,
     output_file_type: OutputFileTypes = "dv",
+    multiprocessing_pool: Pool | None = None,
     parallel_process: bool = False,
     **config_kwargs: Any,
 ) -> None:
 
-    logging_redirect = get_logging_redirect()
-    progress_wrapper = get_progress_wrapper()
+    if multiprocessing_pool is None:
+        pool = create_process_pool(parallel_process)
+    else:
+        pool = multiprocessing_pool
 
-    # `maxtasksperchild=1` is necessary to ensure the child process is cleaned
-    # up between tasks, as the cudasirecon process doesn't fully release memory
-    # afterwards
-    with (
-        multiprocessing.Pool(
-            processes=2 if parallel_process else 1,  # 2 processes max
-            maxtasksperchild=1,
-        ) as pool,
-        logging_redirect(),
-        delete_directory_if_empty(processing_directory),
-    ):
-        for sim_data_path in progress_wrapper(
-            sim_data_paths, desc="SIM data files", unit="file"
+    try:
+        logging_redirect = get_logging_redirect()
+        progress_wrapper = get_progress_wrapper()
+
+        with (
+            logging_redirect(),
+            delete_directory_if_empty(processing_directory),
         ):
-            sim_data_path = Path(sim_data_path)
+            for sim_data_path in progress_wrapper(
+                sim_data_paths, desc="SIM data files", unit="file"
+            ):
+                sim_data_path = Path(sim_data_path)
 
-            if processing_directory is None:
-                proc_dir = None
-            else:
-                # For multiple reconstructions sharing the same processing directory
-                # Use subdirectories from the data path stem
-                proc_dir = Path(processing_directory) / sim_data_path.stem
+                if processing_directory is None:
+                    proc_dir = None
+                else:
+                    # For multiple reconstructions sharing the same processing directory
+                    # Use subdirectories from the data path stem
+                    proc_dir = Path(processing_directory) / sim_data_path.stem
 
-            run_single_reconstruction(
-                conf,
-                sim_data_path,
-                output_directory=output_directory,
-                processing_directory=proc_dir,
-                overwrite=overwrite,
-                cleanup=cleanup,
-                stitch_channels=stitch_channels,
-                allow_missing_channels=allow_missing_channels,
-                output_file_type=output_file_type,
-                multiprocessing_pool=pool,
-                parallel_process=parallel_process,
-                **config_kwargs,
-            )
+                reconstruct_single(
+                    conf,
+                    sim_data_path,
+                    output_directory=output_directory,
+                    processing_directory=proc_dir,
+                    overwrite=overwrite,
+                    cleanup=cleanup,
+                    stitch_channels=stitch_channels,
+                    allow_missing_channels=allow_missing_channels,
+                    output_file_type=output_file_type,
+                    multiprocessing_pool=pool,
+                    parallel_process=parallel_process,
+                    **config_kwargs,
+                )
+    finally:
+        if multiprocessing_pool is None:
+            # Only close pools that were created by this function
+            pool.close()
 
 
 def _prepare_config_kwargs(
