@@ -79,7 +79,7 @@ def _recon_get_result(
     return _result
 
 
-def subprocess_recon(
+def subprocess_cudasirecon_reconstruct(
     sim_path: Path, otf_path: Path, config_path: Path
 ) -> NDArray[np.float32]:
     """Useful to bypass the pycudasirecon library, if necessary"""
@@ -104,7 +104,7 @@ def subprocess_recon(
     raise ReconstructionError(f"No reconstruction file found at {expected_path}")
 
 
-def reconstruct(
+def cudasirecon_reconstruct(
     array: NDArray[Any],
     config_path: str | PathLike[str],
     zoomfact: float,
@@ -174,7 +174,7 @@ def reconstruct_from_processing_info(processing_info: ProcessingInfo) -> Process
                 )
             )
         )
-        rec_array = reconstruct(
+        rec_array = cudasirecon_reconstruct(
             data, processing_info.config_path, zoomfact, zzoom, ndirs, nphases
         )
         # rec_array = subprocess_recon(
