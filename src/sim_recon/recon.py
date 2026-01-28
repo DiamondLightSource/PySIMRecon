@@ -135,7 +135,7 @@ def cudasirecon_reconstruct(
         )
     except Exception as e:
         logger.error(
-            "Unexpected error during reconstruction",
+            "Unexpected error during reconstruction for %s",
             config_path,
             exc_info=True,
         )
@@ -501,7 +501,7 @@ def reconstruct_single(
 
                         if not proc_log_files:
                             logger.warning(
-                                "No output log file created as no per-channel log files were found",
+                                "No output log file created as no per-channel log files were found in %s",
                                 proc_dir,
                             )
                         else:
